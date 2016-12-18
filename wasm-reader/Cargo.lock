@@ -1,0 +1,11 @@
+[root]
+name = "wasm-reader"
+version = "0.1.0"
+dependencies = [
+ "wasm-leb128 0.1.0",
+]
+
+[[package]]
+name = "wasm-leb128"
+version = "0.1.0"
+
