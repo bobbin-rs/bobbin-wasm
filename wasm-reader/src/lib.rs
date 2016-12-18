@@ -31,9 +31,6 @@ pub struct SectionReader<'a> {
 
 impl<'a> SectionReader<'a> {
     pub fn new(buf: &'a [u8]) -> Self {
-        let (id, n) = read_u7(self.buf, 0).unwrap();
-        let (payload_len, n) = read_u32(self.buf, n).unwrap();        
-
         SectionReader { buf: buf }
     }   
     pub fn id(&self) -> u8 {
