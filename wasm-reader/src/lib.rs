@@ -5,13 +5,16 @@ extern crate wasm_leb128;
 extern crate byteorder;
 
 pub mod buf;
+pub mod section;
 
 use buf::Buf;
+use section::*;
 
 #[derive(Debug)]
 pub enum Error {
     BufferTooShort,
     Leb128Error(wasm_leb128::Error),
+    UnknownSectionCode,
     Unspecified,
 }
 
@@ -24,14 +27,6 @@ impl From<wasm_leb128::Error> for Error {
 pub struct ModuleHeader {
     pub magic: u32,
     pub version: u32,
-}
-
-pub struct Section<'a> {
-    pub id: u8,
-    pub payload_len: u32,
-    pub name_len: Option<u32>,
-    pub name: Option<&'a [u8]>,
-    pub payload_data: &'a [u8],
 }
 
 pub struct Reader<'a> {
@@ -59,18 +54,23 @@ impl<'a> Reader<'a> {
 
     pub fn read_section(&mut self) -> Result<Section, Error> {
         let id = try!(self.buf.read_var_u7());
-        let mut payload_len = try!(self.buf.read_var_u32());
-        let (name_len, name) = if id == 0 {
-            let pos = self.buf.pos();        
-            let name_len = try!(self.buf.read_var_u32());
-            let name = try!(self.buf.slice(name_len as usize));
-            payload_len -= (self.buf.pos() - pos) as u32;
-            (Some(name_len), Some(name))
-        } else {
-            (None, None)
-        };        
+        let payload_len = try!(self.buf.read_var_u32());
         let payload_data = try!(self.buf.slice(payload_len as usize));
-        Ok(Section { id, payload_len, name_len, name, payload_data })
+        match id {
+            0 => Ok(Section::Name(NameSection(payload_data))),
+            1 => Ok(Section::Type(TypeSection(payload_data))),
+            2 => Ok(Section::Import(ImportSection(payload_data))),
+            3 => Ok(Section::Function(FunctionSection(payload_data))),
+            4 => Ok(Section::Table(TableSection(payload_data))),
+            5 => Ok(Section::Memory(MemorySection(payload_data))),
+            6 => Ok(Section::Global(GlobalSection(payload_data))),
+            7 => Ok(Section::Export(ExportSection(payload_data))),
+            8 => Ok(Section::Start(StartSection(payload_data))),
+            9 => Ok(Section::Element(ElementSection(payload_data))),
+            10 => Ok(Section::Code(CodeSection(payload_data))),
+            11 => Ok(Section::Data(DataSection(payload_data))),
+            _ => Err(Error::UnknownSectionCode),
+        }
     }
 }
 
@@ -92,37 +92,27 @@ mod tests {
         {
             assert_eq!(r.pos(), 8);
             let s = r.read_section().unwrap();
-            assert_eq!(s.id, 1);
-            assert_eq!(s.payload_len, 7);
-            assert_eq!(s.payload_data.len(), 7);
+            assert_eq!(s.id(), 1);
         }
         {
             assert_eq!(r.pos(), 0x11);
             let s = r.read_section().unwrap();
-            assert_eq!(s.id, 3);
-            assert_eq!(s.payload_len, 2);
-            assert_eq!(s.payload_data.len(), 2);
+            assert_eq!(s.id(), 3);
         }
         {
             assert_eq!(r.pos(), 0x15);
             let s = r.read_section().unwrap();
-            assert_eq!(s.id, 5);
-            assert_eq!(s.payload_len, 3);
-            assert_eq!(s.payload_data.len(), 3);
+            assert_eq!(s.id(), 5);
         }
         {
             assert_eq!(r.pos(), 0x1a);
             let s = r.read_section().unwrap();
-            assert_eq!(s.id, 7);
-            assert_eq!(s.payload_len, 5);
-            assert_eq!(s.payload_data.len(), 5);
+            assert_eq!(s.id(), 7);
         }
         {
             assert_eq!(r.pos(), 0x21);
             let s = r.read_section().unwrap();
-            assert_eq!(s.id, 10);
-            assert_eq!(s.payload_len, 0x16);
-            assert_eq!(s.payload_data.len(), 0x16);
+            assert_eq!(s.id(), 10);
         }
         assert_eq!(r.remaining(), 0);
     }
@@ -155,6 +145,5 @@ mod tests {
         assert_eq!(r.read_var_u32().unwrap(), 1);
         // Result 1 Type
         assert_eq!(r.read_var_i7().unwrap(), -0x01);
-
     }
 }
