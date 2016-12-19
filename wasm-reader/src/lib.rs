@@ -1,10 +1,15 @@
 #![allow(unused_imports, dead_code)]
+#![feature(field_init_shorthand)]
 
 extern crate wasm_leb128;
 extern crate byteorder;
 
-use wasm_leb128::{read_u7, read_i7, read_u32};
-use byteorder::{ByteOrder, LittleEndian};
+pub mod buf;
+
+use buf::Buf;
+
+pub type ReaderResult = Result<Event, Error>;
+pub type StateResult = Result<(Event, State), Error>;
 
 #[derive(Debug)]
 pub enum Error {
@@ -19,52 +24,105 @@ impl From<wasm_leb128::Error> for Error {
     }
 }
 
-pub struct Buf<'a> {
-    buf: &'a [u8],
-    pos: usize,
+pub enum State {
+    Header,
+    Section,
+    SectionType { payload_len: u32 },
+    SectionTypeEntries { count: u32 },
+    SectionFunction { payload_len: u32 },
+    SectionMemory { payload_len: u32 },
+    SectionExport { payload_len: u32 },
+    SectionCode { payload_len: u32 },
+    End,
+    Error,
 }
 
-impl<'a> Buf<'a> {
+
+pub enum Event {
+    Header { magic: u32, version: u32 },
+    SectionType,
+    SectionTypeEnd,
+    SectionFunction,
+    SectionMemory,
+    SectionExport,
+    SectionCode,
+    End,
+    Error,
+}
+
+
+pub struct Reader<'a> {
+    buf: Buf<'a>,
+    state: State,
+}
+
+impl<'a> Reader<'a> {
     pub fn new(buf: &'a [u8]) -> Self {
-        Buf { buf: buf, pos: 0 }
+        Reader { buf: Buf::new(buf), state: State::Header }
     }
 
-    pub fn remaining(&self) -> usize {
-        self.buf.len() - self.pos
+    pub fn next(&mut self) -> ReaderResult {
+        let (event, state) = match self.state {
+            State::Header => try!(self.header()),
+            State::Section => try!(self.section()),
+            State::SectionType{..} => try!(self.section_type()),
+            State::SectionFunction{..} => try!(self.section_function()),
+            State::SectionMemory{..} => try!(self.section_memory()),
+            State::SectionExport{..} => try!(self.section_export()),
+            State::SectionCode{..} => try!(self.section_code()),
+            _ => try!(self.end()),
+        };
+        self.state = state;
+        Ok(event)
     }
 
-    pub fn slice(&self, size: usize) -> Result<&'a [u8], Error> {
-        if size < self.remaining() { 
-            Ok(&self.buf[self.pos..self.pos+4])
-        } else {
-            Err(Error::BufferTooShort)
-        }
+    pub fn header(&mut self) -> StateResult {
+        let magic = try!(self.buf.read_u32());
+        let version = try!(self.buf.read_u32());
+        Ok(( Event::Header { magic, version }, State::Section ))
     }
 
-    pub fn read_u32(&mut self) -> Result<u32, Error> {
-        let v = LittleEndian::read_u32(try!(self.slice(4)));
-        self.pos += 4;
-        Ok(v)
+    pub fn section(&mut self) -> StateResult {
+        let id = try!(self.buf.read_var_u7());
+        let payload_len = try!(self.buf.read_var_u32());
+        Ok(match id {
+            1 => (Event::SectionType, State::SectionType { payload_len }),
+            3 => (Event::SectionFunction, State::SectionFunction { payload_len }),
+            5 => (Event::SectionMemory, State::SectionMemory { payload_len }),
+            7 => (Event::SectionExport, State::SectionExport { payload_len }),
+            10 => (Event::SectionCode, State::SectionCode { payload_len }),
+            _ => unimplemented!(),
+        })
     }
 
-    pub fn read_var_u7(&mut self) -> Result<u8, Error> {
-        let (v, n) = try!(read_u7(&self.buf[self.pos..]));
-        self.pos += n;
-        Ok(v)
+    pub fn section_type(&mut self) -> StateResult {
+        unimplemented!()
+        // let count = try!(self.buf.read_var_u32());
+        // Ok((Event::SectionTypeEntries{ count }, State::SectionTypeEntries{ count }))
     }
 
-    pub fn read_var_i7(&mut self) -> Result<i8, Error> {
-        let (v, n) = try!(read_i7(&self.buf[self.pos..]));
-        self.pos += n;
-        Ok(v)
-    }    
+    pub fn section_function(&mut self) -> StateResult {
+        unimplemented!()
+    }
+    pub fn section_memory(&mut self) -> StateResult {
+        unimplemented!()
+    }
+    pub fn section_export(&mut self) -> StateResult {
+        unimplemented!()
+    }
+    pub fn section_code(&mut self) -> StateResult {
+        unimplemented!()
+    }
 
-    pub fn read_var_u32(&mut self) -> Result<u32, Error> {
-        let (v, n) = try!(read_u32(&self.buf[self.pos..]));
-        self.pos += n;
-        Ok(v)
+    pub fn end(&mut self) -> StateResult {
+        Ok(( Event::End, State::End))
+    }
+
+    pub fn error(&mut self) -> StateResult {
+        Ok(( Event::Error, State::Error))
     }
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -73,7 +131,12 @@ mod tests {
     const BASIC: &'static [u8] = include_bytes!("../testdata/basic.wasm");
 
     #[test]
-    fn test_Buf() {
+    fn test_reader() {
+        let mut r = Reader::new(BASIC);
+    }
+
+    #[test]
+    fn test_buf() {
         let mut r = Buf::new(BASIC);
         // MagicNumber
         assert_eq!(r.read_u32().unwrap(), 0x6d736100);
