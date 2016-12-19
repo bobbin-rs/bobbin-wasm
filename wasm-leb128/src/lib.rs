@@ -12,6 +12,7 @@ pub enum Error {
 }
 
 pub fn read_u1(buf: &[u8]) -> Result<(bool, usize), Error> {
+    assert!(buf[0] & !0x1 == 0, "Invalid Encoding: 0x{:2x}", buf[0]);
     if !(buf[0] & !0x1 == 0) { return Err(Error::InvalidEncoding) }
     Ok((buf[0] != 0, 1))
 }
@@ -144,7 +145,6 @@ pub fn write_i32(buf: &mut [u8], mut value: i32) -> Result<usize, Error> {
 
 #[cfg(test)]
 mod tests {
-    extern crate leb128;
     use super::*;
 
     #[test]
