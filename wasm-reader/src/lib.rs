@@ -8,8 +8,6 @@ pub mod buf;
 
 use buf::Buf;
 
-pub type StateResult = Result<State, Error>;
-
 #[derive(Debug)]
 pub enum Error {
     BufferTooShort,
@@ -23,72 +21,56 @@ impl From<wasm_leb128::Error> for Error {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum State {
-    Init,
-    Header { magic: u32, version: u32},
-    Section,
-    SectionType { payload_len: u32 },
-    SectionTypeEntries { count: u32 },
-    SectionFunction { payload_len: u32 },
-    SectionMemory { payload_len: u32 },
-    SectionExport { payload_len: u32 },
-    SectionCode { payload_len: u32 },
-    End,
-    Error,
+pub struct ModuleHeader {
+    pub magic: u32,
+    pub version: u32,
 }
 
-
-pub enum Event {
-    Header { magic: u32, version: u32 },
-    SectionType,
-    SectionTypeEnd,
-    SectionFunction,
-    SectionMemory,
-    SectionExport,
-    SectionCode,
-    End,
-    Error,
+pub struct Section<'a> {
+    pub id: u8,
+    pub payload_len: u32,
+    pub name_len: Option<u32>,
+    pub name: Option<&'a [u8]>,
+    pub payload_data: &'a [u8],
 }
-
 
 pub struct Reader<'a> {
     buf: Buf<'a>,
-    state: State,
 }
 
 impl<'a> Reader<'a> {
     pub fn new(buf: &'a [u8]) -> Self {
-        Reader { buf: Buf::new(buf), state: State::Init }
+        Reader { buf: Buf::new(buf) }
+    }
+    pub fn pos(&self) -> usize {
+        self.buf.pos()
     }
 
-    pub fn next(&mut self) -> StateResult {
-        let state = match self.state {
-            State::Init => {
-                let magic = try!(self.buf.read_u32()); 
-                let version = try!(self.buf.read_u32());
-                State::Header { magic, version }
-            },
-            State::Header{..} | State::Section => {
-                let id = try!(self.buf.read_var_u7());
-                let payload_len = try!(self.buf.read_var_u32());
-                match id {
-                    1 => State::SectionType { payload_len },
-                    3 => State::SectionFunction { payload_len },
-                    5 => State::SectionMemory { payload_len },
-                    7 => State::SectionExport { payload_len },
-                    10 => State::SectionCode { payload_len },
-                    _ => unimplemented!(),
-                }
-            },
-            State::SectionType{..} => {
-                let count = try!(self.buf.read_var_u32());
-                State::SectionTypeEntries { count: count }
-            },
-            _ => unimplemented!()
-        };
-        self.state = state;
-        Ok(state)
+    pub fn remaining(&self) -> usize {
+        self.buf.remaining()
+    }
+
+    pub fn read_module_header(&mut self) -> Result<ModuleHeader, Error> {
+        Ok(ModuleHeader {
+            magic: try!(self.buf.read_u32()),
+            version: try!(self.buf.read_u32()),
+        })
+    }
+
+    pub fn read_section(&mut self) -> Result<Section, Error> {
+        let id = try!(self.buf.read_var_u7());
+        let mut payload_len = try!(self.buf.read_var_u32());
+        let (name_len, name) = if id == 0 {
+            let pos = self.buf.pos();        
+            let name_len = try!(self.buf.read_var_u32());
+            let name = try!(self.buf.slice(name_len as usize));
+            payload_len -= (self.buf.pos() - pos) as u32;
+            (Some(name_len), Some(name))
+        } else {
+            (None, None)
+        };        
+        let payload_data = try!(self.buf.slice(payload_len as usize));
+        Ok(Section { id, payload_len, name_len, name, payload_data })
     }
 }
 
@@ -102,6 +84,47 @@ mod tests {
     #[test]
     fn test_reader() {
         let mut r = Reader::new(BASIC);
+        {
+            let h = r.read_module_header().unwrap();
+            assert_eq!(h.magic, 0x6d736100);
+            assert_eq!(h.version, 0xd);
+        }
+        {
+            assert_eq!(r.pos(), 8);
+            let s = r.read_section().unwrap();
+            assert_eq!(s.id, 1);
+            assert_eq!(s.payload_len, 7);
+            assert_eq!(s.payload_data.len(), 7);
+        }
+        {
+            assert_eq!(r.pos(), 0x11);
+            let s = r.read_section().unwrap();
+            assert_eq!(s.id, 3);
+            assert_eq!(s.payload_len, 2);
+            assert_eq!(s.payload_data.len(), 2);
+        }
+        {
+            assert_eq!(r.pos(), 0x15);
+            let s = r.read_section().unwrap();
+            assert_eq!(s.id, 5);
+            assert_eq!(s.payload_len, 3);
+            assert_eq!(s.payload_data.len(), 3);
+        }
+        {
+            assert_eq!(r.pos(), 0x1a);
+            let s = r.read_section().unwrap();
+            assert_eq!(s.id, 7);
+            assert_eq!(s.payload_len, 5);
+            assert_eq!(s.payload_data.len(), 5);
+        }
+        {
+            assert_eq!(r.pos(), 0x21);
+            let s = r.read_section().unwrap();
+            assert_eq!(s.id, 10);
+            assert_eq!(s.payload_len, 0x16);
+            assert_eq!(s.payload_data.len(), 0x16);
+        }
+        assert_eq!(r.remaining(), 0);
     }
 
     #[test]
