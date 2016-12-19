@@ -69,6 +69,7 @@ impl<'a> TypeSection<'a> {
     }
 }
 
+#[derive(Debug)]
 pub enum TypeSectionState {
     Form,
     Param(u32),
@@ -86,6 +87,7 @@ impl<'a> TypeSectionIter<'a> {
         if self.count == 0 {
             return Ok(None)
         }
+        //println!("state: {:?}", self.state);
         match self.state {
             TypeSectionState::Form => {
                 let form = try!(self.buf.read_var_i7());                
@@ -107,10 +109,11 @@ impl<'a> TypeSectionIter<'a> {
             TypeSectionState::Param(param_count) => {
                 let param_type = try!(self.buf.read_var_i7());
                 let item = Some(TypeSectionItem::ParamType(param_type));
-                if param_count > 0 {
+                if param_count > 1 {
                     self.state = TypeSectionState::Param(param_count - 1);
                     return Ok(item)
                 }
+                
                 let return_count = try!(self.buf.read_var_u1());
                 if return_count {
                     self.state = TypeSectionState::Return;
@@ -131,6 +134,7 @@ impl<'a> TypeSectionIter<'a> {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum TypeSectionItem {
     Form(i8),
     ParamType(i8),
@@ -149,5 +153,11 @@ mod tests {
         let s = TypeSection(&BASIC[0x0a..0x11]);
         assert_eq!(s.len(), 0x7);
         assert_eq!(s.count().unwrap(), 1);
+        let mut iter = s.iter().unwrap();
+
+        assert_eq!(iter.next().unwrap(), Some(TypeSectionItem::Form(-0x20)));
+        assert_eq!(iter.next().unwrap(), Some(TypeSectionItem::ParamType(-0x01)));
+        assert_eq!(iter.next().unwrap(), Some(TypeSectionItem::ParamType(-0x01)));
+        assert_eq!(iter.next().unwrap(), Some(TypeSectionItem::ReturnType(-0x01)));
     }
 }
