@@ -8,8 +8,7 @@ pub mod buf;
 
 use buf::Buf;
 
-pub type ReaderResult = Result<Event, Error>;
-pub type StateResult = Result<(Event, State), Error>;
+pub type StateResult = Result<State, Error>;
 
 #[derive(Debug)]
 pub enum Error {
@@ -24,8 +23,10 @@ impl From<wasm_leb128::Error> for Error {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum State {
-    Header,
+    Init,
+    Header { magic: u32, version: u32},
     Section,
     SectionType { payload_len: u32 },
     SectionTypeEntries { count: u32 },
@@ -58,68 +59,36 @@ pub struct Reader<'a> {
 
 impl<'a> Reader<'a> {
     pub fn new(buf: &'a [u8]) -> Self {
-        Reader { buf: Buf::new(buf), state: State::Header }
+        Reader { buf: Buf::new(buf), state: State::Init }
     }
 
-    pub fn next(&mut self) -> ReaderResult {
-        let (event, state) = match self.state {
-            State::Header => try!(self.header()),
-            State::Section => try!(self.section()),
-            State::SectionType{..} => try!(self.section_type()),
-            State::SectionFunction{..} => try!(self.section_function()),
-            State::SectionMemory{..} => try!(self.section_memory()),
-            State::SectionExport{..} => try!(self.section_export()),
-            State::SectionCode{..} => try!(self.section_code()),
-            _ => try!(self.end()),
+    pub fn next(&mut self) -> StateResult {
+        let state = match self.state {
+            State::Init => {
+                let magic = try!(self.buf.read_u32()); 
+                let version = try!(self.buf.read_u32());
+                State::Header { magic, version }
+            },
+            State::Header{..} | State::Section => {
+                let id = try!(self.buf.read_var_u7());
+                let payload_len = try!(self.buf.read_var_u32());
+                match id {
+                    1 => State::SectionType { payload_len },
+                    3 => State::SectionFunction { payload_len },
+                    5 => State::SectionMemory { payload_len },
+                    7 => State::SectionExport { payload_len },
+                    10 => State::SectionCode { payload_len },
+                    _ => unimplemented!(),
+                }
+            },
+            State::SectionType{..} => {
+                let count = try!(self.buf.read_var_u32());
+                State::SectionTypeEntries { count: count }
+            },
+            _ => unimplemented!()
         };
         self.state = state;
-        Ok(event)
-    }
-
-    pub fn header(&mut self) -> StateResult {
-        let magic = try!(self.buf.read_u32());
-        let version = try!(self.buf.read_u32());
-        Ok(( Event::Header { magic, version }, State::Section ))
-    }
-
-    pub fn section(&mut self) -> StateResult {
-        let id = try!(self.buf.read_var_u7());
-        let payload_len = try!(self.buf.read_var_u32());
-        Ok(match id {
-            1 => (Event::SectionType, State::SectionType { payload_len }),
-            3 => (Event::SectionFunction, State::SectionFunction { payload_len }),
-            5 => (Event::SectionMemory, State::SectionMemory { payload_len }),
-            7 => (Event::SectionExport, State::SectionExport { payload_len }),
-            10 => (Event::SectionCode, State::SectionCode { payload_len }),
-            _ => unimplemented!(),
-        })
-    }
-
-    pub fn section_type(&mut self) -> StateResult {
-        unimplemented!()
-        // let count = try!(self.buf.read_var_u32());
-        // Ok((Event::SectionTypeEntries{ count }, State::SectionTypeEntries{ count }))
-    }
-
-    pub fn section_function(&mut self) -> StateResult {
-        unimplemented!()
-    }
-    pub fn section_memory(&mut self) -> StateResult {
-        unimplemented!()
-    }
-    pub fn section_export(&mut self) -> StateResult {
-        unimplemented!()
-    }
-    pub fn section_code(&mut self) -> StateResult {
-        unimplemented!()
-    }
-
-    pub fn end(&mut self) -> StateResult {
-        Ok(( Event::End, State::End))
-    }
-
-    pub fn error(&mut self) -> StateResult {
-        Ok(( Event::Error, State::Error))
+        Ok(state)
     }
 }
 
