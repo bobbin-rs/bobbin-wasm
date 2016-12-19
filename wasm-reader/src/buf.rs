@@ -1,4 +1,4 @@
-use wasm_leb128::{read_u7, read_i7, read_u32};
+use wasm_leb128::{read_u1, read_u7, read_i7, read_u32};
 use byteorder::{ByteOrder, LittleEndian};
 
 use Error;
@@ -33,6 +33,12 @@ impl<'a> Buf<'a> {
 
     pub fn read_u32(&mut self) -> Result<u32, Error> {
         let v = LittleEndian::read_u32(try!(self.slice(4)));
+        Ok(v)
+    }
+
+    pub fn read_var_u1(&mut self) -> Result<bool, Error> {
+        let (v, n) = try!(read_u1(&self.buf[self.pos..]));
+        self.pos += n;
         Ok(v)
     }
 
