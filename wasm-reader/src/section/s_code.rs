@@ -44,8 +44,8 @@ impl<'a> CodeSectionIter<'a> {
         loop {
             match self.state {
                 CodeSectionState::Init => {
-                    let p_start = self.buf.pos() as u32;
                     let body_size = try!(self.buf.read_var_u32());
+                    let p_start = self.buf.pos() as u32;
                     let local_count = try!(self.buf.read_var_u32());
                     let p_end = self.buf.pos() as u32;
                     let body_size = body_size - (p_end - p_start);
@@ -70,7 +70,7 @@ impl<'a> CodeSectionIter<'a> {
                     return Ok(Some(local));
                 }
                 CodeSectionState::Body { body_size } => {
-                    let len = body_size as usize;
+                    let len = body_size as usize - 1;
                     let code = try!(self.buf.slice(len));
                     let end = try!(self.buf.read_u8());
                     if end != 0x0b {
