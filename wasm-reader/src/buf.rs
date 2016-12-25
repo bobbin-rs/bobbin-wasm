@@ -31,6 +31,12 @@ impl<'a> Buf<'a> {
         }
     }
 
+    pub fn read_u8(&mut self) -> Result<u8, Error> {
+        let v = self.buf[self.pos];
+        self.pos += 1;
+        Ok(v)
+    }
+
     pub fn read_u32(&mut self) -> Result<u32, Error> {
         let v = LittleEndian::read_u32(try!(self.slice(4)));
         Ok(v)
