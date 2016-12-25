@@ -15,6 +15,7 @@ pub enum Error {
     BufferTooShort,
     Leb128Error(wasm_leb128::Error),
     UnknownSectionCode,
+    MissingCodeEnd,
     Unspecified,
 }
 
