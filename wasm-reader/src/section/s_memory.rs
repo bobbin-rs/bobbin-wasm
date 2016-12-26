@@ -30,7 +30,7 @@ pub struct MemorySectionIter<'a> {
 }
 
 impl<'a> MemorySectionIter<'a> {
-    fn next(&mut self) -> Result<Option<MemoryItem>, Error> {
+    pub fn next(&mut self) -> Result<Option<MemoryItem>, Error> {
         if self.count == 0 {
             return Ok(None)
         }

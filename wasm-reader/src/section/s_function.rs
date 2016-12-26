@@ -29,7 +29,7 @@ pub struct FunctionSectionIter<'a> {
 }
 
 impl<'a> FunctionSectionIter<'a> {
-    fn next(&mut self) -> Result<Option<u32>, Error> {
+    pub fn next(&mut self) -> Result<Option<u32>, Error> {
         if self.count == 0 {
             return Ok(None)
         }

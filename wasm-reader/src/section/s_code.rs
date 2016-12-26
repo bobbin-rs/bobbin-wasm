@@ -37,7 +37,7 @@ pub struct CodeSectionIter<'a> {
 }
 
 impl<'a> CodeSectionIter<'a> {
-    fn next(&mut self) -> Result<Option<CodeItem>, Error> {
+    pub fn next(&mut self) -> Result<Option<CodeItem>, Error> {
         if self.count == 0 {
             return Ok(None)
         }

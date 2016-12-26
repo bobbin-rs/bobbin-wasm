@@ -30,7 +30,7 @@ pub struct ExportSectionIter<'a> {
 }
 
 impl<'a> ExportSectionIter<'a> {
-    fn next(&mut self) -> Result<Option<ExportItem>, Error> {
+    pub fn next(&mut self) -> Result<Option<ExportItem>, Error> {
         if self.count == 0 {
             return Ok(None)
         }

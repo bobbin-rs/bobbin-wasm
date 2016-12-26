@@ -1,3 +1,4 @@
+#![no_std]
 #![allow(unused_imports, dead_code)]
 #![feature(field_init_shorthand)]
 
@@ -5,9 +6,12 @@ extern crate wasm_leb128;
 extern crate byteorder;
 
 pub mod buf;
+pub mod smallvec;
 pub mod section;
+pub mod module;
 
 use buf::Buf;
+use smallvec::SmallVec;
 use section::*;
 
 #[derive(Debug)]

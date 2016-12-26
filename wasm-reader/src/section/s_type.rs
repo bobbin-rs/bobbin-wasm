@@ -37,7 +37,7 @@ pub struct TypeSectionIter<'a> {
 }
 
 impl<'a> TypeSectionIter<'a> {
-    fn next(&mut self) -> Result<Option<TypeSectionItem>, Error> {
+    pub fn next(&mut self) -> Result<Option<TypeSectionItem>, Error> {
         if self.count == 0 {
             return Ok(None)
         }
