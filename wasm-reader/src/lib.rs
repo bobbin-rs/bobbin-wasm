@@ -13,6 +13,7 @@ use section::*;
 
 #[derive(Debug)]
 pub enum Error {
+    InvalidHeader,
     BufferTooShort,
     Leb128Error(wasm_leb128::Error),
     UnknownSectionCode,
@@ -32,47 +33,66 @@ pub struct ModuleHeader {
 }
 
 pub struct Reader<'a> {
-    buf: Buf<'a>,
+    buf: &'a [u8],
 }
 
 impl<'a> Reader<'a> {
-    pub fn new(buf: &'a [u8]) -> Self {
-        Reader { buf: Buf::new(buf) }
-    }
-    pub fn pos(&self) -> usize {
-        self.buf.pos()
-    }
-
-    pub fn remaining(&self) -> usize {
-        self.buf.remaining()
+    pub fn new(buf: &'a [u8]) -> Result<Self, Error> {
+        if buf.len() < 2 { return Err(Error::BufferTooShort) }
+        if buf[..8] != [0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x00, 0x00] {
+            return Err(Error::InvalidHeader);
+        }
+        Ok(Reader { buf: buf })
     }
 
-    pub fn read_module_header(&mut self) -> Result<ModuleHeader, Error> {
-        Ok(ModuleHeader {
-            magic: try!(self.buf.read_u32()),
-            version: try!(self.buf.read_u32()),
-        })
+    pub fn sections(&self) -> SectionIter<'a> {
+        SectionIter { buf: Buf::new(&self.buf[8..]) }
     }
 
-    pub fn read_section(&mut self) -> Result<Section, Error> {
+    pub fn section(&self, id: u8) -> Result<Option<(u8, &'a [u8])>, Error> {
+        let mut sections = self.sections();
+        while let Ok(Some((s_id, s_body))) = sections.next() {
+            if s_id == id {
+                return Ok(Some((s_id, s_body)))
+            }
+        }
+        Ok(None)
+    }
+
+    pub fn type_section(&self) -> Result<Option<TypeSection<'a>>, Error> {
+        self.section(1).map(|o| o.map(|(_,data)| TypeSection(data)))
+    }
+
+    pub fn function_section(&self) -> Result<Option<FunctionSection<'a>>, Error> {
+        self.section(3).map(|o| o.map(|(_,data)| FunctionSection(data)))
+    }
+
+    pub fn memory_section(&self) -> Result<Option<MemorySection<'a>>, Error> {
+        self.section(5).map(|o| o.map(|(_,data)| MemorySection(data)))
+    }
+
+    pub fn export_section(&self) -> Result<Option<ExportSection<'a>>, Error> {
+        self.section(7).map(|o| o.map(|(_,data)| ExportSection(data)))
+    }
+
+    pub fn code_section(&self) -> Result<Option<CodeSection<'a>>, Error> {
+        self.section(10).map(|o| o.map(|(_,data)| CodeSection(data)))
+    }
+}
+
+pub struct SectionIter<'a> {
+    buf: Buf<'a>
+}
+
+impl<'a> SectionIter<'a> {
+    pub fn next(&mut self) -> Result<Option<(u8, &'a [u8])>, Error> {
+        if self.buf.remaining() == 0 {
+            return Ok(None)
+        }
         let id = try!(self.buf.read_var_u7());
         let payload_len = try!(self.buf.read_var_u32());
         let payload_data = try!(self.buf.slice(payload_len as usize));
-        match id {
-            0 => Ok(Section::Name(NameSection(payload_data))),
-            1 => Ok(Section::Type(TypeSection(payload_data))),
-            2 => Ok(Section::Import(ImportSection(payload_data))),
-            3 => Ok(Section::Function(FunctionSection(payload_data))),
-            4 => Ok(Section::Table(TableSection(payload_data))),
-            5 => Ok(Section::Memory(MemorySection(payload_data))),
-            6 => Ok(Section::Global(GlobalSection(payload_data))),
-            7 => Ok(Section::Export(ExportSection(payload_data))),
-            8 => Ok(Section::Start(StartSection(payload_data))),
-            9 => Ok(Section::Element(ElementSection(payload_data))),
-            10 => Ok(Section::Code(CodeSection(payload_data))),
-            11 => Ok(Section::Data(DataSection(payload_data))),
-            _ => Err(Error::UnknownSectionCode),
-        }
+        Ok(Some((id, payload_data)))
     }
 }
 
@@ -85,67 +105,28 @@ mod tests {
 
     #[test]
     fn test_reader() {
-        let mut r = Reader::new(BASIC);
-        {
-            let h = r.read_module_header().unwrap();
-            assert_eq!(h.magic, 0x6d736100);
-            assert_eq!(h.version, 0xd);
-        }
-        {
-            assert_eq!(r.pos(), 8);
-            let s = r.read_section().unwrap();
-            assert_eq!(s.id(), 1);
-        }
-        {
-            assert_eq!(r.pos(), 0x11);
-            let s = r.read_section().unwrap();
-            assert_eq!(s.id(), 3);
-        }
-        {
-            assert_eq!(r.pos(), 0x15);
-            let s = r.read_section().unwrap();
-            assert_eq!(s.id(), 5);
-        }
-        {
-            assert_eq!(r.pos(), 0x1a);
-            let s = r.read_section().unwrap();
-            assert_eq!(s.id(), 7);
-        }
-        {
-            assert_eq!(r.pos(), 0x21);
-            let s = r.read_section().unwrap();
-            assert_eq!(s.id(), 10);
-        }
-        assert_eq!(r.remaining(), 0);
+        let r = Reader::new(BASIC).unwrap();
+        let mut sections = r.sections();
+        assert_eq!(sections.next().unwrap().unwrap().0, 1);
+        assert_eq!(sections.next().unwrap().unwrap().0, 3);
+        assert_eq!(sections.next().unwrap().unwrap().0, 5);
+        assert_eq!(sections.next().unwrap().unwrap().0, 7);
+        assert_eq!(sections.next().unwrap().unwrap().0, 10);
     }
-
+    
     #[test]
-    fn test_buf() {
-        let mut r = Buf::new(BASIC);
-        // MagicNumber
-        assert_eq!(r.read_u32().unwrap(), 0x6d736100);
-        // Version
-        assert_eq!(r.read_u32().unwrap(), 0xd);
-        
-        // Section 
-
-        // Section Id
-        assert_eq!(r.read_var_u7().unwrap(), 1);
-        // Section Payload Len
-        assert_eq!(r.read_var_u32().unwrap(), 7);
-        // Type Count
-        assert_eq!(r.read_var_u32().unwrap(), 1);
-        // Form: Func
-        assert_eq!(r.read_var_i7().unwrap(), -0x20);
-        // Parameter Count
-        assert_eq!(r.read_var_u32().unwrap(), 2);
-        // Parameter 1 Type
-        assert_eq!(r.read_var_i7().unwrap(), -0x01);
-        // Parameter 2 Type
-        assert_eq!(r.read_var_i7().unwrap(), -0x01);
-        // Result Count
-        assert_eq!(r.read_var_u32().unwrap(), 1);
-        // Result 1 Type
-        assert_eq!(r.read_var_i7().unwrap(), -0x01);
+    fn test_sections() {
+        let r = Reader::new(BASIC).unwrap();
+        let s = r.type_section().unwrap().unwrap();
+        assert_eq!(s.count().unwrap(), 1);
+        let s = r.function_section().unwrap().unwrap();
+        assert_eq!(s.count().unwrap(), 1);
+        let s = r.memory_section().unwrap().unwrap();
+        assert_eq!(s.count().unwrap(), 1);
+        let s = r.export_section().unwrap().unwrap();
+        assert_eq!(s.count().unwrap(), 1);
+        let s = r.code_section().unwrap().unwrap();
+        assert_eq!(s.count().unwrap(), 1);
     }
+
 }

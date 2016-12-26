@@ -13,6 +13,10 @@ impl<'a> Buf<'a> {
         Buf { buf: buf, pos: 0 }
     }
 
+    pub fn reset(&mut self) {
+        self.pos = 0;
+    }
+
     pub fn pos(&self) -> usize {
         self.pos
     }
@@ -64,5 +68,42 @@ impl<'a> Buf<'a> {
         let (v, n) = try!(read_u32(&self.buf[self.pos..]));
         self.pos += n;
         Ok(v)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const BASIC: &'static [u8] = include_bytes!("../testdata/basic.wasm");
+
+    #[test]
+    fn test_buf() {
+        let mut r = Buf::new(BASIC);
+        // MagicNumber
+        assert_eq!(r.read_u32().unwrap(), 0x6d736100);
+        // Version
+        assert_eq!(r.read_u32().unwrap(), 0xd);
+        
+        // Section 
+
+        // Section Id
+        assert_eq!(r.read_var_u7().unwrap(), 1);
+        // Section Payload Len
+        assert_eq!(r.read_var_u32().unwrap(), 7);
+        // Type Count
+        assert_eq!(r.read_var_u32().unwrap(), 1);
+        // Form: Func
+        assert_eq!(r.read_var_i7().unwrap(), -0x20);
+        // Parameter Count
+        assert_eq!(r.read_var_u32().unwrap(), 2);
+        // Parameter 1 Type
+        assert_eq!(r.read_var_i7().unwrap(), -0x01);
+        // Parameter 2 Type
+        assert_eq!(r.read_var_i7().unwrap(), -0x01);
+        // Result Count
+        assert_eq!(r.read_var_u32().unwrap(), 1);
+        // Result 1 Type
+        assert_eq!(r.read_var_i7().unwrap(), -0x01);
     }
 }
