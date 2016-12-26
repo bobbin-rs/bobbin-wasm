@@ -6,12 +6,9 @@ extern crate wasm_leb128;
 extern crate byteorder;
 
 pub mod buf;
-pub mod smallvec;
 pub mod section;
-pub mod module;
 
 use buf::Buf;
-use smallvec::SmallVec;
 use section::*;
 
 #[derive(Debug)]
