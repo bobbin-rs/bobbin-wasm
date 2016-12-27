@@ -38,6 +38,12 @@ impl<'a> Buf<'a> {
         }
     }
 
+    pub fn slice_buf(&mut self, size: usize) -> Result<Buf<'a>, Error> {
+        let s = try!(self.clone_slice(size));
+        self.pos += size;
+        Ok(s)
+    }
+
     pub fn slice(&mut self, size: usize) -> Result<&'a [u8], Error> {
         if size <= self.remaining() { 
             let p = self.pos;

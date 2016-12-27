@@ -107,7 +107,7 @@ impl<'a> SectionIter<'a> {
         if self.buf.remaining() == 0 { return Ok(None) }
         let id = try!(self.buf.read_var_u7());
         let payload_len = try!(self.buf.read_var_u32());
-        Ok(Some(Section { id: id, buf: try!(self.buf.clone_slice(payload_len as usize)) }))
+        Ok(Some(Section { id: id, buf: try!(self.buf.slice_buf(payload_len as usize)) }))
     }
 }
 
