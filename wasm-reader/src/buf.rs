@@ -3,6 +3,7 @@ use byteorder::{ByteOrder, LittleEndian};
 
 use Error;
 
+#[derive(Debug, Clone)]
 pub struct Buf<'a> {
     buf: &'a [u8],
     pos: usize,
@@ -11,6 +12,10 @@ pub struct Buf<'a> {
 impl<'a> Buf<'a> {
     pub fn new(buf: &'a [u8]) -> Self {
         Buf { buf: buf, pos: 0 }
+    }
+
+    pub fn new_slice(buf: &'a [u8], pos: usize, len: usize) -> Self {
+        Buf{ buf: &buf[..pos + len], pos: pos}
     }
 
     pub fn reset(&mut self) {
@@ -24,6 +29,14 @@ impl<'a> Buf<'a> {
     pub fn remaining(&self) -> usize {
         self.buf.len() - self.pos
     }    
+
+    pub fn clone_slice(&mut self, len: usize) -> Result<Buf<'a>, Error> {
+        if len <= self.remaining() {
+            Ok(Buf::new_slice(self.buf, self.pos, len))
+        } else {
+            Err(Error::BufferTooShort)
+        }
+    }
 
     pub fn slice(&mut self, size: usize) -> Result<&'a [u8], Error> {
         if size <= self.remaining() { 

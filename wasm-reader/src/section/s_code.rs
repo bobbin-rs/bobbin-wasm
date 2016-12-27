@@ -1,47 +1,26 @@
 use buf::Buf;
-use Error;
+use {Error, Section};
 
-pub struct CodeSection<'a> {
-    pub id: u8,
-    pub start: usize,
-    pub end: usize,
-    pub data: &'a [u8],
-}
+pub struct CodeSection<'a>(pub Section<'a>);
 
 impl<'a> CodeSection<'a> {
-    pub fn new(id: u8, start: usize, end: usize, data: &'a [u8]) -> Self {
-        CodeSection { id: id, start: start, end: end, data: data}
-    }
-    
     pub fn name(&self) -> &str {
         "CODE"
     }
-
     pub fn start(&self) -> usize {
-        self.start
+        self.0.buf.pos()
     }
-
     pub fn end(&self) -> usize {
-        self.end
+        self.0.buf.pos() + self.0.buf.remaining() 
     }
-
-
     pub fn len(&self) -> usize {
-        self.data.len()
+        self.0.buf.remaining()
     }
-
-    pub fn buf(&self) -> Buf<'a> {
-        Buf::new(self.data)
+    pub fn count(&self) -> u32 {
+        self.0.buf.clone().read_var_u32().unwrap()
     }
-
-    pub fn count(&self) -> Result<u32, Error> {
-        self.buf().read_var_u32()
-    }
-
-    pub fn iter(&self) -> Result<CodeSectionIter<'a>, Error> {
-        let mut buf = self.buf();
-        let count = try!(buf.read_var_u32());
-        Ok(CodeSectionIter { buf: buf, count: count, state: CodeSectionState::Init })
+    pub fn iter(&self) -> CodeSectionIter<'a> {
+        CodeSectionIter { buf: self.0.buf.clone(), count: None, state: CodeSectionState::Init }
     }
 }
 
@@ -52,15 +31,24 @@ pub enum CodeSectionState {
     Body { body_size: u32},
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum CodeItem<'a> {
+    Local(u32, i8),
+    Body(&'a [u8]),
+}
+
 pub struct CodeSectionIter<'a> {
     buf: Buf<'a>,
-    count: u32,
+    count: Option<u32>,
     state: CodeSectionState,
 }
 
 impl<'a> CodeSectionIter<'a> {
-    pub fn next(&mut self) -> Result<Option<CodeItem>, Error> {
-        if self.count == 0 {
+    pub fn try_next(&mut self) -> Result<Option<CodeItem<'a>>, Error> {
+        if self.count.is_none() {
+            self.count = Some(try!(self.buf.read_var_u32()));
+        }
+        if self.count.unwrap() == 0 {
             return Ok(None)
         }
         loop {
@@ -99,7 +87,7 @@ impl<'a> CodeSectionIter<'a> {
                         return Err(Error::MissingCodeEnd);
                     }
                     self.state = CodeSectionState::Init;
-                    self.count -= 1;
+                    self.count = Some(self.count.unwrap() - 1);
                     return Ok(Some(CodeItem::Body(code)));
                 }
             }
@@ -107,10 +95,11 @@ impl<'a> CodeSectionIter<'a> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum CodeItem<'a> {
-    Local(u32, i8),
-    Body(&'a [u8]),
+impl<'a> Iterator for CodeSectionIter<'a> {
+    type Item = CodeItem<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.try_next().unwrap()
+    }
 }
 
 #[cfg(test)]
@@ -120,13 +109,13 @@ mod tests {
     const BASIC: &'static [u8] = include_bytes!("../../testdata/basic.wasm");    
 
     #[test]
-    fn test_type() {
-        let s = CodeSection(&BASIC[0x23..0x39]);
+    fn test_code() {
+        let s = CodeSection(Section {id: 1, buf: Buf::new_slice(&BASIC, 0x23, 0x16)});
         assert_eq!(s.len(), 0x16);
-        assert_eq!(s.count().unwrap(), 1);
-        let mut iter = s.iter().unwrap();
+        assert_eq!(s.count(), 1);
+        let mut iter = s.iter();
 
-        if let Some(CodeItem::Body(body)) = iter.next().unwrap() {
+        if let Some(CodeItem::Body(body)) = iter.next() {
             assert_eq!(body.len(), 18);
             assert_eq!(body, &[
                 0x41, 0x00,
@@ -142,6 +131,6 @@ mod tests {
         } else {
             panic!("Expected body");
         }
-        assert_eq!(iter.next().unwrap(), None);
+        assert_eq!(iter.next(), None);
     }
 }

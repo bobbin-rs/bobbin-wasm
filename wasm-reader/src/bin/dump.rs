@@ -16,73 +16,73 @@ pub fn main() {
 
     println!("Sections:");
 
-    if let Ok(Some(section)) = r.type_section() {
+    if let Some(section) = r.type_section() {
         println!("{:>09} start=0x{:08x} end=0x{:08x} (size=0x{:08x}) count: {}", 
             section.name(),
             section.start(),
             section.end(),
-            section.end() - section.start(),
-            section.count().unwrap(),
+            section.len(),
+            section.count(),
         );
     }
 
-    if let Ok(Some(section)) = r.function_section() {
+    if let Some(section) = r.function_section() {
         println!("{:>09} start=0x{:08x} end=0x{:08x} (size=0x{:08x}) count: {}", 
             section.name(),
             section.start(),
             section.end(),
-            section.end() - section.start(),
-            section.count().unwrap(),
+            section.len(),
+            section.count(),
         );
     }
 
-    if let Ok(Some(section)) = r.memory_section() {
+    if let Some(section) = r.memory_section() {
         println!("{:>09} start=0x{:08x} end=0x{:08x} (size=0x{:08x}) count: {}", 
             section.name(),
             section.start(),
             section.end(),
-            section.end() - section.start(),
-            section.count().unwrap(),
+            section.len(),
+            section.count(),
         );
     }
 
-    if let Ok(Some(section)) = r.export_section() {
+    if let Some(section) = r.export_section() {
         println!("{:>09} start=0x{:08x} end=0x{:08x} (size=0x{:08x}) count: {}", 
             section.name(),
             section.start(),
             section.end(),
-            section.end() - section.start(),
-            section.count().unwrap(),
+            section.len(),
+            section.count(),
         );
     }
 
 
-    if let Ok(Some(section)) = r.code_section() {
+    if let Some(section) = r.code_section() {
         println!("{:>09} start=0x{:08x} end=0x{:08x} (size=0x{:08x}) count: {}", 
             section.name(),
             section.start(),
             section.end(),
-            section.end() - section.start(),
-            section.count().unwrap(),
+            section.len(),
+            section.count(),
         );
     }
     println!("");
 
     println!("Exports:");
 
-    let types = r.type_section().unwrap().unwrap();
-    let functions = r.function_section().unwrap().unwrap();
+    let types = r.type_section().unwrap();
+    let functions = r.function_section().unwrap();
 
-    let exports = r.export_section().unwrap().unwrap();
-    let mut exports_iter = exports.iter().unwrap();
-    while let Ok(Some(e)) = exports_iter.next() {
-        let func = functions.get(e.index).unwrap().unwrap();                 
+    let exports = r.export_section().unwrap();
+    let mut exports_iter = exports.iter();
+    while let Some(e) = exports_iter.next() {
+        let func = functions.get(e.index).unwrap();                 
         print!("{:>8}: {}", 
             e.index,
             String::from_utf8_lossy(e.field),
         );   
-        let mut types_iter = types.iter().unwrap();
-        while let Ok(Some((n, item))) = types_iter.next() {
+        let mut types_iter = types.iter();
+        while let Some((n, item)) = types_iter.next() {
             if n != func { continue; }
             match item {
                 TypeSectionItem::Form(f) => {
@@ -102,10 +102,10 @@ pub fn main() {
     }
     println!("");   
     println!("Code Disassembly:");
-    let code_section = r.code_section().unwrap().unwrap();
-    let mut code_iter = code_section.iter().unwrap();
+    let code_section = r.code_section().unwrap();
+    let mut code_iter = code_section.iter();
     let mut i = 0;
-    while let Ok(Some(item)) = code_iter.next() {
+    while let Some(item) = code_iter.next() {
         println!("func {}", i);
         match item {
             CodeItem::Body(body) => {

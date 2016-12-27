@@ -1,45 +1,27 @@
 use buf::Buf;
-use Error;
+use {Error, Section};
 
-pub struct TypeSection<'a> {
-    pub id: u8,
-    pub start: usize,
-    pub end: usize,
-    pub data: &'a [u8],
-}
+pub struct TypeSection<'a>(pub Section<'a>);
+
 impl<'a> TypeSection<'a> {
-    pub fn new(id: u8, start: usize, end: usize, data: &'a [u8]) -> Self {
-        TypeSection { id: id, start: start, end: end, data: data}
-    }
-
     pub fn name(&self) -> &str {
-        "TYPE"        
+        "TYPE"
     }
-
     pub fn start(&self) -> usize {
-        self.start
+        self.0.buf.pos()
     }
-
     pub fn end(&self) -> usize {
-        self.end
+        self.0.buf.pos() + self.0.buf.remaining() 
     }
-
     pub fn len(&self) -> usize {
-        self.data.len()
+        self.0.buf.remaining()
+    }
+    pub fn count(&self) -> u32 {
+        self.0.buf.clone().read_var_u32().unwrap()
     }
 
-    pub fn buf(&self) -> Buf<'a> {
-        Buf::new(self.data)
-    }
-
-    pub fn count(&self) -> Result<u32, Error> {        
-        self.buf().read_var_u32()
-    }
-
-    pub fn iter(&self) -> Result<TypeSectionIter<'a>, Error> {
-        let mut buf = self.buf();
-        let count = try!(buf.read_var_u32());
-        Ok(TypeSectionIter { buf: buf, count: count, index: 0, state: TypeSectionState::Form })
+    pub fn iter(&self) -> TypeSectionIter<'a> {
+        TypeSectionIter { buf: self.0.buf.clone(), count: None, index: 0, state: TypeSectionState::Form }
     }
 }
 
@@ -50,23 +32,33 @@ pub enum TypeSectionState {
     Return,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum TypeSectionItem {
+    Form(i8),
+    ParamType(i8),
+    ReturnType(i8),
+}
+
 pub struct TypeSectionIter<'a> {
     buf: Buf<'a>,
-    count: u32,
+    count: Option<u32>,
     index: u32,
     state: TypeSectionState,
 }
 
 impl<'a> TypeSectionIter<'a> {
-    pub fn next(&mut self) -> Result<Option<(u32, TypeSectionItem)>, Error> {
-        if self.index == self.count {
+    pub fn try_next(&mut self) -> Result<Option<(u32, TypeSectionItem)>, Error> {
+        if self.count.is_none() {
+            self.count = Some(try!(self.buf.read_var_u32()));
+        }
+        if self.index == self.count.unwrap() {
             return Ok(None)
         }
         //println!("state: {:?}", self.state);
         match self.state {
             TypeSectionState::Form => {
                 let form = try!(self.buf.read_var_i7());                
-                let item = Some((self.index, TypeSectionItem::Form(form)));                
+                let item = Some((self.index, TypeSectionItem::Form(form)));
                 let param_count = try!(self.buf.read_var_u32());
                 if param_count > 0 {
                     self.state = TypeSectionState::Param(param_count);
@@ -109,11 +101,11 @@ impl<'a> TypeSectionIter<'a> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum TypeSectionItem {
-    Form(i8),
-    ParamType(i8),
-    ReturnType(i8),
+impl<'a> Iterator for TypeSectionIter<'a> {
+    type Item = (u32, TypeSectionItem);
+    fn next(&mut self) -> Option<Self::Item> {
+        self.try_next().unwrap()
+    }
 }
 
 
@@ -125,15 +117,15 @@ mod tests {
 
     #[test]
     fn test_type() {
-        let s = TypeSection(&BASIC[0x0a..0x11]);
+        let s = TypeSection(Section {id: 1, buf: Buf::new_slice(&BASIC, 0x0a, 0x7)});
         assert_eq!(s.len(), 0x7);
-        assert_eq!(s.count().unwrap(), 1);
-        let mut iter = s.iter().unwrap();
+        assert_eq!(s.count(), 1);
+        let mut iter = s.iter();
 
-        assert_eq!(iter.next().unwrap(), Some((0,TypeSectionItem::Form(-0x20))));
-        assert_eq!(iter.next().unwrap(), Some((0,TypeSectionItem::ParamType(-0x01))));
-        assert_eq!(iter.next().unwrap(), Some((0,TypeSectionItem::ParamType(-0x01))));
-        assert_eq!(iter.next().unwrap(), Some((0,TypeSectionItem::ReturnType(-0x01))));
-        assert_eq!(iter.next().unwrap(), None);
+        assert_eq!(iter.next(), Some((0,TypeSectionItem::Form(-0x20))));
+        assert_eq!(iter.next(), Some((0,TypeSectionItem::ParamType(-0x01))));
+        assert_eq!(iter.next(), Some((0,TypeSectionItem::ParamType(-0x01))));
+        assert_eq!(iter.next(), Some((0,TypeSectionItem::ReturnType(-0x01))));
+        assert_eq!(iter.next(), None);
     }
 }
