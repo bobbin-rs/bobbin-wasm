@@ -43,6 +43,18 @@ impl<'a> FunctionSection<'a> {
         let count = try!(buf.read_var_u32());
         Ok(FunctionSectionIter { buf: buf, count: count })
     }
+
+    pub fn get(&self, index: u32) -> Result<Option<u32>, Error> {
+        let mut iter = self.iter().unwrap();
+        let mut i = 0;
+        while let Ok(Some(f)) = iter.next() {            
+            if i == index {
+                return Ok(Some(f))
+            }
+            i += 1;
+        }
+        return Ok(None)
+    }
 }
 
 pub struct FunctionSectionIter<'a> {
