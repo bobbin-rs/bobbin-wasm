@@ -12,6 +12,58 @@ pub fn main() {
     let mut data: Vec<u8> = Vec::new();
     file.read_to_end(&mut data).unwrap();
     let r = Reader::new(data.as_slice()).unwrap();
+
+    if let Ok(Some(section)) = r.type_section() {
+        println!("{:>09} start=0x{:08x} end=0x{:08x} (size=0x{:08x}) count: {}", 
+            section.name(),
+            section.start(),
+            section.end(),
+            section.end() - section.start(),
+            section.count().unwrap(),
+        );
+    }
+
+    if let Ok(Some(section)) = r.function_section() {
+        println!("{:>09} start=0x{:08x} end=0x{:08x} (size=0x{:08x}) count: {}", 
+            section.name(),
+            section.start(),
+            section.end(),
+            section.end() - section.start(),
+            section.count().unwrap(),
+        );
+    }
+
+    if let Ok(Some(section)) = r.memory_section() {
+        println!("{:>09} start=0x{:08x} end=0x{:08x} (size=0x{:08x}) count: {}", 
+            section.name(),
+            section.start(),
+            section.end(),
+            section.end() - section.start(),
+            section.count().unwrap(),
+        );
+    }
+
+    if let Ok(Some(section)) = r.export_section() {
+        println!("{:>09} start=0x{:08x} end=0x{:08x} (size=0x{:08x}) count: {}", 
+            section.name(),
+            section.start(),
+            section.end(),
+            section.end() - section.start(),
+            section.count().unwrap(),
+        );
+    }
+
+
+    if let Ok(Some(section)) = r.code_section() {
+        println!("{:>09} start=0x{:08x} end=0x{:08x} (size=0x{:08x}) count: {}", 
+            section.name(),
+            section.start(),
+            section.end(),
+            section.end() - section.start(),
+            section.count().unwrap(),
+        );
+    }
+
     let exports = r.export_section().unwrap().unwrap();
     let mut exports_iter = exports.iter().unwrap();
     while let Ok(Some(e)) = exports_iter.next() {

@@ -1,15 +1,37 @@
 use buf::Buf;
 use Error;
 
-pub struct CodeSection<'a>(pub &'a [u8]);
+pub struct CodeSection<'a> {
+    pub id: u8,
+    pub start: usize,
+    pub end: usize,
+    pub data: &'a [u8],
+}
 
 impl<'a> CodeSection<'a> {
+    pub fn new(id: u8, start: usize, end: usize, data: &'a [u8]) -> Self {
+        CodeSection { id: id, start: start, end: end, data: data}
+    }
+    
+    pub fn name(&self) -> &str {
+        "CODE"
+    }
+
+    pub fn start(&self) -> usize {
+        self.start
+    }
+
+    pub fn end(&self) -> usize {
+        self.end
+    }
+
+
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.data.len()
     }
 
     pub fn buf(&self) -> Buf<'a> {
-        Buf::new(self.0)
+        Buf::new(self.data)
     }
 
     pub fn count(&self) -> Result<u32, Error> {

@@ -49,34 +49,34 @@ impl<'a> Reader<'a> {
         SectionIter { buf: Buf::new(&self.buf[8..]) }
     }
 
-    pub fn section(&self, id: u8) -> Result<Option<(u8, &'a [u8])>, Error> {
+    pub fn section(&self, id: u8) -> Result<Option<(u8, usize, usize, &'a [u8])>, Error> {
         let mut sections = self.sections();
-        while let Ok(Some((s_id, s_body))) = sections.next() {
+        while let Ok(Some((s_id, s_start, s_end, s_body))) = sections.next() {
             if s_id == id {
-                return Ok(Some((s_id, s_body)))
+                return Ok(Some((s_id, s_start, s_end, s_body)))
             }
         }
         Ok(None)
     }
 
     pub fn type_section(&self) -> Result<Option<TypeSection<'a>>, Error> {
-        self.section(1).map(|o| o.map(|(_,data)| TypeSection(data)))
+        self.section(1).map(|o| o.map(|(id, start, end, data)| TypeSection::new(id, start, end, data)))
     }
 
     pub fn function_section(&self) -> Result<Option<FunctionSection<'a>>, Error> {
-        self.section(3).map(|o| o.map(|(_,data)| FunctionSection(data)))
+        self.section(3).map(|o| o.map(|(id, start, end, data)| FunctionSection::new(id, start, end, data)))
     }
 
     pub fn memory_section(&self) -> Result<Option<MemorySection<'a>>, Error> {
-        self.section(5).map(|o| o.map(|(_,data)| MemorySection(data)))
+        self.section(5).map(|o| o.map(|(id, start, end, data)| MemorySection::new(id, start, end, data)))
     }
 
     pub fn export_section(&self) -> Result<Option<ExportSection<'a>>, Error> {
-        self.section(7).map(|o| o.map(|(_,data)| ExportSection(data)))
+        self.section(7).map(|o| o.map(|(id, start, end, data)| ExportSection::new(id, start, end, data)))
     }
 
     pub fn code_section(&self) -> Result<Option<CodeSection<'a>>, Error> {
-        self.section(10).map(|o| o.map(|(_,data)| CodeSection(data)))
+        self.section(10).map(|o| o.map(|(id, start, end, data)| CodeSection::new(id, start, end, data)))
     }
 }
 
@@ -85,14 +85,16 @@ pub struct SectionIter<'a> {
 }
 
 impl<'a> SectionIter<'a> {
-    pub fn next(&mut self) -> Result<Option<(u8, &'a [u8])>, Error> {
+    pub fn next(&mut self) -> Result<Option<(u8, usize, usize, &'a [u8])>, Error> {
         if self.buf.remaining() == 0 {
             return Ok(None)
         }
         let id = try!(self.buf.read_var_u7());
         let payload_len = try!(self.buf.read_var_u32());
+        let p_start = self.buf.pos() + 8;
         let payload_data = try!(self.buf.slice(payload_len as usize));
-        Ok(Some((id, payload_data)))
+        let p_end = self.buf.pos() + 8;
+        Ok(Some((id, p_start, p_end, payload_data)))
     }
 }
 
