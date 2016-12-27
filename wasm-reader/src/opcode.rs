@@ -1,19 +1,43 @@
 macro_rules! opcodes {
     ( $( ($tr:ident, $t1:ident, $t2:ident, $m:expr, $code:expr, $name:ident, $text:expr), )*) => {
         $(
-            pub const $name: u8 = $code;
+            pub const $name: Opcode = Opcode {
+                code: $code,
+                tr: $tr,
+                t1: $t1,
+                t2: $t2,
+                m: $m,
+                text: $text,
+            };
         )*
-        fn opcode_text(code: u8) -> Option<&'static str> {
-            match code {
-                $(
-                    $code => Some($text),
-                )*
-                _ => None,
-            }
+        impl Opcode {
+            pub fn from(code: u8) -> Option<Opcode> {
+                match code {
+                    $(
+                        $code => Some($name),
+                    )*
+                    _ => None,
+                }
+            }         
         }
     }
 }
 
+const ___: i8 =  0x00;
+const I32: i8 = -0x01;
+const I64: i8 = -0x02;
+const F32: i8 = -0x03;
+const F64: i8 = -0x04;
+
+#[derive(Debug)]
+pub struct Opcode {
+    pub code: u8,
+    pub tr: i8,
+    pub t1: i8,
+    pub t2: i8,
+    pub m: u8,
+    pub text: &'static str,
+}
 
 /*
  *   tr: result type

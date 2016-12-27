@@ -7,7 +7,7 @@ extern crate byteorder;
 
 pub mod buf;
 pub mod section;
-pub mod opcodes;
+pub mod opcode;
 
 use buf::Buf;
 use section::*;

@@ -31,10 +31,10 @@ pub enum CodeSectionState {
     Body { body_size: u32},
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum CodeItem<'a> {
     Local(u32, i8),
-    Body(&'a [u8]),
+    Body(Buf<'a>),
 }
 
 pub struct CodeSectionIter<'a> {
@@ -81,7 +81,7 @@ impl<'a> CodeSectionIter<'a> {
                 }
                 CodeSectionState::Body { body_size } => {
                     let len = body_size as usize - 1;
-                    let code = try!(self.buf.slice(len));
+                    let code = try!(self.buf.slice_buf(len));
                     let end = try!(self.buf.read_u8());
                     if end != 0x0b {
                         return Err(Error::MissingCodeEnd);
