@@ -5,7 +5,7 @@ use std::path::Path;
 use std::fs::File;
 
 use wasm_reader::{type_name, Reader};
-use wasm_reader::section::TypeSectionItem;
+use wasm_reader::section::{TypeSectionItem, CodeItem};
 
 pub fn main() {
     let path = Path::new("testdata/basic.wasm");
@@ -100,7 +100,21 @@ pub fn main() {
 
         println!("");
     }
-    println!("");
-    
-
+    println!("");   
+    println!("Code Disassembly:");
+    let code_section = r.code_section().unwrap().unwrap();
+    let mut code_iter = code_section.iter().unwrap();
+    let mut i = 0;
+    while let Ok(Some(item)) = code_iter.next() {
+        println!("func {}", i);
+        match item {
+            CodeItem::Body(body) => {
+                for b in body.bytes() {
+                    println!(" {:02x}", b.unwrap());
+                }
+            }
+            _ => unimplemented!()
+        }
+        i += 1;
+    }
 }
