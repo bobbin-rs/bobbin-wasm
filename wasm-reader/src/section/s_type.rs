@@ -19,7 +19,7 @@ impl<'a> TypeSection<'a> {
     pub fn iter(&self) -> Result<TypeSectionIter<'a>, Error> {
         let mut buf = self.buf();
         let count = try!(buf.read_var_u32());
-        Ok(TypeSectionIter { buf: buf, count: count, state: TypeSectionState::Form })
+        Ok(TypeSectionIter { buf: buf, count: count, index: 0, state: TypeSectionState::Form })
     }
 }
 
@@ -33,19 +33,20 @@ pub enum TypeSectionState {
 pub struct TypeSectionIter<'a> {
     buf: Buf<'a>,
     count: u32,
+    index: u32,
     state: TypeSectionState,
 }
 
 impl<'a> TypeSectionIter<'a> {
-    pub fn next(&mut self) -> Result<Option<TypeSectionItem>, Error> {
-        if self.count == 0 {
+    pub fn next(&mut self) -> Result<Option<(u32, TypeSectionItem)>, Error> {
+        if self.index == self.count {
             return Ok(None)
         }
         //println!("state: {:?}", self.state);
         match self.state {
             TypeSectionState::Form => {
                 let form = try!(self.buf.read_var_i7());                
-                let item = Some(TypeSectionItem::Form(form));                
+                let item = Some((self.index, TypeSectionItem::Form(form)));                
                 let param_count = try!(self.buf.read_var_u32());
                 if param_count > 0 {
                     self.state = TypeSectionState::Param(param_count);
@@ -57,12 +58,12 @@ impl<'a> TypeSectionIter<'a> {
                     return Ok(item)
                 }
                 self.state = TypeSectionState::Form;
-                self.count -= 1;
+                self.index += 1;
                 Ok(item)
             },
             TypeSectionState::Param(param_count) => {
                 let param_type = try!(self.buf.read_var_i7());
-                let item = Some(TypeSectionItem::ParamType(param_type));
+                let item = Some((self.index, TypeSectionItem::ParamType(param_type)));
                 if param_count > 1 {
                     self.state = TypeSectionState::Param(param_count - 1);
                     return Ok(item)
@@ -74,14 +75,14 @@ impl<'a> TypeSectionIter<'a> {
                     return Ok(item)
                 }                
                 self.state = TypeSectionState::Form;
-                self.count -= 1;
+                self.index += 1;
                 Ok(item)                
             },
             TypeSectionState::Return => {
                 let return_type = try!(self.buf.read_var_i7());
-                let item = Some(TypeSectionItem::ReturnType(return_type));
+                let item = Some((self.index, TypeSectionItem::ReturnType(return_type)));
                 self.state = TypeSectionState::Form;
-                self.count -= 1;
+                self.index += 1;
                 Ok(item)
             }
         }        
@@ -109,10 +110,10 @@ mod tests {
         assert_eq!(s.count().unwrap(), 1);
         let mut iter = s.iter().unwrap();
 
-        assert_eq!(iter.next().unwrap(), Some(TypeSectionItem::Form(-0x20)));
-        assert_eq!(iter.next().unwrap(), Some(TypeSectionItem::ParamType(-0x01)));
-        assert_eq!(iter.next().unwrap(), Some(TypeSectionItem::ParamType(-0x01)));
-        assert_eq!(iter.next().unwrap(), Some(TypeSectionItem::ReturnType(-0x01)));
+        assert_eq!(iter.next().unwrap(), Some((0,TypeSectionItem::Form(-0x20))));
+        assert_eq!(iter.next().unwrap(), Some((0,TypeSectionItem::ParamType(-0x01))));
+        assert_eq!(iter.next().unwrap(), Some((0,TypeSectionItem::ParamType(-0x01))));
+        assert_eq!(iter.next().unwrap(), Some((0,TypeSectionItem::ReturnType(-0x01))));
         assert_eq!(iter.next().unwrap(), None);
     }
 }

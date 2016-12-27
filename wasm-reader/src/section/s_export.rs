@@ -35,13 +35,12 @@ impl<'a> ExportSectionIter<'a> {
             return Ok(None)
         }
         let field_len = try!(self.buf.read_var_u32());
-        let field_str = try!(self.buf.slice(field_len as usize));
+        let field = try!(self.buf.slice(field_len as usize));
         let kind = try!(self.buf.read_u8());
         let index = try!(self.buf.read_var_u32());
         self.count -= 1;
         Ok(Some(ExportItem { 
-            field_len: field_len,
-            field_str: field_str,
+            field: field,
             kind: kind,
         index: index}))
     }
@@ -49,11 +48,9 @@ impl<'a> ExportSectionIter<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ExportItem<'a> {
-    field_len: u32,
-    field_str: &'a [u8],
-    kind: u8,
-    index: u32,
-
+    pub field: &'a [u8],
+    pub kind: u8,
+    pub index: u32,
 }
 
 #[cfg(test)]
