@@ -5,8 +5,9 @@ pub mod opcode;
 
 #[derive(Debug, PartialEq)]
 pub enum Error {
-    Unimplemented(usize),
+    Unreachable(usize),
     End(usize),
+    Unimplemented(usize),    
 }
 
 pub struct Machine<'a> {
@@ -29,10 +30,15 @@ impl<'a> Machine<'a> {
         use self::opcode::*;
         let op = self.code[self.pc];        
         match op {
-            NOP => { self.pc += 1; Ok(self.pc) } ,
-            END => Err(Error::End(self.pc)),
-            _ => Err(Error::Unimplemented(self.pc)),
+            UNREACHABLE => return Err(Error::Unreachable(self.pc)),
+            NOP => self.pc += 1,
+            BLOCK => self.pc += 1,
+            LOOP => self.pc += 1,
+            
+            END => return Err(Error::End(self.pc)),
+            _ => return Err(Error::Unimplemented(self.pc)),
         }
+        Ok(self.pc)
     }
 }
 
@@ -40,6 +46,17 @@ impl<'a> Machine<'a> {
 mod tests {
     use super::*;
     use super::opcode::*;
+
+    #[test]
+    fn test_unreachable() {
+        let mut locals = [0u32; 16];
+        let mut globals = [0u32; 16];
+        let mut memory = [0u32; 16];
+        let mut stack = [0u32; 16];
+        let code: [u8;1] = [UNREACHABLE];
+        let mut machine = Machine::new(&code, &mut stack, &mut memory, &mut locals, &mut globals);
+        assert_eq!(machine.step(), Err(Error::Unreachable(0)));
+    }
 
     #[test]
     fn test_end() {
