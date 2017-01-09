@@ -41,11 +41,36 @@ impl<'a> Machine<'a> {
         Machine { code: code, stack: stack, memory: memory, locals: locals, globals: globals, sp: sp, pc: 0 }
     }
 
+    pub fn set_memory_i32(&mut self, offset: usize, value: i32) {
+        LittleEndian::write_i32(&mut self.memory[offset..], value);
+    }
+
+    pub fn get_memory_i32(&self, offset: usize) -> i32 {
+        LittleEndian::read_i32(&self.memory[offset..])
+    }
+
+    pub fn set_memory_i16(&mut self, offset: usize, value: i16) {
+        LittleEndian::write_i16(&mut self.memory[offset..], value);
+    }
+
+    pub fn get_memory_i16(&self, offset: usize) -> i16 {
+        LittleEndian::read_i16(&self.memory[offset..])
+    }
+
+    pub fn set_memory_i8(&mut self, offset: usize, value: i8) {
+        self.memory[offset] = value as u8;
+    }
+
+    pub fn get_memory_i8(&self, offset: usize) -> i8 {
+        self.memory[offset] as i8
+    }
+
+
     pub fn set_local(&mut self, index: usize, value: i32) {
         self.locals[index] = value;
     }
 
-    pub fn get_local(&mut self, index: usize) -> i32 {
+    pub fn get_local(&self, index: usize) -> i32 {
         self.locals[index]
     }
 
@@ -53,7 +78,7 @@ impl<'a> Machine<'a> {
         self.globals[index] = value;
     }
 
-    pub fn get_global(&mut self, index: usize) -> i32 {
+    pub fn get_global(&self, index: usize) -> i32 {
         self.globals[index]
     }
 
@@ -89,13 +114,14 @@ impl<'a> Machine<'a> {
     // Return error or the next PC
     pub fn step(&mut self) -> Result<(), Error> {
         use self::opcode::*;
-        let op = self.code[self.pc];        
+        let op = self.code[self.pc];
+        self.pc += 1;
         match op {
             // Control Flow Operators
             UNREACHABLE => return Err(Error::Unreachable),
-            NOP => self.pc += 1,
-            BLOCK => self.pc += 1,
-            LOOP => self.pc += 1,
+            NOP => {},
+            BLOCK => {},
+            LOOP => {},
             IF => unimplemented!(),
             ELSE => unimplemented!(),
             END => return Err(Error::End),
@@ -109,89 +135,205 @@ impl<'a> Machine<'a> {
             CALL_INDIRECT => unimplemented!(),
 
             // Parametric Operators
-            DROP => unimplemented!(),
-            SELECT => unimplemented!(),
+            DROP => {
+                self.pop_i32();
+            },            
+            SELECT => {
+                let cond = self.pop_i32();
+                let f = self.pop_i32();
+                let t = self.pop_i32();
+                self.push_i32(if cond != 0 { t } else { f });
+            },
 
             // Variable Access
             GET_LOCAL => {
-                self.pc += 1;
                 let index = try!(self.read_var_u32());
                 let value = self.locals[index as usize];
                 self.push_i32(value);
             },
             SET_LOCAL => {
-                self.pc += 1;
                 let index = try!(self.read_var_u32());
                 let value = self.pop_i32();
                 self.locals[index as usize] = value;                
             },  
             TEE_LOCAL => {
-                self.pc += 1;
                 let index = try!(self.read_var_u32());                
                 self.locals[index as usize] = self.top_i32();                
             },  
             GET_GLOBAL => {
-                self.pc += 1;
                 let index = try!(self.read_var_u32());
                 let value = self.globals[index as usize];
                 self.push_i32(value);
             },
             SET_GLOBAL => {
-                self.pc += 1;
                 let index = try!(self.read_var_u32());
                 let value = self.pop_i32();
                 self.globals[index as usize] = value;                
             },  
 
             // Memory Operators
-            I32_LOAD => unimplemented!(),
+            I32_LOAD => {
+                let _flags = try!(self.read_var_u32());
+                let offset = self.pop_i32() as usize + try!(self.read_var_u32()) as usize;
+                let value = self.get_memory_i32(offset);
+                self.push_i32(value);
+            },
             I32_LOAD8_S => unimplemented!(),
             I32_LOAD8_U => unimplemented!(),
             I32_LOAD16_S => unimplemented!(),
             I32_LOAD16_U => unimplemented!(),
-            I32_STORE => unimplemented!(),
-            I32_STORE8 => unimplemented!(),
-            I32_STORE16 => unimplemented!(),
-
+            I32_STORE => {
+                let _flags = try!(self.read_var_u32());
+                let offset = self.pop_i32() as usize + try!(self.read_var_u32()) as usize;
+                let value = self.pop_i32();
+                self.set_memory_i32(offset, value);
+            },
+            I32_STORE8 => {
+                let _flags = try!(self.read_var_u32());
+                let offset = self.pop_i32() as usize + try!(self.read_var_u32()) as usize;
+                let value = self.pop_i32();
+                self.set_memory_i8(offset, value as i8);
+            },
+            I32_STORE16 => {
+                let _flags = try!(self.read_var_u32());
+                let offset = self.pop_i32() as usize + try!(self.read_var_u32()) as usize;
+                let value = self.pop_i32();
+                self.set_memory_i16(offset, value as i16);
+            },            
             // Constants
             I32_CONST => {       
-                self.pc += 1;         
                 let r = try!(self.read_var_i32());
                 self.push_i32(r);
             },
 
             // Comparison Operators
-            I32_EQZ => unimplemented!(),
-            I32_EQ => unimplemented!(),
-            I32_NE => unimplemented!(),
-            I32_LT_S => unimplemented!(),
-            I32_LT_U => unimplemented!(),
-            I32_GT_S => unimplemented!(),
-            I32_GT_U => unimplemented!(),
-            I32_LE_S => unimplemented!(),
-            I32_LE_U => unimplemented!(),
-            I32_GE_S => unimplemented!(),
-            I32_GE_U => unimplemented!(),
+            I32_EQZ => {
+                let v = self.pop_i32();
+                self.push_i32(if v == 1 { 1 } else { 0 });
+            },
+            I32_EQ => {
+                let r = self.pop_i32();
+                let l = self.pop_i32();
+                self.push_i32(if l == r { 1 } else { 0 });
+            },
+            I32_NE => {
+                let r = self.pop_i32();
+                let l = self.pop_i32();
+                self.push_i32(if l != r { 1 } else { 0 });
+            },
+            I32_LT_S => {
+                let r = self.pop_i32();
+                let l = self.pop_i32();
+                self.push_i32(if l < r { 1 } else { 0 });
+            },
+            I32_LT_U => {
+                let r = self.pop_i32() as u32;
+                let l = self.pop_i32() as u32;
+                self.push_i32(if l < r { 1 } else { 0 });
+            },
+            I32_GT_S => {
+                let r = self.pop_i32();
+                let l = self.pop_i32();
+                self.push_i32(if l >r { 1 } else { 0 });
+            },
+            I32_GT_U => {
+                let r = self.pop_i32() as u32;
+                let l = self.pop_i32() as u32;
+                self.push_i32(if l >r { 1 } else { 0 });
+            },               
+            I32_LE_S => {
+                let r = self.pop_i32();
+                let l = self.pop_i32();
+                self.push_i32(if l <= r { 1 } else { 0 });
+            },
+            I32_LE_U => {
+                let r = self.pop_i32() as u32;
+                let l = self.pop_i32() as u32;
+                self.push_i32(if l <= r { 1 } else { 0 });
+            },
+            I32_GE_S => {
+                let r = self.pop_i32();
+                let l = self.pop_i32();
+                self.push_i32(if l >= r { 1 } else { 0 });
+            },
+            I32_GE_U => {
+                let r = self.pop_i32() as u32;
+                let l = self.pop_i32() as u32;
+                self.push_i32(if l >= r { 1 } else { 0 });
+            },               
 
             // Numeric Operators
-            I32_CLZ => unimplemented!(),
-            I32_CTZ => unimplemented!(),
-            I32_POPCNT => unimplemented!(),
-            I32_ADD => unimplemented!(),
-            I32_SUB => unimplemented!(),
-            I32_MUL => unimplemented!(),
+            I32_CLZ => {
+                let v = self.pop_i32();
+                self.push_i32(v.leading_zeros() as i32);
+            },
+            I32_CTZ => {
+                let v = self.pop_i32();
+                self.push_i32(v.trailing_zeros() as i32);
+            },
+            I32_POPCNT => {
+                let v = self.pop_i32();
+                self.push_i32(v.count_ones() as i32);
+            },
+            I32_ADD => {
+                let r = self.pop_i32();
+                let l = self.pop_i32();
+                self.push_i32(l + r);        
+            },
+            I32_SUB => {
+                let r = self.pop_i32();
+                let l = self.pop_i32();
+                self.push_i32(l - r);
+            },                        
+            I32_MUL => {
+                let r = self.pop_i32();
+                let l = self.pop_i32();
+                self.push_i32(l * r);
+            },
             I32_DIV_S => unimplemented!(),
             I32_DIV_U => unimplemented!(),
             I32_REM_S => unimplemented!(),
             I32_REM_U => unimplemented!(),
-            I32_AND => unimplemented!(),
-            I32_OR => unimplemented!(),
-            I32_XOR => unimplemented!(),
-            I32_SHL => unimplemented!(),
-            I32_SHR_S => unimplemented!(),
-            I32_SHR_U => unimplemented!(),
-            I32_ROTL => unimplemented!(),
-            I32_ROTR => unimplemented!(),
+            I32_AND => {
+                let r = self.pop_i32();
+                let l = self.pop_i32();
+                self.push_i32(l & r);
+            },
+            I32_OR => {
+                let r = self.pop_i32();
+                let l = self.pop_i32();
+                self.push_i32(l | r);
+            },
+            I32_XOR => {
+                let r = self.pop_i32();
+                let l = self.pop_i32();
+                self.push_i32(l ^ r);
+            },                        
+            I32_SHL => {
+                let r = self.pop_i32();
+                let l = self.pop_i32();
+                self.push_i32(l << r);                
+            },
+            I32_SHR_S => {
+                let r = self.pop_i32();
+                let l = self.pop_i32();
+                self.push_i32(l >> r);                
+            },
+            I32_SHR_U => {
+                let r = self.pop_i32();
+                let l = self.pop_i32() as u32;
+                self.push_i32((l >> r) as i32);
+            },
+            I32_ROTL => {
+                let r = self.pop_i32();
+                let l = self.pop_i32();
+                self.push_i32(l.rotate_left(r as u32));
+            },
+            I32_ROTR => {
+                let r = self.pop_i32();
+                let l = self.pop_i32();
+                self.push_i32(l.rotate_right(r as u32));
+            }
 
             _ => return Err(Error::Unimplemented),
         }
