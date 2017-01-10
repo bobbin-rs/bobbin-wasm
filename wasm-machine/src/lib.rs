@@ -31,55 +31,62 @@ pub struct Machine<'a> {
     memory: &'a mut [u8],
     locals: &'a mut [i32],
     globals: &'a mut [i32],
+    functions: &'a mut [i32],
     sp: usize,
     pc: usize,
 }
 
 impl<'a> Machine<'a> {
-    pub fn new(code: &'a [u8], stack: &'a mut[u8], memory: &'a mut[u8], locals: &'a mut[i32], globals: &'a mut[i32]) -> Self {
+    pub fn new(code: &'a [u8], stack: &'a mut[u8], memory: &'a mut[u8], locals: &'a mut[i32], globals: &'a mut[i32], functions: &'a mut[i32]) -> Self {
         let sp = stack.len();
-        Machine { code: code, stack: stack, memory: memory, locals: locals, globals: globals, sp: sp, pc: 0 }
+        Machine { code: code, stack: stack, memory: memory, locals: locals, globals: globals, functions: functions, sp: sp, pc: 0 }
+    }    
+    pub fn get_function(&self, i: usize) -> i32 {
+        self.functions[i as usize]
     }
 
-    pub fn set_memory_i32(&mut self, offset: usize, value: i32) {
-        LittleEndian::write_i32(&mut self.memory[offset..], value);
+    pub fn set_function(&mut self, i: usize, addr: i32) {
+        self.functions[i as usize] = addr;
     }
 
     pub fn get_memory_i32(&self, offset: usize) -> i32 {
         LittleEndian::read_i32(&self.memory[offset..])
     }
 
-    pub fn set_memory_i16(&mut self, offset: usize, value: i16) {
-        LittleEndian::write_i16(&mut self.memory[offset..], value);
+    pub fn set_memory_i32(&mut self, offset: usize, value: i32) {
+        LittleEndian::write_i32(&mut self.memory[offset..], value);
     }
 
     pub fn get_memory_i16(&self, offset: usize) -> i16 {
         LittleEndian::read_i16(&self.memory[offset..])
     }
 
-    pub fn set_memory_i8(&mut self, offset: usize, value: i8) {
-        self.memory[offset] = value as u8;
+    pub fn set_memory_i16(&mut self, offset: usize, value: i16) {
+        LittleEndian::write_i16(&mut self.memory[offset..], value);
     }
 
     pub fn get_memory_i8(&self, offset: usize) -> i8 {
         self.memory[offset] as i8
     }
 
-
-    pub fn set_local(&mut self, index: usize, value: i32) {
-        self.locals[index] = value;
+    pub fn set_memory_i8(&mut self, offset: usize, value: i8) {
+        self.memory[offset] = value as u8;
     }
 
     pub fn get_local(&self, index: usize) -> i32 {
         self.locals[index]
     }
 
-    pub fn set_global(&mut self, index: usize, value: i32) {
-        self.globals[index] = value;
+    pub fn set_local(&mut self, index: usize, value: i32) {
+        self.locals[index] = value;
     }
 
     pub fn get_global(&self, index: usize) -> i32 {
         self.globals[index]
+    }
+
+    pub fn set_global(&mut self, index: usize, value: i32) {
+        self.globals[index] = value;
     }
 
     pub fn read_var_i32(&mut self) -> Result<i32, Error> {
@@ -122,16 +129,24 @@ impl<'a> Machine<'a> {
             NOP => {},
             BLOCK => {},
             LOOP => {},
-            IF => unimplemented!(),
-            ELSE => unimplemented!(),
+            IF => {},
+            ELSE => {},
             END => return Err(Error::End),
-            BR => unimplemented!(),
-            BR_IF => unimplemented!(),
+            BR => {},
+            BR_IF => {},
             BR_TABLE => unimplemented!(),
-            RETURN => unimplemented!(),
+            RETURN => {                
+                self.pc = self.pop_i32() as usize;
+            },
 
             // Call Operators
-            CALL => unimplemented!(),
+            CALL => {
+                let i = try!(self.read_var_u32());
+                let dst = self.get_function(i as usize);
+                let pc = self.pc as i32;
+                self.push_i32(pc);
+                self.pc = dst as usize;                
+            },
             CALL_INDIRECT => unimplemented!(),
 
             // Parametric Operators
@@ -178,10 +193,30 @@ impl<'a> Machine<'a> {
                 let value = self.get_memory_i32(offset);
                 self.push_i32(value);
             },
-            I32_LOAD8_S => unimplemented!(),
-            I32_LOAD8_U => unimplemented!(),
-            I32_LOAD16_S => unimplemented!(),
-            I32_LOAD16_U => unimplemented!(),
+            I32_LOAD8_S => {
+                let _flags = try!(self.read_var_u32());
+                let offset = self.pop_i32() as usize + try!(self.read_var_u32()) as usize;
+                let value: i32 = self.get_memory_i8(offset) as i32;
+                self.push_i32(value);
+            },
+            I32_LOAD8_U => {
+                let _flags = try!(self.read_var_u32());
+                let offset = self.pop_i32() as usize + try!(self.read_var_u32()) as usize;
+                let value: u32 = self.get_memory_i8(offset) as u32;
+                self.push_i32(value as i32);
+            },
+            I32_LOAD16_S => {
+                let _flags = try!(self.read_var_u32());
+                let offset = self.pop_i32() as usize + try!(self.read_var_u32()) as usize;
+                let value: i32 = self.get_memory_i16(offset) as i32;
+                self.push_i32(value);
+            },
+            I32_LOAD16_U => {
+                let _flags = try!(self.read_var_u32());
+                let offset = self.pop_i32() as usize + try!(self.read_var_u32()) as usize;
+                let value: u32 = self.get_memory_i16(offset) as u32;
+                self.push_i32(value as i32);
+            },
             I32_STORE => {
                 let _flags = try!(self.read_var_u32());
                 let offset = self.pop_i32() as usize + try!(self.read_var_u32()) as usize;
@@ -359,11 +394,12 @@ mod tests {
     use writer::*;
 
     fn with_machine<F: FnOnce(&mut Machine)>(code: &[u8], f: F) {
+        let mut stack = [0u8; 16];    
+        let mut memory = [0u8; 16];
         let mut locals = [0i32; 16];
         let mut globals = [0i32; 16];
-        let mut memory = [0u8; 16];
-        let mut stack = [0u8; 16];
-        let mut machine = Machine::new(&code, &mut stack, &mut memory, &mut locals, &mut globals);
+        let mut functions = [0i32; 16];
+        let mut machine = Machine::new(&code, &mut stack, &mut memory, &mut locals, &mut globals, &mut functions);
         f(&mut machine)
     }
 
