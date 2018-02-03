@@ -1,16 +1,36 @@
+use ::core::convert::TryFrom;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OpcodeError {
+    InvalidOpCode(u8),
+}
+
 macro_rules! opcodes {
     ( $( ($tr:ident, $t1:ident, $t2:ident, $m:expr, $code:expr, $name:ident, $text:expr), )*) => {
+        impl TryFrom<u8> for Opcode {
+            type Error = OpcodeError;
+            fn try_from(other: u8) -> Result<Self, Self::Error> {
+                match other {
+                    $(
+                        $code => Ok(Opcode { code: $code, tr: $tr, t1: $t1, t2: $t2, m: $m, text: $text }),
+                    )*
+                    _ => Err(OpcodeError::InvalidOpCode(other)),
+                }
+            }
+        }
+
         $(
             pub const $name: u8 = $code;
         )*
     }
 }
 
-const ___: i8 =  0x00;
-const I32: i8 = -0x01;
-const I64: i8 = -0x02;
-const F32: i8 = -0x03;
-const F64: i8 = -0x04;
+pub const ___: i8 =  0x00;
+pub const I32: i8 = -0x01;
+pub const I64: i8 = -0x02;
+pub const F32: i8 = -0x03;
+pub const F64: i8 = -0x04;
+pub const VOID: i8 = -0x40;
 
 #[derive(Debug)]
 pub struct Opcode {
@@ -77,8 +97,8 @@ opcodes!{
   (___, I32, I64, 1, 0x3c, I64_STORE8, "i64.store8"),
   (___, I32, I64, 2, 0x3d, I64_STORE16, "i64.store16"),
   (___, I32, I64, 4, 0x3e, I64_STORE32, "i64.store32"),
-  (I32, ___, ___, 0, 0x3f, CURRENT_MEMORY, "current_memory"),
-  (I32, I32, ___, 0, 0x40, GROW_MEMORY, "grow_memory"),
+  (I32, ___, ___, 0, 0x3f, MEM_SIZE, "mem_size"),
+  (I32, I32, ___, 0, 0x40, MEM_GROW, "mem_grow"),
   (I32, ___, ___, 0, 0x41, I32_CONST, "i32.const"),
   (I64, ___, ___, 0, 0x42, I64_CONST, "i64.const"),
   (F32, ___, ___, 0, 0x43, F32_CONST, "f32.const"),

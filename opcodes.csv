@@ -1,0 +1,173 @@
+﻿Mnemonic,Opcode,Immediates,Signature,Families
+unreachable,0x00,,() : (),Q
+block,0x02,$signature: block signature type,() : (),
+loop,0x03,$signature: block signature type,() : (),
+if,0x04,$signature: block signature type,($condition: i32) : (),B
+else,0x05,,($T[$any]) : ($T[$any]),B
+end,0x0b,,($T[$any]) : ($T[$any]),
+br,0x0c,$depth: varuint32,($T[$block_arity]) : ($T[$block_arity]),B Q
+br_if,0x0d,$depth: varuint32,"($T[$block_arity], $condition: i32) : ($T[$block_arity])",B
+br_table,0x0e,"$table: array of varuint32, $default: varuint32","($T[$block_arity], $index: i32) : ($T[$block_arity])",B Q
+return,0x0f,,($T[$block_arity]) : ($T[$block_arity]),B Q
+nop,0x01,,() : (),
+drop,0x1a,,($T[1]) : (),
+i32.const,0x41,$value: varsint32,() : (i32),
+i64.const,0x42,$value: varsint64,() : (i64),
+f32.const,0x43,$value: float32,() : (f32),
+f64.const,0x44,$value: float64,() : (f64),
+get_local,0x20,$id: varuint32,() : ($T[1]),
+set_local,0x21,$id: varuint32,($T[1]) : (),
+tee_local,0x22,$id: varuint32,($T[1]) : ($T[1]),
+get_global,0x23,$id: varuint32,() : ($T[1]),
+set_global,0x24,$id: varuint32,($T[1]) : (),
+select,0x1b,,"($T[1], $T[1], $condition: i32) : ($T[1])",
+call,0x10,$callee: varuint32,($T[$args]) : ($T[$returns]),L
+call_indirect,0x11,"$signature: varuint32, $reserved: varuint1","($T[$args], $callee: i32) : ($T[$returns])",L
+i32.add,0x6a,,"(i32, i32) : (i32)",G
+i64.add,0x7c,,"(i64, i64) : (i64)",G
+i32.sub,0x6b,,"(i32, i32) : (i32)",G
+i64.sub,0x7d,,"(i64, i64) : (i64)",G
+i32.mul,0x6c,,"(i32, i32) : (i32)",G
+i64.mul,0x7e,,"(i64, i64) : (i64)",G
+i32.div_s,0x6d,,"(i32, i32) : (i32)",S
+i64.div_s,0x7f,,"(i64, i64) : (i64)",S
+i32.div_u,0x6e,,"(i32, i32) : (i32)",U
+i64.div_u,0x80,,"(i64, i64) : (i64)",U
+i32.rem_s,0x6f,,"(i32, i32) : (i32)",S R
+i64.rem_s,0x81,,"(i64, i64) : (i64)",S R
+i32.rem_u,0x70,,"(i32, i32) : (i32)",U R
+i64.rem_u,0x82,,"(i64, i64) : (i64)",U R
+i32.and,0x71,,"(i32, i32) : (i32)",G
+i64.and,0x83,,"(i64, i64) : (i64)",G
+i32.or,0x72,,"(i32, i32) : (i32)",G
+i64.or,0x84,,"(i64, i64) : (i64)",G
+i32.xor,0x73,,"(i32, i32) : (i32)",G
+i64.xor,0x85,,"(i64, i64) : (i64)",G
+i32.shl,0x74,,"(i32, i32) : (i32)","T, G"
+i64.shl,0x86,,"(i64, i64) : (i64)","T, G"
+i32.shr_s,0x75,,"(i32, i32) : (i32)","T, S"
+i64.shr_s,0x87,,"(i64, i64) : (i64)","T, S"
+i32.shr_u,0x76,,"(i32, i32) : (i32)","T, U"
+i64.shr_u,0x88,,"(i64, i64) : (i64)","T, U"
+i32.rotl,0x77,,"(i32, i32) : (i32)","T, G"
+i64.rotl,0x89,,"(i64, i64) : (i64)","T, G"
+i32.rotr,0x78,,"(i32, i32) : (i32)","T, G"
+i64.rotr,0x8a,,"(i64, i64) : (i64)","T, G"
+i32.clz,0x67,,(i32) : (i32),G
+i64.clz,0x79,,(i64) : (i64),G
+i32.ctz,0x68,,(i32) : (i32),G
+i64.ctz,0x7a,,(i64) : (i64),G
+i32.popcnt,0x69,,(i32) : (i32),G
+i64.popcnt,0x7b,,(i64) : (i64),G
+i32.eqz,0x45,,(i32) : (i32),G
+i64.eqz,0x50,,(i64) : (i32),G
+f32.add,0x92,,"(f32, f32) : (f32)",F
+f64.add,0xa0,,"(f64, f64) : (f64)",F
+f32.sub,0x93,,"(f32, f32) : (f32)",F
+f64.sub,0xa1,,"(f64, f64) : (f64)",F
+f32.mul,0x94,,"(f32, f32) : (f32)",F
+f64.mul,0xa2,,"(f64, f64) : (f64)",F
+f32.div,0x95,,"(f32, f32) : (f32)",F
+f64.div,0xa3,,"(f64, f64) : (f64)",F
+f32.sqrt,0x91,,(f32) : (f32),F
+f64.sqrt,0x9f,,(f64) : (f64),F
+f32.min,0x96,,"(f32, f32) : (f32)",F
+f64.min,0xa4,,"(f64, f64) : (f64)",F
+f32.max,0x97,,"(f32, f32) : (f32)",F
+f64.max,0xa5,,"(f64, f64) : (f64)",F
+f32.ceil,0x8d,,(f32) : (f32),F
+f64.ceil,0x9b,,(f64) : (f64),F
+f32.floor,0x8e,,(f32) : (f32),F
+f64.floor,0x9c,,(f64) : (f64),F
+f32.trunc,0x8f,,(f32) : (f32),F
+f64.trunc,0x9d,,(f64) : (f64),F
+f32.nearest,0x90,,(f32) : (f32),F
+f64.nearest,0x9e,,(f64) : (f64),F
+f32.abs,0x8b,,(f32) : (f32),E
+f64.abs,0x99,,(f64) : (f64),E
+f32.neg,0x8c,,(f32) : (f32),E
+f64.neg,0x9a,,(f64) : (f64),E
+f32.copysign,0x98,,"(f32, f32) : (f32)",E
+f64.copysign,0xa6,,"(f64, f64) : (f64)",E
+i32.eq,0x46,,"(i32, i32) : (i32)","C, G"
+i64.eq,0x51,,"(i64, i64) : (i32)","C, G"
+i32.ne,0x47,,"(i32, i32) : (i32)","C, G"
+i64.ne,0x52,,"(i64, i64) : (i32)","C, G"
+i32.lt_s,0x48,,"(i32, i32) : (i32)","C, S"
+i64.lt_s,0x53,,"(i64, i64) : (i32)","C, S"
+i32.lt_u,0x49,,"(i32, i32) : (i32)","C, U"
+i64.lt_u,0x54,,"(i64, i64) : (i32)","C, U"
+i32.le_s,0x4c,,"(i32, i32) : (i32)","C, S"
+i64.le_s,0x57,,"(i64, i64) : (i32)","C, S"
+i32.le_u,0x4d,,"(i32, i32) : (i32)","C, U"
+i64.le_u,0x58,,"(i64, i64) : (i32)","C, U"
+i32.gt_s,0x4a,,"(i32, i32) : (i32)","C, S"
+i64.gt_s,0x55,,"(i64, i64) : (i32)","C, S"
+i32.gt_u,0x4b,,"(i32, i32) : (i32)","C, U"
+i64.gt_u,0x56,,"(i64, i64) : (i32)","C, U"
+i32.ge_s,0x4e,,"(i32, i32) : (i32)","C, S"
+i64.ge_s,0x59,,"(i64, i64) : (i32)","C, S"
+i32.ge_u,0x4f,,"(i32, i32) : (i32)","C, U"
+i64.ge_u,0x5a,,"(i64, i64) : (i32)","C, U"
+f32.eq,0x5b,,"(f32, f32) : (i32)","C, F"
+f64.eq,0x61,,"(f64, f64) : (i32)","C, F"
+f32.ne,0x5c,,"(f32, f32) : (i32)","C, F"
+f64.ne,0x62,,"(f64, f64) : (i32)","C, F"
+f32.lt,0x5d,,"(f32, f32) : (i32)","C, F"
+f64.lt,0x63,,"(f64, f64) : (i32)","C, F"
+f32.le,0x5f,,"(f32, f32) : (i32)","C, F"
+f64.le,0x65,,"(f64, f64) : (i32)","C, F"
+f32.gt,0x5e,,"(f32, f32) : (i32)","C, F"
+f64.gt,0x64,,"(f64, f64) : (i32)","C, F"
+f32.ge,0x60,,"(f32, f32) : (i32)","C, F"
+f64.ge,0x66,,"(f64, f64) : (i32)","C, F"
+i32.wrap/i64,0xa7,,(i64) : (i32),G
+i64.extend_s/i32,0xac,,(i32) : (i64),S
+i64.extend_u/i32,0xad,,(i32) : (i64),U
+i32.trunc_s/f32,0xa8,,(f32) : (i32),"F, S"
+i32.trunc_s/f64,0xaa,,(f64) : (i32),"F, S"
+i64.trunc_s/f32,0xae,,(f32) : (i64),"F, S"
+i64.trunc_s/f64,0xb0,,(f64) : (i64),"F, S"
+i32.trunc_u/f32,0xa9,,(f32) : (i32),"F, U"
+i32.trunc_u/f64,0xab,,(f64) : (i32),"F, U"
+i64.trunc_u/f32,0xaf,,(f32) : (i64),"F, U"
+i64.trunc_u/f64,0xb1,,(f64) : (i64),"F, U"
+f32.demote/f64,0xb6,,(f64) : (f32),F
+f64.promote/f32,0xbb,,(f32) : (f64),F
+f32.convert_s/i32,0xb2,,(i32) : (f32),"F, S"
+f32.convert_s/i64,0xb4,,(i64) : (f32),"F, S"
+f64.convert_s/i32,0xb7,,(i32) : (f64),"F, S"
+f64.convert_s/i64,0xb9,,(i64) : (f64),"F, S"
+f32.convert_u/i32,0xb3,,(i32) : (f32),"F, U"
+f32.convert_u/i64,0xb5,,(i64) : (f32),"F, U"
+f64.convert_u/i32,0xb8,,(i32) : (f64),"F, U"
+f64.convert_u/i64,0xba,,(i64) : (f64),"F, U"
+i32.reinterpret/f32,0xbc,,(f32) : (i32),
+i64.reinterpret/f64,0xbd,,(f64) : (i64),
+f32.reinterpret/i32,0xbe,,(i32) : (f32),
+f64.reinterpret/i64,0xbf,,(i64) : (f64),
+i32.load,0x28,"$flags: memflags, $offset: varuPTR",($base: iPTR) : (i32),"M, G"
+i64.load,0x29,"$flags: memflags, $offset: varuPTR",($base: iPTR) : (i64),"M, G"
+f32.load,0x2a,"$flags: memflags, $offset: varuPTR",($base: iPTR) : (f32),"M, E"
+f64.load,0x2b,"$flags: memflags, $offset: varuPTR",($base: iPTR) : (f64),"M, E"
+i32.store,0x36,"$flags: memflags, $offset: varuPTR","($base: iPTR, $value: i32) : ()","M, G"
+i64.store,0x37,"$flags: memflags, $offset: varuPTR","($base: iPTR, $value: i64) : ()","M, G"
+f32.store,0x38,"$flags: memflags, $offset: varuPTR","($base: iPTR, $value: f32) : ()","M, F"
+f64.store,0x39,"$flags: memflags, $offset: varuPTR","($base: iPTR, $value: f64) : ()","M, F"
+i32.load8_s,0x2c,"$flags: memflags, $offset: varuPTR",($base: iPTR) : (i32),"M, S"
+i32.load16_s,0x2e,"$flags: memflags, $offset: varuPTR",($base: iPTR) : (i32),"M, S"
+i64.load8_s,0x30,"$flags: memflags, $offset: varuPTR",($base: iPTR) : (i64),"M, S"
+i64.load16_s,0x32,"$flags: memflags, $offset: varuPTR",($base: iPTR) : (i64),"M, S"
+i64.load32_s,0x34,"$flags: memflags, $offset: varuPTR",($base: iPTR) : (i64),"M, S"
+i32.load8_u,0x2d,"$flags: memflags, $offset: varuPTR",($base: iPTR) : (i32),"M, U"
+i32.load16_u,0x2f,"$flags: memflags, $offset: varuPTR",($base: iPTR) : (i32),"M, U"
+i64.load8_u,0x31,"$flags: memflags, $offset: varuPTR",($base: iPTR) : (i64),"M, U"
+i64.load16_u,0x33,"$flags: memflags, $offset: varuPTR",($base: iPTR) : (i64),"M, U"
+i64.load32_u,0x35,"$flags: memflags, $offset: varuPTR",($base: iPTR) : (i64),"M, U"
+i32.store8,0x3a,"$flags: memflags, $offset: varuPTR","($base: iPTR, $value: i32) : ()","M, G"
+i32.store16,0x3b,"$flags: memflags, $offset: varuPTR","($base: iPTR, $value: i32) : ()","M, G"
+i64.store8,0x3c,"$flags: memflags, $offset: varuPTR","($base: iPTR, $value: i64) : ()","M, G"
+i64.store16,0x3d,"$flags: memflags, $offset: varuPTR","($base: iPTR, $value: i64) : ()","M, G"
+i64.store32,0x3e,"$flags: memflags, $offset: varuPTR","($base: iPTR, $value: i64) : ()","M, G"
+mem.grow,0x40,$reserved: varuint1,($delta: iPTR) : (iPTR),Z
+mem.size,0x3f,$reserved: varuint1,() : (iPTR),Z

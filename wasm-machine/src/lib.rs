@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 //#![no_std]
+#![feature(try_from)]
 
 extern crate core;
 
