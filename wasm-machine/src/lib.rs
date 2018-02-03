@@ -129,8 +129,11 @@ impl<'a> Machine<'a> {
             NOP => {},
             BLOCK => {},
             LOOP => {},
+            // IF => BR_UNLESS ELSE + 1
             IF => {},
+            // IF => END + 1
             ELSE => {},
+            // 
             END => return Err(Error::End),
             BR => {},
             BR_IF => {},

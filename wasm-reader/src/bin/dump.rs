@@ -5,9 +5,9 @@ use std::path::Path;
 use std::fs::File;
 
 use wasm_reader::{type_name, Reader};
-use wasm_reader::buf::Buf;
+// use wasm_reader::buf::Buf;
 use wasm_reader::section::{TypeSectionItem, CodeItem};
-use wasm_reader::opcode::{self, Opcode};
+// use wasm_reader::opcode::{self, Opcode};
 
 pub fn main() {
     let path = Path::new("testdata/basic.wasm");

@@ -116,8 +116,8 @@ mod tests {
         let mut iter = s.iter();
 
         if let Some(CodeItem::Body(body)) = iter.next() {
-            assert_eq!(body.len(), 18);
-            assert_eq!(body, &[
+            assert_eq!(body.remaining(), 18);
+            assert_eq!(body.as_ref(), &[
                 0x41, 0x00,
                 0x41, 0x00,
                 0x28, 0x02, 0x00,
@@ -131,6 +131,6 @@ mod tests {
         } else {
             panic!("Expected body");
         }
-        assert_eq!(iter.next(), None);
+        assert!(iter.next().is_none());
     }
 }

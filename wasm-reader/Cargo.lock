@@ -1,19 +1,19 @@
-[root]
-name = "wasm-reader"
-version = "0.1.0"
-dependencies = [
- "byteorder 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "wasm-leb128 0.1.0",
-]
-
 [[package]]
 name = "byteorder"
-version = "0.5.3"
+version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "wasm-leb128"
 version = "0.1.0"
 
+[[package]]
+name = "wasm-reader"
+version = "0.1.0"
+dependencies = [
+ "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wasm-leb128 0.1.0",
+]
+
 [metadata]
-"checksum byteorder 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)" = "0fc10e8cc6b2580fda3f36eb6dc5316657f812a3df879a44a66fc9f0fdbc4855"
+"checksum byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "652805b7e73fada9d85e9a6682a4abd490cb52d96aeecc12e33a0de34dfd0d23"

@@ -19,7 +19,7 @@ pub fn read_u1(buf: &[u8]) -> Result<(bool, usize), Error> {
 
 pub fn read_u7(buf: &[u8]) -> Result<(u8, usize), Error> {
     if !(buf[0] & 1 << 7 == 0) { return Err(Error::Overflow) }
-    Ok(((buf[0] & !(1 << 7), 1)))
+    Ok((buf[0] & !(1 << 7), 1))
 }
 
 pub fn read_i7(buf: &[u8]) -> Result<(i8, usize), Error> {

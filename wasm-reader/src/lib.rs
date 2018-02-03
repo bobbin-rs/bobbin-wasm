@@ -1,6 +1,5 @@
 #![no_std]
 #![allow(unused_imports, dead_code)]
-#![feature(field_init_shorthand)]
 
 extern crate wasm_leb128;
 extern crate byteorder;

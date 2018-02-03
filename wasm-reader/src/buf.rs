@@ -54,6 +54,10 @@ impl<'a> Buf<'a> {
         }
     }
 
+    pub fn as_ref(&self) -> &[u8] {
+        &self.buf[self.pos..]
+    }
+
     pub fn read_u8(&mut self) -> Result<u8, Error> {
         let v = self.buf[self.pos];
         self.pos += 1;
