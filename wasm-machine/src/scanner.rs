@@ -3,12 +3,14 @@ use super::opcode::*;
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Entry {
     pc: usize,
+    end: usize,
+    mid: usize,
 }
 
 #[derive(Clone, Copy, Debug)]
 pub struct Scanner {
     pc: usize,
-    stack: [Entry; 16],
+    stack: [usize; 16],
     stack_pos: usize,
     array: [Entry; 16],
     array_pos: usize,
@@ -18,25 +20,29 @@ impl Scanner {
     fn new() -> Self {
         Scanner { 
             pc: 0,
-            stack: [Entry::default(); 16], 
+            stack: [0; 16], 
             stack_pos: 0,
             array: [Entry::default(); 16],
             array_pos: 0,
         }
     }
 
-    fn push(&mut self) {
-        self.stack[self.stack_pos] = Entry { pc: self.pc };
+    fn push(&mut self) -> usize {
+        let id = self.array_pos;
+        self.array[self.array_pos] = Entry { pc: self.pc, end: 0, mid: 0 };
+        self.array_pos += 1;
+        self.stack[self.stack_pos] = id;
         self.stack_pos += 1;
+        id
     }
 
-    fn pop(&mut self) -> Entry {
+    fn pop(&mut self) -> usize {
         self.stack_pos -= 1;
         self.stack[self.stack_pos]
     }
 
-    fn top(&self) -> &Entry {
-        &self.stack[self.stack_pos - 1]
+    fn top(&self) -> usize {
+        self.stack[self.stack_pos - 1]
     }
 
     fn indent(&self) {
@@ -45,7 +51,6 @@ impl Scanner {
     }
 
     fn scan(&mut self, body: &mut [u8]) {
-        let mut depth = 0;
         for (i, op) in body.iter().enumerate() {
             self.pc = i;
             // println!("0x{:02x}", op);
@@ -56,28 +61,34 @@ impl Scanner {
                 },
                 BLOCK => {
                     self.indent();
-                    println!("(block");
-                    self.push();
+                    print!("(block");
+                    let n = self.push();
+                    println!(" #{}", n);
+
                 },
                 LOOP => {
                     self.indent();
-                    println!("(loop");
-                    self.push();
+                    print!("(loop");
+                    let n = self.push();
+                    println!(" #{}", n);
                 },
                 IF => {
                     self.indent();
-                    println!("(if");
-                    self.push();
+                    print!("(if");
+                    let n = self.push();
+                    println!(" #{}", n);
                 },                
                 ELSE => {
                     let e = self.top();
+                    self.array[e].mid = self.pc;
                     self.indent();
-                    println!("; else 0x{:02x}", e.pc);
+                    println!("; else #{}", e);
                 },                
                 END => {
                     let e = self.pop();
+                    self.array[e].end = self.pc;
                     self.indent();
-                    println!("); 0x{:02x}", e.pc);
+                    println!("); #{}", e);
                 },
                 BR => {
                     self.indent();
@@ -98,7 +109,17 @@ impl Scanner {
                 _ => {}
             }
         }
-    assert!(depth == 0);
+    assert!(self.stack_pos == 0);
+
+    for i in 0..self.array_pos {
+        let e = self.array[i];
+        print!("#{}: pc: 0x{:02x} end: 0x{:02x}", i, e.pc, e.end);
+        if e.mid > 0 {
+            print!(" mid: 0x{:02x}", e.mid);
+        }
+        println!("");
+    }
+
     }
 }
 
