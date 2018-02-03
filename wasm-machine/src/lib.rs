@@ -1,11 +1,14 @@
 #![allow(dead_code)]
-#![no_std]
+//#![no_std]
+
+extern crate core;
 
 extern crate byteorder;
 extern crate wasm_leb128;
 
 pub mod opcode;
 pub mod writer;
+pub mod scanner;
 
 use byteorder::{ByteOrder, LittleEndian};
 use wasm_leb128::{read_i32, read_u32};
