@@ -9,10 +9,10 @@ extern crate wasm_leb128;
 
 pub mod ops;
 pub mod reader;
-pub mod decoder;
 pub mod opcode;
 pub mod writer;
 pub mod scanner;
+pub mod interp;
 
 use byteorder::{ByteOrder, LittleEndian};
 use wasm_leb128::{read_i32, read_u32};
@@ -446,9 +446,9 @@ mod tests {
     fn test_i32_const() {
         let mut buf = [0u8; 64];
         let mut w = Writer::new(&mut buf);
-        w.write_u8(I32_CONST);
-        w.write_var_i32(0x12345678);
-        w.write_u8(END);
+        w.write_u8(I32_CONST).unwrap();
+        w.write_var_i32(0x12345678).unwrap();
+        w.write_u8(END).unwrap();
         with_machine(&w, |m| {            
             assert_eq!(m.run(), Ok(()));            
             assert_eq!(m.pop_i32(), 0x12345678);
@@ -459,9 +459,9 @@ mod tests {
     fn test_get_global() {
         let mut buf = [0u8; 64];
         let mut w = Writer::new(&mut buf);
-        w.write_u8(GET_GLOBAL);
-        w.write_var_u32(0);
-        w.write_u8(END);
+        w.write_u8(GET_GLOBAL).unwrap();
+        w.write_var_u32(0).unwrap();
+        w.write_u8(END).unwrap();
         with_machine(&w, |m| {            
             m.set_global(0, 0x12345678);
             assert_eq!(m.run(), Ok(()));            
@@ -473,9 +473,9 @@ mod tests {
     fn test_set_global() {
         let mut buf = [0u8; 64];
         let mut w = Writer::new(&mut buf);
-        w.write_u8(SET_GLOBAL);
-        w.write_var_u32(0);
-        w.write_u8(END);
+        w.write_u8(SET_GLOBAL).unwrap();
+        w.write_var_u32(0).unwrap();
+        w.write_u8(END).unwrap();
         with_machine(&w, |m| {
             m.push_i32(0x12345678);            
             assert_eq!(m.run(), Ok(()));            
@@ -488,9 +488,9 @@ mod tests {
     fn test_get_local() {
         let mut buf = [0u8; 64];
         let mut w = Writer::new(&mut buf);
-        w.write_u8(GET_LOCAL);
-        w.write_var_u32(0);
-        w.write_u8(END);
+        w.write_u8(GET_LOCAL).unwrap();
+        w.write_var_u32(0).unwrap();
+        w.write_u8(END).unwrap();
         with_machine(&w, |m| {            
             m.set_local(0, 0x12345678);
             assert_eq!(m.run(), Ok(()));            
@@ -502,9 +502,9 @@ mod tests {
     fn test_set_local() {
         let mut buf = [0u8; 64];
         let mut w = Writer::new(&mut buf);
-        w.write_u8(SET_LOCAL);
-        w.write_var_u32(0);
-        w.write_u8(END);
+        w.write_u8(SET_LOCAL).unwrap();
+        w.write_var_u32(0).unwrap();
+        w.write_u8(END).unwrap();
         with_machine(&w, |m| {
             m.push_i32(0x12345678);            
             assert_eq!(m.run(), Ok(()));            
@@ -516,9 +516,9 @@ mod tests {
     fn test_tee_local() {
         let mut buf = [0u8; 64];
         let mut w = Writer::new(&mut buf);
-        w.write_u8(TEE_LOCAL);
-        w.write_var_u32(0);
-        w.write_u8(END);
+        w.write_u8(TEE_LOCAL).unwrap();
+        w.write_var_u32(0).unwrap();
+        w.write_u8(END).unwrap();
         with_machine(&w, |m| {
             m.push_i32(0x12345678);            
             assert_eq!(m.run(), Ok(()));            

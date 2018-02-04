@@ -226,4 +226,11 @@ opcodes!{
   (I64, F64, ___, 0, 0xbd, I64_REINTERPRET_F64, "i64.reinterpret/f64"),
   (F32, I32, ___, 0, 0xbe, F32_REINTERPRET_I32, "f32.reinterpret/i32"),
   (F64, I64, ___, 0, 0xbf, F64_REINTERPRET_I64, "f64.reinterpret/i64"),
+
+/* Interpreter-only opcodes */
+  (___, ___, ___, 0, 0xe0, INTERP_ALLOCA, "alloca"),
+  (___, ___, ___, 0, 0xe1, INTERP_BR_UNLESS, "br_unless"),
+  (___, ___, ___, 0, 0xe2, INTERP_CALL_HOST, "call_host"),
+  (___, ___, ___, 0, 0xe3, INTERP_DATA, "data"),
+  (___, ___, ___, 0, 0xe4, INTERP_DROP_KEEP, "drop_keep"),
 }

@@ -1,25 +1,27 @@
 use Error;
-use ops::*;
 use wasm_leb128::*;
 
 use byteorder::{ByteOrder, LittleEndian};
 
 pub type ReaderResult<T> = Result<T, Error>;
 
-pub trait Reader {
-    fn read_opcode(&mut self) -> ReaderResult<u8>;
-    fn read_immediate_i32(&mut self) -> ReaderResult<i32>;
-    fn read_immediate_u32(&mut self) -> ReaderResult<u32>;
-    fn read_immediate_u8(&mut self) -> ReaderResult<u8>;
-    fn read_block_type(&mut self) -> ReaderResult<BlockType>;
-}
+// pub trait Reader {
+//     fn read_opcode(&mut self) -> ReaderResult<u8>;
+//     fn read_immediate_i32(&mut self) -> ReaderResult<i32>;
+//     fn read_immediate_u32(&mut self) -> ReaderResult<u32>;
+//     fn read_immediate_u8(&mut self) -> ReaderResult<u8>;
+//     fn read_block_type(&mut self) -> ReaderResult<BlockType>;
+// }
 
-pub struct BinaryReader<'a> {
+pub struct Reader<'a> {
     buf: &'a [u8],
     pos: usize,
 }
 
-impl<'a> BinaryReader<'a> {
+impl<'a> Reader<'a> {
+    pub fn new(buf: &'a [u8]) -> Self {
+        Reader { buf: buf, pos: 0 }
+    }
     #[inline]
     pub fn pos(&self) -> usize {
         self.pos
@@ -32,7 +34,7 @@ impl<'a> BinaryReader<'a> {
 
     #[inline]
     fn read<T, F: FnOnce(&[u8])->T>(&mut self, size: usize, f: F) -> ReaderResult<T> {
-        if self.pos() + size >= self.buf.len() { return Err(Error::End) }
+        if self.pos() + size > self.buf.len() { return Err(Error::End) }
         let v = f(&self.buf[self.pos..self.pos+size]);
         self.pos += size;
         Ok(v)        
@@ -121,39 +123,5 @@ impl<'a> BinaryReader<'a> {
         let (v, n) = read_i32(&self.buf[self.pos..])?;
         self.pos += n;
         Ok(v)
-    }
-}
-
-impl<'a> Reader for BinaryReader<'a> {
-    #[inline]
-    fn read_opcode(&mut self) -> ReaderResult<u8> { 
-        self.read_u8()
-    }
-
-    #[inline]
-    fn read_immediate_i32(&mut self) -> ReaderResult<i32> { 
-        self.read_var_i32()
-    }
-
-    #[inline]
-    fn read_immediate_u32(&mut self) -> ReaderResult<u32> { 
-        self.read_var_u32()
-    }
-
-    #[inline]
-    fn read_immediate_u8(&mut self) -> ReaderResult<u8> {
-        self.read_u8()
-    }
-
-    #[inline]
-    fn read_block_type(&mut self) -> ReaderResult<BlockType> { 
-        match self.read_u8()? {
-            0x7f => Ok(BlockType::I32),
-            0x7e => Ok(BlockType::I64),
-            0x7d => Ok(BlockType::F32),
-            0x7c => Ok(BlockType::F64),
-            0x40 => Ok(BlockType::Void),
-            _ => Err(Error::InvalidBlockType),
-        }
     }
 }
