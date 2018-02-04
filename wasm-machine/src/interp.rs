@@ -3,6 +3,7 @@ use opcode::*;
 // use ops::*;
 use reader::Reader;
 use writer::Writer;
+use stack::Stack;
 
 use std::convert::TryFrom;
 
@@ -12,41 +13,40 @@ pub struct Fixup {
     offset: usize,
 }
 
-pub struct Interp {
-    scopes: [u32; 256],
-    scopes_pos: usize,
+pub struct Interp<'s> {
+    scopes: Stack<'s, u32>,
     fixups: [Option<Fixup>; 256],
     fixups_pos: usize,
 }
 
-impl Interp {
-    pub fn new() -> Self {
+impl<'s> Interp<'s> {
+    pub fn new(scopes: Stack<'s, u32>) -> Self {
         Interp {
-            scopes: [0u32; 256],
-            scopes_pos: 0,
+            scopes: scopes,
             fixups: [None; 256],
             fixups_pos: 0,
         }
     }
 
     pub fn push(&mut self, val: u32) -> Result<(), Error> {
-        println!("push {}: {:04x}", self.scopes_pos, val);
-        self.scopes[self.scopes_pos] = val;
-        self.scopes_pos += 1;
-        Ok(())
+        // println!("push {}: {:04x}", self.scopes_pos, val);
+        Ok(self.scopes.push(val)?)
+        // self.scopes[self.scopes_pos] = val;
+        // self.scopes_pos += 1;
+        // Ok(())
     }
 
     pub fn pop(&mut self) -> Result<u32, Error> {
-        self.scopes_pos -= 1;
-        Ok(self.scopes[self.scopes_pos])
+        Ok(self.scopes.pop()?)
     }
 
     pub fn depth(&self) -> usize {
-        self.scopes_pos
+        self.scopes.len()
     }
 
     pub fn peek(&self, offset: usize) -> Result<u32, Error> {
-        Ok(self.scopes[self.scopes_pos - (1 + offset)])
+        Ok(self.scopes.peek(offset)?)
+        // Ok(self.scopes[self.scopes_pos - (1 + offset)])
     }
 
     pub fn add_fixup(&mut self, rel_depth: u32, offset: usize) -> Result<(), Error> {
@@ -253,7 +253,10 @@ mod tests {
 
     #[test]
     fn test_push_pop() {
-        let mut i = Interp::new();
+        let mut scopes_buf = [0u32; 256];
+        let mut scopes = Stack::new(&mut scopes_buf);
+        
+        let mut i = Interp::new(scopes);
         i.push(1).unwrap();
         i.push(2).unwrap();
         i.push(3).unwrap();
@@ -344,7 +347,11 @@ mod tests {
         let mut out = [0u8; 1024];
         let mut r = Reader::new(&code);
         let mut w = Writer::new(&mut out);
-        let mut interp = Interp::new();
+
+        let mut scopes_buf = [0u32; 256];
+        let mut scopes = Stack::new(&mut scopes_buf);
+
+        let mut interp = Interp::new(scopes);
         interp.load(&mut r, &mut w).unwrap();
         let mut r = Reader::new(w.as_ref());
         interp.dump(&mut r).unwrap();

@@ -26,7 +26,14 @@ pub enum Error {
     InvalidBlockType,
     ScopesFull,
     FixupsFull,
+    StackError(stack::Error),
     Leb128Error(wasm_leb128::Error),
+}
+
+impl From<stack::Error> for Error {
+    fn from(other: stack::Error) -> Error {
+        Error::StackError(other)
+    }
 }
 
 impl From<wasm_leb128::Error> for Error {
