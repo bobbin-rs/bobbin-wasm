@@ -23,6 +23,8 @@ pub enum Error {
     End,
     Unimplemented,
     InvalidBlockType,
+    ScopesFull,
+    FixupsFull,
     Leb128Error(wasm_leb128::Error),
 }
 

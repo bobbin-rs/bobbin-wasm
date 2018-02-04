@@ -16,6 +16,10 @@ impl<'a> Writer<'a> {
         Writer { buf: buf, pos: 0 }
     }
 
+    pub fn pos(&self) -> usize {
+        self.pos
+    }
+
     pub fn write_u8(&mut self, value: u8) -> WriteResult<()> {
         if self.pos + 1 >= self.buf.len() { return Err(Error::End) }
         self.buf[self.pos] = value;
@@ -27,6 +31,13 @@ impl<'a> Writer<'a> {
         if self.pos + 4 >= self.buf.len() { return Err(Error::End) }
         LittleEndian::write_u32(&mut self.buf[self.pos..], value);
         self.pos += 4;
+        Ok(())
+    }
+
+    pub fn write_u32_at(&mut self, value: u32, offset: usize) -> WriteResult<()> {
+        if offset + 4 > self.buf.len() { println!("past buf.len {}", self.buf.len()); return Err(Error::End) }
+        if offset + 4 > self.pos { println!("past pos {}", self.pos); return Err(Error::End) }
+        LittleEndian::write_u32(&mut self.buf[offset..], value);
         Ok(())
     }
 

@@ -1,54 +1,134 @@
 use Error;
 use opcode::*;
-use ops::*;
+// use ops::*;
 use reader::Reader;
 use writer::Writer;
 
 use std::convert::TryFrom;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Fixup {
+    depth: usize,
+    offset: usize,
+}
+
 pub struct Interp {
-    stack: [u8; 256],
-    stack_pos: usize,
+    scopes: [u32; 256],
+    scopes_pos: usize,
+    fixups: [Option<Fixup>; 256],
+    fixups_pos: usize,
 }
 
 impl Interp {
     pub fn new() -> Self {
         Interp {
-            stack: [0u8; 256],
-            stack_pos: 0,
+            scopes: [0u32; 256],
+            scopes_pos: 0,
+            fixups: [None; 256],
+            fixups_pos: 0,
         }
     }
 
-    pub fn push(&mut self, val: u8) -> Result<(), Error> {
-        self.stack[self.stack_pos] = val;
-        self.stack_pos += 1;
+    pub fn push(&mut self, val: u32) -> Result<(), Error> {
+        println!("push {}: {:04x}", self.scopes_pos, val);
+        self.scopes[self.scopes_pos] = val;
+        self.scopes_pos += 1;
         Ok(())
     }
 
-    pub fn pop(&mut self) -> Result<u8, Error> {
-        self.stack_pos -= 1;
-        Ok(self.stack[self.stack_pos])
+    pub fn pop(&mut self) -> Result<u32, Error> {
+        self.scopes_pos -= 1;
+        Ok(self.scopes[self.scopes_pos])
     }
 
-    pub fn peek(&self, offset: usize) -> Result<u8, Error> {
-        Ok(self.stack[self.stack_pos - (1 + offset)])
+    pub fn depth(&self) -> usize {
+        self.scopes_pos
+    }
+
+    pub fn peek(&self, offset: usize) -> Result<u32, Error> {
+        Ok(self.scopes[self.scopes_pos - (1 + offset)])
+    }
+
+    pub fn add_fixup(&mut self, rel_depth: u32, offset: usize) -> Result<(), Error> {
+        let depth = self.depth() - rel_depth as usize;
+        println!("add_fixup: {} 0x{:04x}", depth, offset);
+        for entry in self.fixups.iter_mut() {
+            if entry.is_none() {
+                *entry = Some(Fixup { depth: depth, offset: offset });
+                return Ok(());
+            }
+        }
+        Err(Error::FixupsFull)
+    }
+
+    pub fn fixup(&mut self, w: &mut Writer) -> Result<(), Error> {
+        let depth = self.depth();        
+        let offset = self.peek(0)?;
+        let offset = if offset == 0xffff_ffff { w.pos() } else { offset as usize};
+        println!("fixup: {} -> 0x{:04x}", depth, offset);
+        for entry in self.fixups.iter_mut() {
+            let del = if let &mut Some(entry) = entry {
+                if entry.depth == depth {
+                    println!(" @ {} 0x{:04x}", entry.depth, entry.offset);
+                    w.write_u32_at(offset as u32, entry.offset)?;
+                    true
+                } else {
+                    println!(" ! {} 0x{:04x}", entry.depth, entry.offset);                    
+                    false
+                }
+            } else {
+                false
+            };
+            if del {
+                *entry = None;
+            }
+        }
+        println!("fixup done");
+        Ok(())
     }
 
     pub fn load(&mut self, r: &mut Reader, w: &mut Writer) -> Result<(), Error> {
         while r.remaining() > 0 {
             let op = r.read_opcode()?;
             match op {
-                BLOCK | LOOP | IF => {
-                    w.write_opcode(op)?;
-                    w.write_u8(r.read_var_i7()? as u8)?;
+                BLOCK => {
+                    self.push(0xffff_ffff)?;
+                    println!("DEPTH -> {}", self.depth());
+                    let _ = r.read_var_i7()?;
+                },
+                LOOP => {
+                    let _ = r.read_var_i7()?;
+                    self.push(w.pos() as u32)?;
+                    println!("DEPTH -> {}", self.depth());
                 },
                 END => {
-                    w.write_opcode(op)?;
+                    // w.write_opcode(op)?;
+                    println!("FIXUP {} 0x{:04x}", self.depth(), w.pos());
+                    self.fixup(w)?;
+                    self.pop()?;
+                    println!("DEPTH -> {}", self.depth());
+                }
+                IF => {
+                    self.push(0xffff_ffff)?;
+                    println!("IF: DEPTH -> {}", self.depth());
+                    w.write_opcode(INTERP_BR_UNLESS)?;
+                    let _ = r.read_var_i7()?;
+                    println!("IF: ADD FIXUP {} 0x{:04x}", 0, w.pos());
+                    self.add_fixup(0, w.pos())?;
+                    w.write_u32(0xffffffff)?;
+                }
+                ELSE => {
+                    w.write_opcode(BR)?;
+                    println!("ELSE: ADD FIXUP {} 0x{:04x}", 0, w.pos());
+                    self.add_fixup(0, w.pos())?;
+                    w.write_u32(0xffffffff)?;
                 }
                 BR | BR_IF => {
                     w.write_opcode(op)?;
                     let depth = r.read_var_u32()?;
-                    w.write_u32(depth)?;
+                    println!("BR / BR_IF ADD FIXUP {} 0x{:04x}", depth, w.pos());
+                    self.add_fixup(depth, w.pos())?;
+                    w.write_u32(0xfffffff)?;
                 },
                 BR_TABLE => {
                     w.write_opcode(op)?;
@@ -87,11 +167,17 @@ impl Interp {
                 },
                 MEM_GROW | MEM_SIZE => {
                     w.write_opcode(op)?;
-                    r.read_var_u1();
+                    r.read_var_u1()?;
                 },
                 _ => {
                     w.write_opcode(op)?;
                 },
+            }
+        }
+        println!("remaining fixups\n---");
+        for entry in self.fixups.iter() {
+            if let &Some(entry) = entry {
+                println!("{:?}", entry);
             }
         }
         Ok(())
@@ -104,7 +190,9 @@ impl Interp {
             if let Ok(op) = Opcode::try_from(b) {
                 print!("0x{:02x}: {}", pc, op.text);
                 match op.code {
-                    BLOCK | LOOP | IF => print!(" 0x{:02x}", r.read_u8()?),
+                    BLOCK | LOOP => print!(" 0x{:02x}", r.read_u8()?),
+                    IF => print!(" 0x{:04x}", r.read_u32()?),
+                    ELSE => print!(" 0x{:04x}", r.read_u32()?),
                     BR | BR_IF => print!(" {:08x}", r.read_u32()?),
                     BR_TABLE => {
                         for _ in 0..r.read_u32()? {
@@ -186,29 +274,73 @@ mod tests {
             I32_SUB,
             CALL, 0x01,
             CALL_INDIRECT, 0x01, 0x00,
-            BLOCK, 0x00,
+            BLOCK, 0x00, // Depth -> 1
                 BR_TABLE, 0x02, 0x00, 0x00, 0x00,
-                LOOP, 0x00,
-                    BR, 0x01,
-                    IF, 0x00,
-                        BR_IF, 0x02,
-                    END, 
-                    IF, 0x00,
+                LOOP, 0x00, // Depth -> 2
+                    BR, 0x00, // Add Fixup 2
+                    IF, 0x00, // Depth -> 3
+                        BR_IF, 0x02, // Add Fixup 1
+                    END, // Fixup 3, Depth -> 2
+                    IF, 0x00, // Depth -> 3
                         NOP, 
-                        IF, 0x00,
+                        IF, 0x00, // Depth -> 4
                             NOP, 
-                        END, 
-                    ELSE, 
+                        END, // Depth -> 3
+                    ELSE, // replace with BR, add fixup 3
                         NOP, 
-                        IF, 
+                        IF, // depth -> 4
                             NOP, 
-                        END, 
-                    END, 
-                END, 
-            END, 
+                        END, // depth -> 3
+                    END,  // Fixup 3, Depth -> 2
+                END, // Fixup 2, Depth -> 1
+            END, // Fixup 1, Depth -> 0
             NOP,
         ];  
-        // let code = [BLOCK, 0x40, END];
+
+        // 0x00: nop
+        // 0x01: mem_size
+        // 0x02: i32.load 2 0x00000000
+        // 0x0b: i32.add
+        // 0x0c: i32.sub
+        // 0x0d: call 1
+        // 0x12: call_indirect 01
+        // 0x17: br_table 0 0 default 0
+        // 0x28: br 00000028
+        // 0x2d: br_unless 00000037
+        // 0x32: br_if 0000004e
+        // 0x37: br_unless 0000004e
+        // 0x3c: nop
+        // 0x3d: br_unless 00000043
+        // 0x42: nop
+        // 0x43: br 0000004e
+        // 0x48: nop
+        // 0x49: br_unless 0000004e
+        // 0x4e: nop
+
+        // let code = [BLOCK, 0x40, NOP, BR, 0, NOP, END];
+        // 0x00: nop
+        // 0x01: br 00000007
+        // 0x06: nop
+        // let code = [IF, 0x00, NOP, BR_IF, 0x00, NOP, ELSE, NOP, BR_IF, 0x00, NOP, END];
+        // 0x00: br_unless 00000018
+        // 0x05: nop
+        // 0x06: br_if 00000018
+        // 0x0b: nop
+        // 0x0c: br 00000018
+        // 0x11: nop
+        // 0x12: br_if 00000018
+        // 0x17: nop
+        // let code = [
+        //     NOP,
+        //     LOOP, 0x00, // Depth -> 1
+        //         NOP,
+        //         BR, 0x00,
+        //     END, // Add BR to top of loop, Fixup 1, Depth -> 0
+        // ];
+        // 0x00: nop
+        // 0x01: nop
+        // 0x02: br 00000001
+
         let mut out = [0u8; 1024];
         let mut r = Reader::new(&code);
         let mut w = Writer::new(&mut out);
