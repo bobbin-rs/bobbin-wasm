@@ -8,9 +8,10 @@ extern crate byteorder;
 extern crate wasm_leb128;
 
 pub mod ops;
-pub mod reader;
 pub mod opcode;
+pub mod reader;
 pub mod writer;
+pub mod stack;
 pub mod scanner;
 pub mod interp;
 
