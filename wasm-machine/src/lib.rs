@@ -8,6 +8,8 @@ extern crate byteorder;
 extern crate wasm_leb128;
 
 pub mod ops;
+pub mod reader;
+pub mod decoder;
 pub mod opcode;
 pub mod writer;
 pub mod scanner;
@@ -20,6 +22,7 @@ pub enum Error {
     Unreachable,
     End,
     Unimplemented,
+    InvalidBlockType,
     Leb128Error(wasm_leb128::Error),
 }
 

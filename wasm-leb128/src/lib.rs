@@ -11,17 +11,20 @@ pub enum Error {
     Overflow,
 }
 
+#[inline]
 pub fn read_u1(buf: &[u8]) -> Result<(bool, usize), Error> {
     assert!(buf[0] & !0x1 == 0, "Invalid Encoding: 0x{:2x}", buf[0]);
     if !(buf[0] & !0x1 == 0) { return Err(Error::InvalidEncoding) }
     Ok((buf[0] != 0, 1))
 }
 
+#[inline]
 pub fn read_u7(buf: &[u8]) -> Result<(u8, usize), Error> {
     if !(buf[0] & 1 << 7 == 0) { return Err(Error::Overflow) }
     Ok((buf[0] & !(1 << 7), 1))
 }
 
+#[inline]
 pub fn read_i7(buf: &[u8]) -> Result<(i8, usize), Error> {
     if !(buf[0] & 1 << 7 == 0) { return Err(Error::Overflow) }
     let mut result = buf[0] & 0b0111_1111;
@@ -34,6 +37,7 @@ pub fn read_i7(buf: &[u8]) -> Result<(i8, usize), Error> {
     Ok((result as i8, 1))
 }
 
+#[inline]
 pub fn read_u32(buf: &[u8]) -> Result<(u32, usize), Error> {
     let mut i = 0;
     let mut result = 0;    
@@ -54,6 +58,7 @@ pub fn read_u32(buf: &[u8]) -> Result<(u32, usize), Error> {
     Ok((result, i))
 }
 
+#[inline]
 pub fn read_i32(buf: &[u8]) -> Result<(i32, usize), Error> {
     const SIGN_BIT: u8 = 0b0100_0000;
 
@@ -84,12 +89,14 @@ pub fn read_i32(buf: &[u8]) -> Result<(i32, usize), Error> {
     Ok((result, i))
 }
 
+#[inline]
 pub fn write_u1(buf: &mut [u8], value: bool) -> Result<usize, Error> {
     if buf.len() < 1 { return Err(Error::BufferSize) }
     buf[0] = if value { 1 } else { 0 };
     Ok(1)
 }
 
+#[inline]
 pub fn write_u7(buf: &mut [u8], value: u8) -> Result<usize, Error> {
     if buf.len() < 1 { return Err(Error::BufferSize) }
     if !(value & !0b0111_1111 == 0) { return Err(Error::Overflow) }
@@ -97,6 +104,7 @@ pub fn write_u7(buf: &mut [u8], value: u8) -> Result<usize, Error> {
     Ok(1)
 }
 
+#[inline]
 pub fn write_i7(buf: &mut [u8], value: i8) -> Result<usize, Error> {
     if buf.len() < 1 { return Err(Error::BufferSize) }
     if !(if value >= 0 { value < 64 } else { value >= -64 }) { return Err(Error::Overflow) }
@@ -104,6 +112,7 @@ pub fn write_i7(buf: &mut [u8], value: i8) -> Result<usize, Error> {
     Ok(1)
 }
 
+#[inline]
 pub fn write_u32(buf: &mut [u8], mut value: u32) -> Result<usize, Error> {
     let mut i = 0;
     loop {
@@ -121,6 +130,7 @@ pub fn write_u32(buf: &mut [u8], mut value: u32) -> Result<usize, Error> {
     }
 }
 
+#[inline]
 pub fn write_i32(buf: &mut [u8], mut value: i32) -> Result<usize, Error> {
     const SIGN_BIT: u8 = 0b0100_0000;
     let mut i = 0;
