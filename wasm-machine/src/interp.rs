@@ -13,40 +13,48 @@ pub struct Fixup {
     offset: usize,
 }
 
-pub struct Interp<'s> {
-    scopes: Stack<'s, u32>,
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TypeInfo {
+    type_value: u8,
+    stack_limit: usize,
+}
+
+pub struct Interp<'s, 't> {
+    scope_stack: Stack<'s, u32>,
+    type_stack: Stack<'t, TypeInfo>,
     fixups: [Option<Fixup>; 256],
     fixups_pos: usize,
 }
 
-impl<'s> Interp<'s> {
-    pub fn new(scopes: Stack<'s, u32>) -> Self {
+impl<'s, 't> Interp<'s, 't> {
+    pub fn new(scope_stack: Stack<'s, u32>, type_stack: Stack<'t, TypeInfo>) -> Self {
         Interp {
-            scopes: scopes,
+            scope_stack: scope_stack,
+            type_stack: type_stack,
             fixups: [None; 256],
             fixups_pos: 0,
         }
     }
 
     pub fn push(&mut self, val: u32) -> Result<(), Error> {
-        // println!("push {}: {:04x}", self.scopes_pos, val);
-        Ok(self.scopes.push(val)?)
-        // self.scopes[self.scopes_pos] = val;
-        // self.scopes_pos += 1;
+        // println!("push {}: {:04x}", self.scope_stack_pos, val);
+        Ok(self.scope_stack.push(val)?)
+        // self.scope_stack[self.scope_stack_pos] = val;
+        // self.scope_stack_pos += 1;
         // Ok(())
     }
 
     pub fn pop(&mut self) -> Result<u32, Error> {
-        Ok(self.scopes.pop()?)
+        Ok(self.scope_stack.pop()?)
     }
 
     pub fn depth(&self) -> usize {
-        self.scopes.len()
+        self.scope_stack.len()
     }
 
     pub fn peek(&self, offset: usize) -> Result<u32, Error> {
-        Ok(self.scopes.peek(offset)?)
-        // Ok(self.scopes[self.scopes_pos - (1 + offset)])
+        Ok(self.scope_stack.peek(offset)?)
+        // Ok(self.scope_stack[self.scope_stack_pos - (1 + offset)])
     }
 
     pub fn add_fixup(&mut self, rel_depth: u32, offset: usize) -> Result<(), Error> {
@@ -254,9 +262,12 @@ mod tests {
     #[test]
     fn test_push_pop() {
         let mut scopes_buf = [0u32; 256];
-        let mut scopes = Stack::new(&mut scopes_buf);
+        let scope_stack = Stack::new(&mut scopes_buf);
+
+        let mut type_buf = [TypeInfo::default(); 256];
+        let type_stack = Stack::new(&mut type_buf);
         
-        let mut i = Interp::new(scopes);
+        let mut i = Interp::new(scope_stack, type_stack);
         i.push(1).unwrap();
         i.push(2).unwrap();
         i.push(3).unwrap();
@@ -349,9 +360,12 @@ mod tests {
         let mut w = Writer::new(&mut out);
 
         let mut scopes_buf = [0u32; 256];
-        let mut scopes = Stack::new(&mut scopes_buf);
+        let scope_stack = Stack::new(&mut scopes_buf);
 
-        let mut interp = Interp::new(scopes);
+        let mut type_buf = [TypeInfo::default(); 256];
+        let type_stack = Stack::new(&mut type_buf);
+
+        let mut interp = Interp::new(scope_stack, type_stack);
         interp.load(&mut r, &mut w).unwrap();
         let mut r = Reader::new(w.as_ref());
         interp.dump(&mut r).unwrap();
