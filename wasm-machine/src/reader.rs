@@ -21,88 +21,71 @@ pub struct BinaryReader<'a> {
 
 impl<'a> BinaryReader<'a> {
     #[inline]
-    pub fn pos(&mut self) -> usize {
+    pub fn pos(&self) -> usize {
         self.pos
     }
 
     #[inline]
+    pub fn remaining(&self) -> usize {
+        self.buf.len() - self.pos
+    }
+
+    #[inline]
+    fn read<T, F: FnOnce(&[u8])->T>(&mut self, size: usize, f: F) -> ReaderResult<T> {
+        if self.pos() + size >= self.buf.len() { return Err(Error::End) }
+        let v = f(&self.buf[self.pos..self.pos+size]);
+        self.pos += size;
+        Ok(v)        
+    }
+
+    #[inline]
     pub fn read_u8(&mut self) -> ReaderResult<u8> { 
-        if self.pos() + 1 >= self.buf.len() { return Err(Error::End) }
-        let v = self.buf[self.pos];
-        self.pos += 1;
-        Ok(v)
+        self.read(1, |buf| buf[0])
     }
 
     #[inline]
     pub fn read_u16(&mut self) -> ReaderResult<u16> { 
-        if self.pos() + 2 >= self.buf.len() { return Err(Error::End) }
-        let v = LittleEndian::read_u16(&self.buf[self.pos..]);
-        self.pos += 2;
-        Ok(v)
+        self.read(2, LittleEndian::read_u16)
     }
 
     #[inline]
     pub fn read_u32(&mut self) -> ReaderResult<u32> { 
-        if self.pos() + 4 >= self.buf.len() { return Err(Error::End) }
-        let v = LittleEndian::read_u32(&self.buf[self.pos..]);
-        self.pos += 4;
-        Ok(v)
+        self.read(4, LittleEndian::read_u32)
     }
 
     #[inline]
     pub fn read_u64(&mut self) -> ReaderResult<u64> { 
-        if self.pos() + 8 >= self.buf.len() { return Err(Error::End) }
-        let v = LittleEndian::read_u64(&self.buf[self.pos..]);
-        self.pos += 8;
-        Ok(v)
+        self.read(8, LittleEndian::read_u64)
     }
 
     #[inline]
     pub fn read_i8(&mut self) -> ReaderResult<i8> { 
-        if self.pos() + 1 >= self.buf.len() { return Err(Error::End) }
-        let v = self.buf[self.pos] as i8;
-        self.pos += 1;
-        Ok(v)
+        self.read(1, |buf| buf[0] as i8)
     }
 
     #[inline]
     pub fn read_i16(&mut self) -> ReaderResult<i16> { 
-        if self.pos() + 2 >= self.buf.len() { return Err(Error::End) }
-        let v = LittleEndian::read_i16(&self.buf[self.pos..]);
-        self.pos += 2;
-        Ok(v)
+        self.read(2, LittleEndian::read_i16)
     }
 
     #[inline]
     pub fn read_i32(&mut self) -> ReaderResult<i32> { 
-        if self.pos() + 4 >= self.buf.len() { return Err(Error::End) }
-        let v = LittleEndian::read_i32(&self.buf[self.pos..]);
-        self.pos += 4;
-        Ok(v)
+        self.read(4, LittleEndian::read_i32)
     }
 
     #[inline]
     pub fn read_i64(&mut self) -> ReaderResult<i64> { 
-        if self.pos() + 8 >= self.buf.len() { return Err(Error::End) }
-        let v = LittleEndian::read_i64(&self.buf[self.pos..]);
-        self.pos += 8;
-        Ok(v)
+        self.read(8, LittleEndian::read_i64)
     }
 
     #[inline]
     pub fn read_f32(&mut self) -> ReaderResult<f32> { 
-        if self.pos() + 4 >= self.buf.len() { return Err(Error::End) }
-        let v = LittleEndian::read_f32(&self.buf[self.pos..]);
-        self.pos += 4;
-        Ok(v)        
+        self.read(4, LittleEndian::read_f32)
     }
 
     #[inline]
     pub fn read_f64(&mut self) -> ReaderResult<f64> { 
-        if self.pos() + 8 >= self.buf.len() { return Err(Error::End) }
-        let v = LittleEndian::read_f64(&self.buf[self.pos..]);
-        self.pos += 8;
-        Ok(v)        
+        self.read(8, LittleEndian::read_f64)
     }
 
     #[inline]
@@ -149,12 +132,12 @@ impl<'a> Reader for BinaryReader<'a> {
 
     #[inline]
     fn read_immediate_i32(&mut self) -> ReaderResult<i32> { 
-        self.read_i32()
+        self.read_var_i32()
     }
 
     #[inline]
     fn read_immediate_u32(&mut self) -> ReaderResult<u32> { 
-        self.read_u32()
+        self.read_var_u32()
     }
 
     #[inline]
