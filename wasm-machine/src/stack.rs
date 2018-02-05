@@ -78,7 +78,7 @@ impl<'a, T: 'a + Copy> Stack<'a, T> {
 
     /// Returns a copy of the item at the top of the stack.
     #[inline]
-    pub fn top(&mut self) -> StackResult<T> {
+    pub fn top(&self) -> StackResult<T> {
         if self.empty() {
             Err(Error::Underflow)            
         } else {

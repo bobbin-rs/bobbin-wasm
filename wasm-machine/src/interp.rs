@@ -142,6 +142,28 @@ impl<'s, 't> Interp<'s, 't> {
         }
     }
 
+    pub fn expect_type(&self, wanted: TypeValue) -> Result<(), Error> {
+        if wanted == TypeValue::Void || wanted == TypeValue::None {
+            Ok(())
+        } else {
+            let got = self.type_stack.top()?;
+            if wanted != got {
+                Err(Error::UnexpectedType { wanted, got })
+            } else {
+                Ok(())
+            }
+        }
+    }
+
+    pub fn expect_depth(&self, wanted: usize) -> Result<(), Error> {
+        let got = self.type_stack.len();
+        if wanted != got {
+            Err(Error::UnexpectedStackDepth { wanted, got })
+        } else {
+            Ok(())
+        }
+    }
+
     pub fn add_fixup(&mut self, rel_depth: u32, offset: u32) -> Result<(), Error> {
         let depth = self.label_depth() - rel_depth as usize;
         let fixup = Fixup { depth: depth, offset: offset };
@@ -204,10 +226,11 @@ impl<'s, 't> Interp<'s, 't> {
                     return Err(Error::InvalidSignature)
                 }
                 println!("label: {:?}", label);
-                self.pop_type_expecting(label.signature)?;
-                let depth = self.type_stack.len();
-                if depth != label.stack_limit {
-                    return Err(Error::UnexpectedStackDepth { wanted: label.stack_limit, got: depth })
+                self.expect_type(label.signature)?;
+                if label.signature == TypeValue::Void {
+                    self.expect_depth(label.stack_limit)?;
+                } else {
+                    self.expect_depth(label.stack_limit + 1)?;                    
                 }
             },
             BR | BR_IF => {
@@ -230,7 +253,7 @@ impl<'s, 't> Interp<'s, 't> {
         Ok(())
     }
 
-    pub fn load(&mut self, r: &mut Reader, w: &mut Writer) -> Result<(), Error> {
+    pub fn load(&mut self, signature: TypeValue, r: &mut Reader, w: &mut Writer) -> Result<(), Error> {
         while r.remaining() > 0 {
             let op = r.read_opcode()?;
             let opc = Opcode::try_from(op)?;
@@ -331,10 +354,16 @@ impl<'s, 't> Interp<'s, 't> {
                 },
             }
         }
-        println!("remaining fixups\n---");
+
+        println!("Checking Exit");
+        self.pop_type_expecting(signature)?;
+        self.expect_depth(0)?;
+
+        println!("Checking Fixups");
         for entry in self.fixups.iter() {
-            if let &Some(entry) = entry {
+            if let &Some(entry) = entry {   
                 println!("{:?}", entry);
+                panic!("Orphan Fixup: {:?}", entry);
             }
         }
         Ok(())
@@ -534,7 +563,6 @@ mod tests {
         code.write_i32_const(0x12).unwrap();
         code.write_i32_const(0x34).unwrap();
         code.write_opcode(I32_ADD).unwrap();
-        code.write_br(0).unwrap();
         code.write_end().unwrap();
 
         let mut out = [0u8; 1024];
@@ -548,10 +576,7 @@ mod tests {
         let type_stack = Stack::new(&mut type_buf);
 
         let mut interp = Interp::new(label_stack, type_stack);
-        interp.load(&mut r, &mut w).unwrap();
-        println!("STACK");
-        interp.type_stack.dump();
-        println!("");
+        interp.load(TypeValue::I32, &mut r, &mut w).unwrap();
 
         let mut r = Reader::new(w.as_ref());
         interp.dump(&mut r).unwrap();
