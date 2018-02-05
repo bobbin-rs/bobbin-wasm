@@ -7,25 +7,27 @@ use reader::Reader;
 use opcode::*;
 use byteorder::{ByteOrder, LittleEndian};
 
-pub struct Machine<'g, 'f, 's, 'm, 'st, 'c> {
+pub struct Machine<'g, 'f, 's, 'm, 'vs, 'cs, 'c> {
     globals: &'g [TypeValue],
     functions: &'f [u32],
     signatures: &'s [(&'s [TypeValue], &'s [TypeValue])],
     memory: &'m mut [u8],
-    stack: &'st mut Stack<'st, Value>,
+    value_stack: &'vs mut Stack<'vs, Value>,
+    call_stack: &'cs mut Stack<'cs, u32>,
     code: &'c mut Reader<'c>,
 }
 
-impl<'g, 'f, 's, 'm, 'st, 'c> Machine<'g, 'f, 's, 'm, 'st, 'c> {
+impl<'g, 'f, 's, 'm, 'vs, 'cs, 'c> Machine<'g, 'f, 's, 'm, 'vs, 'cs, 'c> {
     pub fn new(
         globals: &'g [TypeValue],
         functions: &'f [u32],
         signatures: &'s [(&'s [TypeValue], &'s [TypeValue])],
         memory: &'m mut [u8],
-        stack: &'st mut Stack<'st, Value>,
+        value_stack: &'vs mut Stack<'vs, Value>,
+        call_stack: &'cs mut Stack<'cs, u32>,
         code: &'c mut Reader<'c>,
     ) -> Self {
-        Machine { globals, functions, signatures, memory, stack, code }
+        Machine { globals, functions, signatures, memory, value_stack, call_stack, code }
     }
 
     // Code
@@ -34,36 +36,51 @@ impl<'g, 'f, 's, 'm, 'st, 'c> Machine<'g, 'f, 's, 'm, 'st, 'c> {
         self.code.done()
     }
 
-    // Stack
+    pub fn jump(&mut self, dst: u32) -> Result<(), Error> {
+        Ok(self.code.set_pos(dst as usize))
+    }
+
+    // Value Stack
 
     pub fn push<T: Into<Value>>(&mut self, value: T) -> Result<(), Error> {
         let value = value.into();
-        println!("PUSH @ {:02} {:?}", self.stack.len(), value);
-        Ok(self.stack.push(value.into())?)
+        println!("PUSH @ {:02} {:?}", self.value_stack.len(), value);
+        Ok(self.value_stack.push(value.into())?)
     }
 
     pub fn pop<T: From<Value>>(&mut self) -> Result<T, Error> {
-        Ok(self.stack.pop()?.into())
+        Ok(self.value_stack.pop()?.into())
+    }
+
+    // Call Stack
+
+    pub fn push_call(&mut self, addr: u32) -> Result<(), Error> {
+        println!("PUSH_CALL @ {:02} {:?}", self.call_stack.len(), addr);        
+        Ok(self.call_stack.push(addr)?)
+    }
+
+    pub fn pop_call(&mut self) -> Result<u32, Error> {
+        Ok(self.call_stack.pop()?)
     }
 
     // Locals
 
     pub fn get_local<T: From<Value>>(&self, depth: u32) -> Result<T, Error> {
-        Ok(self.stack.peek(depth as usize)?.into())
+        Ok(self.value_stack.peek(depth as usize)?.into())
     }
 
     pub fn set_local<T: Into<Value>>(&mut self, depth: u32, value: T) -> Result<(), Error> {
-        Ok(*self.stack.pick(depth as usize)? = value.into())
+        Ok(*self.value_stack.pick(depth as usize)? = value.into())
     }
 
     // Globals
 
     pub fn get_global<T: From<Value>>(&self, depth: u32) -> Result<T, Error> {
-        Ok(self.stack.get(depth as usize)?.into())
+        Ok(self.value_stack.get(depth as usize)?.into())
     }
 
     pub fn set_global<T: Into<Value>>(&mut self, depth: u32, value: T) -> Result<(), Error> {
-        Ok(self.stack.set(depth as usize, value.into())?)
+        Ok(self.value_stack.set(depth as usize, value.into())?)
     }
 
     // Memory
@@ -123,7 +140,7 @@ impl<'g, 'f, 's, 'm, 'st, 'c> Machine<'g, 'f, 's, 'm, 'st, 'c> {
     }    
 
     pub fn reset(&mut self) -> Result<(), Error> {
-        self.stack.reset()?;
+        self.value_stack.reset()?;
         for _ in self.globals.iter() {
             self.push(0)?;
         }
@@ -142,16 +159,30 @@ impl<'g, 'f, 's, 'm, 'st, 'c> Machine<'g, 'f, 's, 'm, 'st, 'c> {
             match op {
                 UNREACHABLE => return Err(Error::Unreachable),
                 NOP => {},
-                BR => {},
-                BR_IF => {},
+                BR => {
+                    let dst: u32 = self.code.read_u32()?;
+                    self.jump(dst)?;
+                },
+                BR_IF => {
+                    let dst: u32 = self.code.read_u32()?;
+                    let val: u32 = self.pop()?;
+                    if val != 0 {
+                        self.jump(dst)?;
+                    }                    
+                },
                 BR_TABLE => {},
                 RETURN => {},
                 CALL => {},
                 CALL_INDIRECT => {},
                 DROP => {
-                    let _: u32 = self.pop()?;
+                    let _: Value = self.pop()?;
                 },
-                SELECT => {},
+                SELECT => {
+                    let cond: u32 = self.pop()?;
+                    let _false: Value = self.pop()?;
+                    let _true: Value = self.pop()?;
+                    self.push(if cond != 0 { _true } else { _false })?;
+                },
                 GET_LOCAL | SET_LOCAL | TEE_LOCAL |
                 GET_GLOBAL | SET_GLOBAL => {
                     let id = self.code.read_u32()?;
@@ -279,14 +310,21 @@ impl<'g, 'f, 's, 'm, 'st, 'c> Machine<'g, 'f, 's, 'm, 'st, 'c> {
                     self.push(res)?;
                 },
                 INTERP_ALLOCA => {
-
+                    let count = self.code.read_u32()?;
+                    for _ in 0..count {
+                        self.push(0)?;
+                    }
                 },
                 INTERP_BR_UNLESS => {
-
+                    let dst = self.code.read_u32()?;
+                    let val: u32 = self.pop()?;
+                    if val == 0 {
+                        self.jump(dst)?;
+                    }
                 },
                 INTERP_DROP_KEEP => {
                     let (drop, keep) = (self.code.read_u32()?, self.code.read_u32()?);
-                    self.stack.drop_keep(drop as usize, keep as usize)?;
+                    self.value_stack.drop_keep(drop as usize, keep as usize)?;
                 },
                 _ => {
                     return Err(Error::Unimplemented)
@@ -318,8 +356,11 @@ mod tests {
 
         let mut memory = [0u8; 1024];
 
-        let mut stack_buf = [Value::default(); 256];
-        let mut stack = Stack::new(&mut stack_buf);
+        let mut value_buf = [Value::default(); 256];
+        let mut value_stack = Stack::new(&mut value_buf);
+
+        let mut call_buf = [0u32; 256];
+        let mut call_stack = Stack::new(&mut call_buf);
 
         let mut code_buf = [0u8; 256];
         let mut w = Writer::new(&mut code_buf);
@@ -345,12 +386,13 @@ mod tests {
             &functions,
             &signatures,
             &mut memory,
-            &mut stack,
+            &mut value_stack,
+            &mut call_stack,
             &mut code,
         );
         m.run(100).unwrap();
         println!("---");
-        m.stack.dump();
+        m.value_stack.dump();
     }
 
 }
