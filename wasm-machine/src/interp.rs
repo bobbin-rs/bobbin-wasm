@@ -28,6 +28,7 @@ pub struct Label {
     signature: TypeValue,
     offset: u32,
     stack_limit: usize,
+    unreachable: bool,
 }
 
 impl fmt::Debug for Label {
@@ -100,6 +101,7 @@ impl<'s, 't> Interp<'s, 't> {
             signature: signature.into(),
             offset,
             stack_limit,
+            unreachable: false,
         };
         println!("push_label: {:?}", label);
         Ok(self.label_stack.push(label)?)
@@ -115,6 +117,14 @@ impl<'s, 't> Interp<'s, 't> {
 
     pub fn peek_label(&self, offset: usize) -> Result<Label, Error> {
         Ok(self.label_stack.peek(offset)?)
+    }
+
+    pub fn set_unreachable(&mut self, value: bool) -> Result<(), Error> {
+        Ok(self.label_stack.pick(0)?.unreachable = value)
+    }
+
+    pub fn is_unreachable(&self) -> Result<bool, Error> {
+        Ok(self.label_stack.peek(0)?.unreachable)
     }
 
     pub fn push_type<T: Into<TypeValue>>(&mut self, type_value: T) -> Result<(), Error> {
@@ -203,18 +213,21 @@ impl<'s, 't> Interp<'s, 't> {
         Ok(())
     }
 
-    fn get_drop_keep(&mut self, label: &Label) -> (usize, usize) {
+    fn get_drop_keep(&mut self, label: &Label) -> Result<(usize, usize), Error> {
         let drop = self.type_stack.len() - label.stack_limit;
-        if label.opcode == LOOP {
-            (drop, 0)
-        } else if label.signature == VOID {
-            (drop, 0)
-        } else {
-            (drop - 1, 1)
-        }
+        let drop = if self.is_unreachable()? { 0 } else { drop };
+        Ok(
+            if label.opcode == LOOP {
+                (drop, 0)
+            } else if label.signature == VOID {
+                (drop, 0)
+            } else {
+                (drop - 1, 1)
+            }
+        )
     }
 
-    pub fn type_check(&mut self, opc: Opcode) -> Result<(), Error> {
+    pub fn type_check(&mut self, opc: Opcode, signature: TypeValue) -> Result<(), Error> {
         match opc.code {
             IF => {
                 let label = self.label_stack.top()?;
@@ -235,12 +248,20 @@ impl<'s, 't> Interp<'s, 't> {
             },
             BR | BR_IF => {
                 let label = self.label_stack.top()?;
-                let (drop, keep) = self.get_drop_keep(&label);
+                let (drop, keep) = self.get_drop_keep(&label)?;
                 self.type_stack.drop_keep(drop, keep)?;
+                self.set_unreachable(true)?;
             },
             RETURN => {
-                // drop all, keeping 1 if function signature is not Void
-                unimplemented!()
+                self.expect_type(signature)?;                
+                let drop = self.type_stack.len();
+                let (drop, keep) = if signature == TypeValue::Void {
+                    (drop, 0)
+                } else {
+                    (drop - 1, 1)
+                };
+                self.type_stack.drop_keep(drop, keep)?;
+                self.set_unreachable(true)?;                
             },
             _ => {
                 self.pop_type_expecting(opc.t1)?;
@@ -258,7 +279,7 @@ impl<'s, 't> Interp<'s, 't> {
             let op = r.read_opcode()?;
             let opc = Opcode::try_from(op)?;
             println!("{:04x}: 0x{:02x} {}", w.pos(), opc.code, opc.text);
-            self.type_check(opc)?;
+            self.type_check(opc, signature)?;
 
             match op {
                 BLOCK => {
@@ -296,7 +317,7 @@ impl<'s, 't> Interp<'s, 't> {
                 BR | BR_IF => {
                     let depth = r.read_var_u32()?;
                     let label = self.label_stack.peek(depth as usize)?;
-                    let (drop, keep) = self.get_drop_keep(&label);
+                    let (drop, keep) = self.get_drop_keep(&label)?;
                     println!("drop_keep: {}, {}", drop, keep);
                     w.write_drop_keep(drop, keep)?;                    
                     w.write_opcode(op)?;
