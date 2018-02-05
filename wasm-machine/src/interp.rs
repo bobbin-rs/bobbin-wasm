@@ -13,6 +13,7 @@ pub struct Fixup {
     offset: usize,
 }
 
+
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TypeInfo {
     type_value: u8,
@@ -20,45 +21,40 @@ pub struct TypeInfo {
 }
 
 pub struct Interp<'s, 't> {
-    scope_stack: Stack<'s, u32>,
+    label_stack: Stack<'s, u32>,
     type_stack: Stack<'t, TypeInfo>,
     fixups: [Option<Fixup>; 256],
     fixups_pos: usize,
 }
 
 impl<'s, 't> Interp<'s, 't> {
-    pub fn new(scope_stack: Stack<'s, u32>, type_stack: Stack<'t, TypeInfo>) -> Self {
+    pub fn new(label_stack: Stack<'s, u32>, type_stack: Stack<'t, TypeInfo>) -> Self {
         Interp {
-            scope_stack: scope_stack,
+            label_stack: label_stack,
             type_stack: type_stack,
             fixups: [None; 256],
             fixups_pos: 0,
         }
     }
 
-    pub fn push(&mut self, val: u32) -> Result<(), Error> {
-        // println!("push {}: {:04x}", self.scope_stack_pos, val);
-        Ok(self.scope_stack.push(val)?)
-        // self.scope_stack[self.scope_stack_pos] = val;
-        // self.scope_stack_pos += 1;
-        // Ok(())
+    pub fn push_label(&mut self, val: u32) -> Result<(), Error> {
+        Ok(self.label_stack.push(val)?)
     }
 
-    pub fn pop(&mut self) -> Result<u32, Error> {
-        Ok(self.scope_stack.pop()?)
+    pub fn pop_label(&mut self) -> Result<u32, Error> {
+        Ok(self.label_stack.pop()?)
     }
 
-    pub fn depth(&self) -> usize {
-        self.scope_stack.len()
+    pub fn label_depth(&self) -> usize {
+        self.label_stack.len()
     }
 
-    pub fn peek(&self, offset: usize) -> Result<u32, Error> {
-        Ok(self.scope_stack.peek(offset)?)
-        // Ok(self.scope_stack[self.scope_stack_pos - (1 + offset)])
+    pub fn peek_label(&self, offset: usize) -> Result<u32, Error> {
+        Ok(self.label_stack.peek(offset)?)
     }
 
     pub fn add_fixup(&mut self, rel_depth: u32, offset: usize) -> Result<(), Error> {
-        let depth = self.depth() - rel_depth as usize;
+        let depth = self.label_depth() - rel_depth as usize;
         println!("add_fixup: {} 0x{:04x}", depth, offset);
         for entry in self.fixups.iter_mut() {
             if entry.is_none() {
@@ -70,8 +66,8 @@ impl<'s, 't> Interp<'s, 't> {
     }
 
     pub fn fixup(&mut self, w: &mut Writer) -> Result<(), Error> {
-        let depth = self.depth();        
-        let offset = self.peek(0)?;
+        let depth = self.label_depth();        
+        let offset = self.peek_label(0)?;
         let offset = if offset == 0xffff_ffff { w.pos() } else { offset as usize};
         println!("fixup: {} -> 0x{:04x}", depth, offset);
         for entry in self.fixups.iter_mut() {
@@ -100,25 +96,25 @@ impl<'s, 't> Interp<'s, 't> {
             let op = r.read_opcode()?;
             match op {
                 BLOCK => {
-                    self.push(0xffff_ffff)?;
-                    println!("DEPTH -> {}", self.depth());
+                    self.push_label(0xffff_ffff)?;
+                    println!("DEPTH -> {}", self.label_depth());
                     let _ = r.read_var_i7()?;
                 },
                 LOOP => {
                     let _ = r.read_var_i7()?;
-                    self.push(w.pos() as u32)?;
-                    println!("DEPTH -> {}", self.depth());
+                    self.push_label(w.pos() as u32)?;
+                    println!("DEPTH -> {}", self.label_depth());
                 },
                 END => {
                     // w.write_opcode(op)?;
-                    println!("FIXUP {} 0x{:04x}", self.depth(), w.pos());
+                    println!("FIXUP {} 0x{:04x}", self.label_depth(), w.pos());
                     self.fixup(w)?;
-                    self.pop()?;
-                    println!("DEPTH -> {}", self.depth());
+                    self.pop_label()?;
+                    println!("DEPTH -> {}", self.label_depth());
                 }
                 IF => {
-                    self.push(0xffff_ffff)?;
-                    println!("IF: DEPTH -> {}", self.depth());
+                    self.push_label(0xffff_ffff)?;
+                    println!("IF: DEPTH -> {}", self.label_depth());
                     w.write_opcode(INTERP_BR_UNLESS)?;
                     let _ = r.read_var_i7()?;
                     println!("IF: ADD FIXUP {} 0x{:04x}", 0, w.pos());
@@ -230,9 +226,9 @@ impl<'s, 't> Interp<'s, 't> {
         Ok(())
     }
 
-    pub fn run(&mut self, r: &Reader) -> Result<(), Error> {
-        Ok(())
-    }
+    // pub fn run(&mut self, r: &Reader) -> Result<(), Error> {
+    //     Ok(())
+    // }
 }
 
 trait ReadInterp {
@@ -259,25 +255,6 @@ impl<'w> WriteInterp for Writer<'w> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_push_pop() {
-        let mut scopes_buf = [0u32; 256];
-        let scope_stack = Stack::new(&mut scopes_buf);
-
-        let mut type_buf = [TypeInfo::default(); 256];
-        let type_stack = Stack::new(&mut type_buf);
-        
-        let mut i = Interp::new(scope_stack, type_stack);
-        i.push(1).unwrap();
-        i.push(2).unwrap();
-        i.push(3).unwrap();
-        assert_eq!(i.peek(0).unwrap(), 3);
-        assert_eq!(i.peek(1).unwrap(), 2);
-        assert_eq!(i.peek(2).unwrap(), 1);
-        assert_eq!(i.pop().unwrap(), 3);
-        assert_eq!(i.pop().unwrap(), 2);
-        assert_eq!(i.pop().unwrap(), 1);
-    }
     #[test]
     fn test_interp() {
         let code = [
@@ -359,13 +336,13 @@ mod tests {
         let mut r = Reader::new(&code);
         let mut w = Writer::new(&mut out);
 
-        let mut scopes_buf = [0u32; 256];
-        let scope_stack = Stack::new(&mut scopes_buf);
+        let mut labels_buf = [0u32; 256];
+        let label_stack = Stack::new(&mut labels_buf);
 
         let mut type_buf = [TypeInfo::default(); 256];
         let type_stack = Stack::new(&mut type_buf);
 
-        let mut interp = Interp::new(scope_stack, type_stack);
+        let mut interp = Interp::new(label_stack, type_stack);
         interp.load(&mut r, &mut w).unwrap();
         let mut r = Reader::new(w.as_ref());
         interp.dump(&mut r).unwrap();

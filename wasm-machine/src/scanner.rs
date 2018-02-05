@@ -248,42 +248,42 @@ impl<'a> Scanner<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    // use super::*;
 
-    #[test]
-    fn test_scanner() {
-        let code = [
-            NOP, 
-            MEM_SIZE, 0x00,
-            I32_LOAD, 0x02, 0x00,
-            I32_ADD,
-            I32_SUB,
-            CALL, 0x01,
-            CALL_INDIRECT, 0x01, 0x00,
-            BLOCK, 0x00,
-                BR_TABLE, 0x02, 0x00, 0x00, 0x00,
-                LOOP, 0x00,
-                    BR, 0x01,
-                    IF, 0x00,
-                        BR_IF, 0x02,
-                    END, 
-                    IF, 0x00,
-                        NOP, 
-                        IF, 0x00,
-                            NOP, 
-                        END, 
-                    ELSE, 
-                        NOP, 
-                        IF, 
-                            NOP, 
-                        END, 
-                    END, 
-                END, 
-            END, 
-            NOP,
-        ];
+    // #[test]
+    // fn test_scanner() {
+    //     let code = [
+    //         NOP, 
+    //         MEM_SIZE, 0x00,
+    //         I32_LOAD, 0x02, 0x00,
+    //         I32_ADD,
+    //         I32_SUB,
+    //         CALL, 0x01,
+    //         CALL_INDIRECT, 0x01, 0x00,
+    //         BLOCK, 0x00,
+    //             BR_TABLE, 0x02, 0x00, 0x00, 0x00,
+    //             LOOP, 0x00,
+    //                 BR, 0x01,
+    //                 IF, 0x00,
+    //                     BR_IF, 0x02,
+    //                 END, 
+    //                 IF, 0x00,
+    //                     NOP, 
+    //                     IF, 0x00,
+    //                         NOP, 
+    //                     END, 
+    //                 ELSE, 
+    //                     NOP, 
+    //                     IF, 
+    //                         NOP, 
+    //                     END, 
+    //                 END, 
+    //             END, 
+    //         END, 
+    //         NOP,
+    //     ];
 
-        // let mut s = Scanner::new(&code);
-        // s.scan().unwrap();
-    }
+    //     // let mut s = Scanner::new(&code);
+    //     // s.scan().unwrap();
+    // }
 }
