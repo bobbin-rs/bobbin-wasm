@@ -237,7 +237,11 @@ impl<'s, 't> Loader<'s, 't> {
         Ok(())
     }
 
-    pub fn load(&mut self, signature: TypeValue, r: &mut Reader, w: &mut Writer) -> Result<(), Error> {
+    pub fn load(&mut self, locals: &[TypeValue], globals: &[TypeValue], signature: TypeValue, r: &mut Reader, w: &mut Writer) -> Result<(), Error> {
+        for local in locals.iter() {
+            self.push_type(*local)?;
+        }
+        w.write_alloca(locals.len())?;
         while r.remaining() > 0 {
             let op = r.read_opcode()?;
             let opc = Opcode::try_from(op)?;
@@ -298,14 +302,48 @@ impl<'s, 't> Loader<'s, 't> {
                     w.write_u32(r.read_var_u32()?)?;
                 },
                 UNREACHABLE => return Err(Error::Unreachable),
-                RETURN => unimplemented!(),
+                RETURN => {
+                    let depth = self.type_stack.len();
+                    if signature == VOID {
+                        w.write_drop_keep(depth, 0)?;
+                    } else {
+                        w.write_drop_keep(depth - 1, 0)?;
+                    }
+                    w.write_opcode(RETURN)?;
+                },
                 GET_LOCAL | SET_LOCAL | TEE_LOCAL => {
+                    let id = r.read_var_u32()? as usize;
+                    let len = locals.len();
+                    if id >= len {
+                        return Err(Error::InvalidLocal { id: id, len: len })
+                    }
+                    let ty = locals[id];
+                    match op {
+                        GET_LOCAL => self.push_type(ty)?,
+                        SET_LOCAL => self.pop_type_expecting(ty)?,
+                        TEE_LOCAL => {
+                            self.pop_type_expecting(ty)?;
+                            self.push_type(ty)?;
+                        }
+                        _ => unreachable!()
+                    }
                     w.write_opcode(op)?;
-                    w.write_u32(r.read_var_u32()?)?;
+                    w.write_u32(id as u32)?;
                 },
                 GET_GLOBAL | SET_GLOBAL => {
+                    let id = r.read_var_u32()? as usize;
+                    let len = globals.len();
+                    if id > len {
+                        return Err(Error::InvalidGlobal { id: id, len: len })                        
+                    }
+                    let ty = globals[id];
+                    match op {
+                        GET_GLOBAL => self.push_type(ty)?,
+                        SET_GLOBAL => self.pop_type_expecting(ty)?,
+                        _ => unreachable!()
+                    }
                     w.write_opcode(op)?;
-                    w.write_u32(r.read_var_u32()?)?;
+                    w.write_u32(id as u32)?;
                 },
                 CALL => {
                     w.write_opcode(op)?;
@@ -341,7 +379,15 @@ impl<'s, 't> Loader<'s, 't> {
 
         println!("Checking Exit");
         self.pop_type_expecting(signature)?;
-        self.expect_depth(0)?;
+        self.expect_depth(locals.len())?;
+
+        if locals.len() > 0 {
+            if signature != VOID {
+                w.write_drop_keep(locals.len(), 1)?;
+            } else {
+                w.write_drop_keep(locals.len(), 0)?;
+            }
+        }
 
         println!("Checking Fixups");
         for entry in self.fixups.iter() {
@@ -380,7 +426,7 @@ impl<'s, 't> Loader<'s, 't> {
                         print!(" 0x{:08x}", r.read_u32()?);
                     },
                     MEM_GROW | MEM_SIZE => {},
-                    INTERP_BR_UNLESS => print!(" {:08x}", r.read_u32()?),
+                    INTERP_BR_UNLESS | INTERP_ALLOCA => print!(" {:08x}", r.read_u32()?),
                     INTERP_DROP_KEEP => print!(" {} {}", r.read_u32()?, r.read_u32()?),
                     _ => {},
                 }
@@ -398,17 +444,17 @@ impl<'s, 't> Loader<'s, 't> {
     // }
 }
 
-trait ReadInterp {
+trait ReadLoader {
     fn read_opcode(&mut self) -> Result<u8, Error>;
 }
 
-impl<'r> ReadInterp for Reader<'r> {
+impl<'r> ReadLoader for Reader<'r> {
     fn read_opcode(&mut self) -> Result<u8, Error> {
         self.read_u8()
     }    
 }
 
-trait WriteInterp {
+trait WriteLoader {
     fn write_opcode(&mut self, op: u8) -> Result<(), Error>;
     fn write_type(&mut self, tv: TypeValue) -> Result<(), Error>;
     fn write_block(&mut self, signature: TypeValue) -> Result<(), Error>;
@@ -416,10 +462,11 @@ trait WriteInterp {
     fn write_br_if(&mut self, depth: usize) -> Result<(), Error>;
     fn write_end(&mut self) -> Result<(), Error>;
     fn write_drop_keep(&mut self, drop_count: usize, keep_size: usize) -> Result<(), Error>;
+    fn write_alloca(&mut self, count: usize) -> Result<(), Error>;
     fn write_i32_const(&mut self, value: i32)-> Result<(), Error>;
 }
 
-impl<'w> WriteInterp for Writer<'w> {
+impl<'w> WriteLoader for Writer<'w> {
     fn write_opcode(&mut self, op: u8) -> Result<(), Error> {
         self.write_u8(op)
     }    
@@ -451,7 +498,14 @@ impl<'w> WriteInterp for Writer<'w> {
         }
         Ok(())
     }
-
+    fn write_alloca(&mut self, count: usize) -> Result<(), Error> {
+        Ok(
+            if count > 0 {
+                self.write_opcode(INTERP_ALLOCA)?;
+                self.write_u32(count as u32)?;
+            }
+        )
+    }
     fn write_end(&mut self) -> Result<(), Error> { self.write_opcode(END) }
     fn write_i32_const(&mut self, value: i32)-> Result<(), Error> {
         self.write_opcode(I32_CONST)?;
@@ -560,7 +614,12 @@ mod tests {
         let type_stack = Stack::new(&mut type_buf);
 
         let mut loader = Loader::new(label_stack, type_stack);
-        loader.load(TypeValue::I32, &mut r, &mut w).unwrap();
+
+        let locals = [I32, I32];
+        let globals = [I32, I32];
+        let signature = I32;
+
+        loader.load(&locals, &globals, signature, &mut r, &mut w).unwrap();
 
         let mut r = Reader::new(w.as_ref());
         loader.dump(&mut r).unwrap();
