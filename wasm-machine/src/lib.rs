@@ -26,6 +26,7 @@ pub enum Error {
     InvalidBlockType,
     ScopesFull,
     FixupsFull,
+    InvalidSignature,
     UnexpectedStackDepth { wanted: usize, got: usize},
     UnexpectedType { wanted: interp::TypeValue, got: interp::TypeValue },
     OpcodeError(opcode::Error),

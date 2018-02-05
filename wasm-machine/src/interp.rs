@@ -183,15 +183,25 @@ impl<'s, 't> Interp<'s, 't> {
 
     pub fn type_check(&mut self, opc: Opcode) -> Result<(), Error> {
         match opc.code {
-            END => {
+            IF => {
                 let label = self.label_stack.top()?;
+                self.pop_type_expecting(label.signature)?;
+            },
+            ELSE | END => {
+                let label = self.label_stack.top()?;
+                if label.opcode == IF && label.signature != VOID {
+                    return Err(Error::InvalidSignature)
+                }
                 println!("label: {:?}", label);
                 self.pop_type_expecting(label.signature)?;
                 let depth = self.type_stack.len();
                 if depth != label.stack_limit {
                     return Err(Error::UnexpectedStackDepth { wanted: label.stack_limit, got: depth })
                 }
-                Ok(())
+            },
+            RETURN => {
+                // drop all, keeping 1 if function signature is not Void
+                unimplemented!()
             },
             _ => {
                 self.pop_type_expecting(opc.t1)?;
@@ -199,9 +209,9 @@ impl<'s, 't> Interp<'s, 't> {
                 if opc.tr != TypeValue::None {
                     self.push_type(opc.tr)?;
                 }
-                Ok(())
             }
         }
+        Ok(())
     }
 
     pub fn load(&mut self, r: &mut Reader, w: &mut Writer) -> Result<(), Error> {
@@ -238,6 +248,8 @@ impl<'s, 't> Interp<'s, 't> {
                 ELSE => {
                     w.write_opcode(BR)?;
                     self.fixup(w)?;
+                    let label = self.pop_label()?;
+                    self.push_label(op, label.signature, FIXUP_OFFSET)?;                    
                     println!("ELSE: ADD FIXUP {} 0x{:04x}", 0, w.pos());
                     self.add_fixup(0, w.pos() as u32)?;
                     w.write_u32(FIXUP_OFFSET)?;
@@ -271,6 +283,8 @@ impl<'s, 't> Interp<'s, 't> {
                     }
                     w.write_u32(r.read_var_u32()?)?;
                 },
+                UNREACHABLE => return Err(Error::Unreachable),
+                RETURN => unimplemented!(),
                 GET_LOCAL | SET_LOCAL | TEE_LOCAL => {
                     w.write_opcode(op)?;
                     w.write_u32(r.read_var_u32()?)?;
