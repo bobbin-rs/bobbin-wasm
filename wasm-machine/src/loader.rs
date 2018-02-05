@@ -199,7 +199,7 @@ impl<'s, 't> Loader<'s, 't> {
             ELSE | END => {
                 let label = self.label_stack.top()?;
                 if label.opcode == IF && label.signature != VOID {
-                    return Err(Error::InvalidSignature)
+                    return Err(Error::InvalidIfSignature)
                 }
                 println!("label: {:?}", label);
                 self.expect_type(label.signature)?;
@@ -242,6 +242,7 @@ impl<'s, 't> Loader<'s, 't> {
         locals: &[TypeValue], 
         globals: &[TypeValue], 
         functions: &[(&[TypeValue], &[TypeValue])],
+        signatures: &[(&[TypeValue], &[TypeValue])],
         r: &mut Reader,
         w: &mut Writer
     ) -> Result<(), Error> {
@@ -356,7 +357,7 @@ impl<'s, 't> Loader<'s, 't> {
                     let id = r.read_var_u32()? as usize;
                     let len = functions.len();
                     if id > len {
-                        return Err(Error::InvalidCall{ id: id, len: len })
+                        return Err(Error::InvalidCall { id: id, len: len })
                     }
                     let (parameters, returns) = functions[id];
                     if returns.len() > 1 {
@@ -373,9 +374,25 @@ impl<'s, 't> Loader<'s, 't> {
                     w.write_u32(id as u32)?;
                 },
                 CALL_INDIRECT => {
-                    let signature = r.read_var_u32()?;
+                    let id = r.read_var_u32()? as usize;
+                    let len = signatures.len();
+                    if id > len {
+                        return Err(Error::InvalidCallIndirect { id: id, len: len })
+                    }
+                    let (parameters, returns) = signatures[id];
+                    if returns.len() > 1 {
+                        return Err(Error::UnexpectedReturnLength { got: returns.len()})
+                    }
+                    // Load function index
+                    self.pop_type_expecting(I32)?;
+                    for p in parameters.iter() {
+                        self.pop_type_expecting(*p)?;
+                    }
+                    for r in returns.iter() {
+                        self.push_type(*r)?;
+                    }                                     
                     w.write_opcode(op)?;
-                    w.write_u32(signature)?;
+                    w.write_u32(signature as u32)?;
                     r.read_var_u1()?;
                 },
                 I32_LOAD | I32_STORE | I32_LOAD8_S | I32_LOAD8_U | I32_LOAD16_S | I32_LOAD16_U => {
@@ -651,7 +668,7 @@ mod tests {
         let globals = [I32, I32];
         let functions = [(&f1_p[..], &f1_r[..]), (&f2_p[..], &f2_r[..])];
 
-        loader.load(signature, &locals, &globals, &functions, &mut r, &mut w).unwrap();
+        loader.load(signature, &locals, &globals, &functions, &functions, &mut r, &mut w).unwrap();
 
         let mut r = Reader::new(w.as_ref());
         loader.dump(&mut r).unwrap();
