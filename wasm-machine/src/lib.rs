@@ -26,6 +26,8 @@ pub enum Error {
     InvalidBlockType,
     ScopesFull,
     FixupsFull,
+    UnexpectedStackDepth { wanted: usize, got: usize},
+    UnexpectedType { wanted: interp::TypeValue, got: interp::TypeValue },
     OpcodeError(opcode::Error),
     StackError(stack::Error),
     Leb128Error(wasm_leb128::Error),

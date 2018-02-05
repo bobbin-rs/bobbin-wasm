@@ -24,14 +24,14 @@ pub const FIXUP_OFFSET: u32 = 0xffff_ffff;
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
 pub struct Label {
-    signature: i8,
+    signature: TypeValue,
     offset: u32,
     stack_limit: usize,
 }
 
 impl fmt::Debug for Label {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Label {{ signature: 0x{:02x}, offset: 0x{:08x}, stack_limit: {} }}", self.signature, self.offset, self.stack_limit)
+        write!(f, "Label {{ signature: {:?}, offset: 0x{:08x}, stack_limit: {} }}", self.signature, self.offset, self.stack_limit)
     }
 }
 
@@ -44,7 +44,7 @@ pub enum TypeValue {
     I64 = -0x02,
     F32 = -0x03,
     F64 = -0x04,
-    Void = 0x40,
+    Void = -0x40,
 }
 
 impl Default for TypeValue {
@@ -67,6 +67,11 @@ impl From<i8> for TypeValue {
     }
 }
 
+impl From<TypeValue> for i8 {
+    fn from(other: TypeValue) -> Self {
+        other as i8
+    }
+}
 
 
 pub struct Interp<'s, 't> {
@@ -86,10 +91,10 @@ impl<'s, 't> Interp<'s, 't> {
         }
     }
 
-    pub fn push_label(&mut self, signature: i8, offset: u32) -> Result<(), Error> {
+    pub fn push_label<T: Into<TypeValue>>(&mut self, signature: T, offset: u32) -> Result<(), Error> {
         let stack_limit = self.type_stack.len();
         let label = Label {
-            signature,
+            signature: signature.into(),
             offset,
             stack_limit,
         };
@@ -110,7 +115,28 @@ impl<'s, 't> Interp<'s, 't> {
     }
 
     pub fn push_type<T: Into<TypeValue>>(&mut self, type_value: T) -> Result<(), Error> {
-        Ok(self.type_stack.push(type_value.into())?)
+        let tv = type_value.into();
+        println!("push_type: {:?}", tv);
+        Ok(self.type_stack.push(tv)?)
+    }
+
+    pub fn pop_type(&mut self) -> Result<TypeValue, Error> {
+        let tv = self.type_stack.pop()?;
+        println!("pop_type: {:?}", tv);
+        Ok(tv)
+    }
+
+    pub fn pop_type_expecting(&mut self, tv: TypeValue) -> Result<(), Error> {
+        if tv == TypeValue::Void || tv == TypeValue::None {
+           Ok(()) 
+        } else {
+            let t = self.pop_type()?;
+            if t == tv {
+                Ok(())
+            } else {
+                Err(Error::UnexpectedType { wanted: tv, got: t })
+            }
+        }
     }
 
     pub fn add_fixup(&mut self, rel_depth: u32, offset: u32) -> Result<(), Error> {
@@ -152,11 +178,36 @@ impl<'s, 't> Interp<'s, 't> {
         Ok(())
     }
 
+    pub fn type_check(&mut self, opc: Opcode) -> Result<(), Error> {
+        match opc.code {
+            END => {
+                let label = self.label_stack.top()?;
+                println!("label: {:?}", label);
+                self.pop_type_expecting(label.signature)?;
+                let depth = self.type_stack.len();
+                if depth != label.stack_limit {
+                    return Err(Error::UnexpectedStackDepth { wanted: label.stack_limit, got: depth })
+                }
+                Ok(())
+            },
+            _ => {
+                self.pop_type_expecting(opc.t1)?;
+                self.pop_type_expecting(opc.t2)?;
+                if opc.tr != TypeValue::None {
+                    self.push_type(opc.tr)?;
+                }
+                Ok(())
+            }
+        }
+    }
+
     pub fn load(&mut self, r: &mut Reader, w: &mut Writer) -> Result<(), Error> {
         while r.remaining() > 0 {
             let op = r.read_opcode()?;
             let opc = Opcode::try_from(op)?;
             println!("{:04x}: 0x{:02x} {}", w.pos(), opc.code, opc.text);
+            self.type_check(opc)?;
+
             match op {
                 BLOCK => {
                     self.push_label(r.read_var_i7()?, FIXUP_OFFSET)?;
@@ -233,14 +284,12 @@ impl<'s, 't> Interp<'s, 't> {
                 I32_CONST => {
                     w.write_opcode(op)?;
                     w.write_i32(r.read_var_i32()?)?;
-                    self.push_type(I32)?;
+                },
+                DROP => {
+                    w.write_opcode(op)?;
+                    self.pop_type()?;
                 },
                 _ => {
-                    if opc.is_unop() {
-
-                    } else if opc.is_binop() {
-
-                    }
                     w.write_opcode(op)?;
                 },
             }
@@ -310,13 +359,30 @@ impl<'r> ReadInterp for Reader<'r> {
 
 trait WriteInterp {
     fn write_opcode(&mut self, op: u8) -> Result<(), Error>;
+    fn write_type(&mut self, tv: TypeValue) -> Result<(), Error>;
+    fn write_block(&mut self, signature: TypeValue) -> Result<(), Error>;
+    fn write_end(&mut self) -> Result<(), Error>;
+    fn write_i32_const(&mut self, value: i32)-> Result<(), Error>;
 }
 
 impl<'w> WriteInterp for Writer<'w> {
     fn write_opcode(&mut self, op: u8) -> Result<(), Error> {
         self.write_u8(op)
     }    
-}
+    fn write_type(&mut self, tv: TypeValue) -> Result<(), Error> {
+        self.write_var_i7(tv.into())
+    }
+    fn write_block(&mut self, signature: TypeValue) -> Result<(), Error> {
+        self.write_opcode(BLOCK)?;
+        self.write_type(signature)?;
+        Ok(())
+    }        
+    fn write_end(&mut self) -> Result<(), Error> { self.write_opcode(END) }
+    fn write_i32_const(&mut self, value: i32)-> Result<(), Error> {
+        self.write_opcode(I32_CONST)?;
+        self.write_var_i32(value)?;
+        Ok(())
+    }}
 
 #[cfg(test)]
 mod tests {
@@ -399,10 +465,17 @@ mod tests {
         // 0x01: nop
         // 0x02: br 00000001
 
-        let code = [I32_CONST, 0x12];
+        let mut code_buf = [0u8; 64];
+        let mut code = Writer::new(&mut code_buf);
+
+        code.write_block(I32).unwrap();
+        code.write_i32_const(0x12).unwrap();
+        code.write_i32_const(0x34).unwrap();
+        code.write_opcode(I32_ADD).unwrap();
+        code.write_end().unwrap();
 
         let mut out = [0u8; 1024];
-        let mut r = Reader::new(&code);
+        let mut r: Reader = code.into();
         let mut w = Writer::new(&mut out);
 
         let mut labels_buf = [Label::default(); 256];

@@ -1,6 +1,7 @@
 use wasm_leb128::{write_u1, write_u7, write_i7, write_u32, write_i32};
 use byteorder::{ByteOrder, LittleEndian};
 use core::ops::Deref;
+use reader::Reader;
 use Error;
 
 pub type WriteResult<T> = Result<T, Error>;
@@ -71,6 +72,12 @@ impl<'a> Writer<'a> {
     pub fn write_var_i32(&mut self, value: i32) -> WriteResult<()> {
         self.pos += write_i32(&mut self.buf[self.pos..], value).unwrap();        
         Ok(())
+    }
+}
+
+impl<'a> Into<Reader<'a>> for Writer<'a> {
+    fn into(self) -> Reader<'a> {
+        Reader::new(&self.buf[..self.pos])
     }
 }
 
