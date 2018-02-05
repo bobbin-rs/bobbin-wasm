@@ -129,6 +129,18 @@ impl From<TypeValue> for i8 {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct Function {
+    offset: u32,
+    signature: u32,
+}
+
+impl Function {
+    pub fn new(offset: u32, signature: u32) -> Self {
+        Function { offset, signature }
+    }
+}
+
 
 // pub struct Machine<'a> {
 //     code: &'a [u8],

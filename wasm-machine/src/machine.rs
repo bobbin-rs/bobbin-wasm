@@ -1,6 +1,7 @@
 use Error;
 use TypeValue;
 use Value;
+use Function;
 use stack::Stack;
 
 use reader::Reader;
@@ -9,7 +10,7 @@ use byteorder::{ByteOrder, LittleEndian};
 
 pub struct Machine<'g, 'f, 's, 'm, 'vs, 'cs, 'c> {
     globals: &'g [TypeValue],
-    functions: &'f [u32],
+    functions: &'f [Function],
     signatures: &'s [(&'s [TypeValue], &'s [TypeValue])],
     memory: &'m mut [u8],
     value_stack: &'vs mut Stack<'vs, Value>,
@@ -20,7 +21,7 @@ pub struct Machine<'g, 'f, 's, 'm, 'vs, 'cs, 'c> {
 impl<'g, 'f, 's, 'm, 'vs, 'cs, 'c> Machine<'g, 'f, 's, 'm, 'vs, 'cs, 'c> {
     pub fn new(
         globals: &'g [TypeValue],
-        functions: &'f [u32],
+        functions: &'f [Function],
         signatures: &'s [(&'s [TypeValue], &'s [TypeValue])],
         memory: &'m mut [u8],
         value_stack: &'vs mut Stack<'vs, Value>,
@@ -66,7 +67,13 @@ impl<'g, 'f, 's, 'm, 'vs, 'cs, 'c> Machine<'g, 'f, 's, 'm, 'vs, 'cs, 'c> {
     // Functions
 
     pub fn function_offset(&self, id: u32) -> Result<u32, Error> {
-        unimplemented!()
+        let id = id as usize;
+        let len = self.functions.len();
+        if id < len {
+            Ok(self.functions[id].offset)
+        } else {
+            Err(Error::InvalidFunction { id, len })
+        }
     }
 
     // Locals
@@ -389,7 +396,7 @@ mod tests {
         let f2_r = [];
 
         let globals = [I32, I32];
-        let functions = [0, 1];
+        let functions = [Function::new(0, 0), Function::new(128, 1)];
         let signatures = [(&f1_p[..], &f1_r[..]), (&f2_p[..], &f2_r[..])];
 
         let mut memory = [0u8; 1024];
