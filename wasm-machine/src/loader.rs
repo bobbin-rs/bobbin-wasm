@@ -301,13 +301,51 @@ impl<'s, 't> Loader<'s, 't> {
                     w.write_u32(FIXUP_OFFSET)?;
                 },
                 BR_TABLE => {
+                    // Emits BR_TABLE LEN [DROP OFFSET; LEN] [DROP OFFSET] KEEP
+
+                    // Verify top of stack contains the index
+                    self.pop_type_expecting(I32)?;
+                    
                     w.write_opcode(op)?;
-                    let n = r.read_var_u32()?;
-                    w.write_u32(n)?;
+                    let n = r.read_var_u32()? as usize;
+                    w.write_u32(n as u32)?;
+
+                    let mut sig: Option<TypeValue> = None;
+                    let mut sig_keep = 0;
+
                     for _ in 0..n {
-                        w.write_u32(r.read_var_u32()?)?;
+                        let depth = r.read_var_u32()?;
+                        let label = self.label_stack.peek(depth as usize)?;
+                        self.expect_type(label.signature)?;
+                        let (drop, keep) = self.get_drop_keep(&label)?;
+                        println!("drop_keep: {}, {}", drop, keep);
+
+                        if sig.is_none() {
+                            sig = Some(label.signature);
+                            sig_keep = keep;
+                        }
+                        
+                        w.write_u32(drop as u32)?;
+                        println!("BR_TABLE ADD FIXUP {} 0x{:04x}", depth, w.pos());
+                        self.add_fixup(depth, w.pos() as u32)?;
+                        w.write_u32(FIXUP_OFFSET)?;
                     }
-                    w.write_u32(r.read_var_u32()?)?;
+                    {
+                        // Add default drop + offset
+                        let depth = r.read_var_u32()?;
+                        let label = self.label_stack.peek(depth as usize)?;
+                        self.expect_type(label.signature)?;
+                        let (drop, keep) = self.get_drop_keep(&label)?;
+                        println!("drop_keep: {}, {}", drop, keep);
+
+                        w.write_u32(drop as u32)?;
+                        println!("BR_TABLE ADD FIXUP {} 0x{:04x}", depth, w.pos());
+                        self.add_fixup(depth, w.pos() as u32)?;
+                        w.write_u32(FIXUP_OFFSET)?;
+                    }
+                    w.write_u32(sig_keep as u32)?;
+
+
                 },
                 UNREACHABLE => return Err(Error::Unreachable),
                 RETURN => {

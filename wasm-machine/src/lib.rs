@@ -28,6 +28,7 @@ pub enum Error {
     FixupsFull,
     InvalidIfSignature,
     InvalidReservedValue,
+    InvalidBranchTableDefault { id: usize, len: usize},
     InvalidLocal { id: usize, len: usize },
     InvalidGlobal { id: usize, len: usize },
     InvalidCall { id: usize, len: usize },
