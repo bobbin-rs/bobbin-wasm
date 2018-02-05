@@ -181,6 +181,17 @@ impl<'s, 't> Interp<'s, 't> {
         Ok(())
     }
 
+    fn get_drop_keep(&mut self, label: &Label) -> (usize, usize) {
+        let drop = self.type_stack.len() - label.stack_limit;
+        if label.opcode == LOOP {
+            (drop, 0)
+        } else if label.signature == VOID {
+            (drop, 0)
+        } else {
+            (drop - 1, 1)
+        }
+    }
+
     pub fn type_check(&mut self, opc: Opcode) -> Result<(), Error> {
         match opc.code {
             IF => {
@@ -198,6 +209,11 @@ impl<'s, 't> Interp<'s, 't> {
                 if depth != label.stack_limit {
                     return Err(Error::UnexpectedStackDepth { wanted: label.stack_limit, got: depth })
                 }
+            },
+            BR | BR_IF => {
+                let label = self.label_stack.top()?;
+                let (drop, keep) = self.get_drop_keep(&label);
+                self.type_stack.drop_keep(drop, keep)?;
             },
             RETURN => {
                 // drop all, keeping 1 if function signature is not Void
@@ -257,18 +273,9 @@ impl<'s, 't> Interp<'s, 't> {
                 BR | BR_IF => {
                     let depth = r.read_var_u32()?;
                     let label = self.label_stack.peek(depth as usize)?;
-                    let drop = self.type_stack.len() - label.stack_limit;
-                    println!("to label: {:?}", label);
-                    let (drop, keep) = if label.opcode == LOOP {
-                        (drop, 0)
-                    } else if label.signature == VOID {
-                        (drop, 0)
-                    } else {
-                        (drop - 1, 1)
-                    };
+                    let (drop, keep) = self.get_drop_keep(&label);
                     println!("drop_keep: {}, {}", drop, keep);
-                    w.write_drop_keep(drop, keep)?;
-                    
+                    w.write_drop_keep(drop, keep)?;                    
                     w.write_opcode(op)?;
                     println!("BR / BR_IF ADD FIXUP {} 0x{:04x}", depth, w.pos());
                     self.add_fixup(depth, w.pos() as u32)?;
@@ -424,7 +431,7 @@ impl<'w> WriteInterp for Writer<'w> {
     fn write_drop_keep(&mut self, drop_count: usize, keep_count: usize) -> Result<(), Error> {
         if drop_count == 1 && keep_count == 0 {
             self.write_opcode(DROP)?;            
-        } else {
+        } else if drop_count > 0 {
             self.write_opcode(INTERP_DROP_KEEP)?;
             self.write_u32(drop_count as u32)?;
             self.write_u32(keep_count as u32)?;
