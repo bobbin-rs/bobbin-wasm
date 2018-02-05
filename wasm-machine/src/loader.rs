@@ -241,7 +241,7 @@ impl<'s, 't> Loader<'s, 't> {
         signature: TypeValue, 
         locals: &[TypeValue], 
         globals: &[TypeValue], 
-        functions: &[(&[TypeValue], &[TypeValue])],
+        functions: &[u32],
         signatures: &[(&[TypeValue], &[TypeValue])],
         r: &mut Reader,
         w: &mut Writer
@@ -397,7 +397,12 @@ impl<'s, 't> Loader<'s, 't> {
                     if id > len {
                         return Err(Error::InvalidCall { id: id, len: len })
                     }
-                    let (parameters, returns) = functions[id];
+                    let sig_id = functions[id] as usize;
+                    let sig_len = signatures.len();
+                    if sig_id > sig_len {
+                        return Err(Error::InvalidCall { id: id, len: len })                        
+                    }
+                    let (parameters, returns) = signatures[id];
                     if returns.len() > 1 {
                         return Err(Error::UnexpectedReturnLength { got: returns.len()})
                     }
@@ -704,9 +709,10 @@ mod tests {
         let signature = I32;
         let locals = [I32, I32];
         let globals = [I32, I32];
-        let functions = [(&f1_p[..], &f1_r[..]), (&f2_p[..], &f2_r[..])];
+        let functions = [0, 1];
+        let signatures = [(&f1_p[..], &f1_r[..]), (&f2_p[..], &f2_r[..])];
 
-        loader.load(signature, &locals, &globals, &functions, &functions, &mut r, &mut w).unwrap();
+        loader.load(signature, &locals, &globals, &functions, &signatures, &mut r, &mut w).unwrap();
 
         let mut r = Reader::new(w.as_ref());
         loader.dump(&mut r).unwrap();
