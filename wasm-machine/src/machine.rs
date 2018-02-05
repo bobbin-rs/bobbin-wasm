@@ -63,6 +63,12 @@ impl<'g, 'f, 's, 'm, 'vs, 'cs, 'c> Machine<'g, 'f, 's, 'm, 'vs, 'cs, 'c> {
         Ok(self.call_stack.pop()?)
     }
 
+    // Functions
+
+    pub fn function_offset(&self, id: u32) -> Result<u32, Error> {
+        unimplemented!()
+    }
+
     // Locals
 
     pub fn get_local<T: From<Value>>(&self, depth: u32) -> Result<T, Error> {
@@ -170,9 +176,41 @@ impl<'g, 'f, 's, 'm, 'vs, 'cs, 'c> Machine<'g, 'f, 's, 'm, 'vs, 'cs, 'c> {
                         self.jump(dst)?;
                     }                    
                 },
-                BR_TABLE => {},
-                RETURN => {},
-                CALL => {},
+                BR_TABLE => {
+                    // Emits BR_TABLE LEN [DROP OFFSET; LEN] [DROP OFFSET] KEEP
+                    let index: u32 = self.pop()?;
+                    let len = self.code.read_u32()?;
+                    let mut dst: Option<(u32, u32)> = None;
+                    for i in 0..len {
+                        let branch = (self.code.read_u32()?, self.code.read_u32()?);
+                        if i == index as u32 {
+                            dst = Some(branch);
+                        }
+                    }
+                    let default = (self.code.read_u32()?, self.code.read_u32()?);
+                    if index >= len {
+                        dst = Some(default);
+                    }
+                    let keep = self.code.read_u32()?;
+                    let (drop, offset) = dst.unwrap();
+                    self.value_stack.drop_keep(drop as usize, keep as usize)?;
+                    self.jump(offset)?;
+                },
+                RETURN => {
+                    if self.call_stack.len() == 0 {
+                        return Err(Error::Return)
+                    } else {
+                        let ret = self.pop_call()?;
+                        self.jump(ret)?;
+                    }
+                },
+                CALL => {
+                    let id = self.code.read_u32()?;
+                    let offset = self.function_offset(id)?;
+                    let ret = self.code.pos() as u32;
+                    self.push_call(ret)?;
+                    self.jump(offset)?;
+                },
                 CALL_INDIRECT => {},
                 DROP => {
                     let _: Value = self.pop()?;

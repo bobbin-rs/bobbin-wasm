@@ -22,6 +22,7 @@ pub mod machine;
 #[derive(Debug, PartialEq)]
 pub enum Error {
     Unreachable,
+    Return,
     End,
     Unimplemented,
     InvalidBlockType,
