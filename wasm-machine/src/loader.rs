@@ -419,7 +419,10 @@ impl<'s, 't> Loader<'s, 't> {
                     w.write_u32(id as u32)?;
                 },
                 CALL_INDIRECT => {
+                    // Emits OP SIG
                     let id = r.read_var_u32()? as usize;
+                    let _ = r.read_var_u1()?;
+
                     let len = signatures.len();
                     if id > len {
                         return Err(Error::InvalidSignature { id: id, len: len })
@@ -438,7 +441,6 @@ impl<'s, 't> Loader<'s, 't> {
                     }                                     
                     w.write_opcode(op)?;
                     w.write_u32(signature as u32)?;
-                    r.read_var_u1()?;
                 },
                 I32_LOAD | I32_STORE | I32_LOAD8_S | I32_LOAD8_U | I32_LOAD16_S | I32_LOAD16_U => {
                     w.write_opcode(op)?;

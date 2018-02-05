@@ -141,6 +141,9 @@ impl Function {
     }
 }
 
+pub trait Handler {
+    fn call(&mut self, id: u32);
+}
 
 // pub struct Machine<'a> {
 //     code: &'a [u8],

@@ -2,13 +2,14 @@ use Error;
 use TypeValue;
 use Value;
 use Function;
+use Handler;
 use stack::Stack;
 
 use reader::Reader;
 use opcode::*;
 use byteorder::{ByteOrder, LittleEndian};
 
-pub struct Machine<'g, 'f, 's, 'm, 'vs, 'cs, 'c> {
+pub struct Machine<'g, 'f, 's, 'm, 'vs, 'cs, 'c, 'h, H: 'h + Handler> {
     globals: &'g [TypeValue],
     functions: &'f [Function],
     signatures: &'s [(&'s [TypeValue], &'s [TypeValue])],
@@ -16,9 +17,10 @@ pub struct Machine<'g, 'f, 's, 'm, 'vs, 'cs, 'c> {
     value_stack: &'vs mut Stack<'vs, Value>,
     call_stack: &'cs mut Stack<'cs, u32>,
     code: &'c mut Reader<'c>,
+    handler: &'h mut H,
 }
 
-impl<'g, 'f, 's, 'm, 'vs, 'cs, 'c> Machine<'g, 'f, 's, 'm, 'vs, 'cs, 'c> {
+impl<'g, 'f, 's, 'm, 'vs, 'cs, 'c, 'h, H: 'h + Handler> Machine<'g, 'f, 's, 'm, 'vs, 'cs, 'c, 'h, H> {
     pub fn new(
         globals: &'g [TypeValue],
         functions: &'f [Function],
@@ -27,8 +29,9 @@ impl<'g, 'f, 's, 'm, 'vs, 'cs, 'c> Machine<'g, 'f, 's, 'm, 'vs, 'cs, 'c> {
         value_stack: &'vs mut Stack<'vs, Value>,
         call_stack: &'cs mut Stack<'cs, u32>,
         code: &'c mut Reader<'c>,
+        handler: &'h mut H,
     ) -> Self {
-        Machine { globals, functions, signatures, memory, value_stack, call_stack, code }
+        Machine { globals, functions, signatures, memory, value_stack, call_stack, code, handler }
     }
 
     // Code
@@ -74,6 +77,19 @@ impl<'g, 'f, 's, 'm, 'vs, 'cs, 'c> Machine<'g, 'f, 's, 'm, 'vs, 'cs, 'c> {
         } else {
             Err(Error::InvalidFunction { id, len })
         }
+    }
+
+    // Signatures
+
+    pub fn signature(&self, id: u32) -> Result<(&[TypeValue], &[TypeValue]), Error> {
+        let id = id as usize;
+        let len = self.signatures.len();
+        if id < len {
+            Ok(self.signatures[id])
+        } else {
+            Err(Error::InvalidSignature { id, len })
+        }
+        
     }
 
     // Locals
@@ -218,7 +234,11 @@ impl<'g, 'f, 's, 'm, 'vs, 'cs, 'c> Machine<'g, 'f, 's, 'm, 'vs, 'cs, 'c> {
                     self.push_call(ret)?;
                     self.jump(offset)?;
                 },
-                CALL_INDIRECT => {},
+                CALL_INDIRECT => {
+                    let _sig = self.code.read_u32()?;
+                    let id = self.pop()?;
+                    self.handler.call(id);
+                },
                 DROP => {
                     let _: Value = self.pop()?;
                 },
@@ -389,6 +409,13 @@ mod tests {
 
     #[test]
     fn test_machine() {
+        pub struct MyHandler {} 
+        impl Handler for MyHandler {
+            fn call(&mut self, id: u32) {
+                println!("Called {}", id);
+            }
+        }
+
         let f1_p = [I32, I32];
         let f1_r = [I32];
 
@@ -425,6 +452,7 @@ mod tests {
         
 
         let mut code: Reader = w.into();
+        let mut handler = MyHandler {};
 
         let mut m = Machine::new(
             &globals,
@@ -434,6 +462,7 @@ mod tests {
             &mut value_stack,
             &mut call_stack,
             &mut code,
+            &mut handler,
         );
         m.run(100).unwrap();
         println!("---");
