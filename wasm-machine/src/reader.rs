@@ -22,9 +22,25 @@ impl<'a> Reader<'a> {
     pub fn new(buf: &'a [u8]) -> Self {
         Reader { buf: buf, pos: 0 }
     }
+
     #[inline]
     pub fn pos(&self) -> usize {
         self.pos
+    }
+
+    #[inline]
+    pub fn set_pos(&mut self, pos: usize) {
+        self.pos = pos
+    }
+
+    #[inline]
+    pub fn incr(&mut self) {
+        self.pos += 1
+    }
+
+    #[inline]
+    pub fn done(&self) -> bool {
+        self.pos >= self.buf.len()
     }
 
     #[inline]
@@ -38,7 +54,7 @@ impl<'a> Reader<'a> {
         let v = f(&self.buf[self.pos..self.pos+size]);
         self.pos += size;
         Ok(v)        
-    }
+    }    
 
     #[inline]
     pub fn read_u8(&mut self) -> ReaderResult<u8> { 

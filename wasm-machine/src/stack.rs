@@ -6,6 +6,7 @@ pub type StackResult<T> = Result<T, Error>;
 pub enum Error {
     Overflow,
     Underflow,
+    OutOfBounds,
 }
 
 pub struct Stack<'a, T: 'a + Copy> {
@@ -41,6 +42,11 @@ impl<'a, T: 'a + Copy> Stack<'a, T> {
     #[inline]
     pub fn reset(&mut self) -> StackResult<()> {
         Ok(self.pos = 0)
+    }
+
+    #[inline]
+    pub fn set_pos(&mut self, pos: usize) -> StackResult<()> {
+        Ok(self.pos = pos)
     }
 
     #[inline]
@@ -115,6 +121,24 @@ impl<'a, T: 'a + Copy> Stack<'a, T> {
             *self.pick(drop_count)? = self.top()?;
         }
         Ok(self.pos -= drop_count)
+    }
+
+    #[inline]
+    pub fn get(&self, index: usize) -> StackResult<T> {
+        if index < self.pos {
+            Ok(self.buf[index])
+        } else {
+            Err(Error::OutOfBounds)
+        }
+    }
+
+    #[inline]
+    pub fn set(&mut self, index: usize, value: T) -> StackResult<()> {
+        if index < self.pos {
+            Ok(self.buf[index] = value)
+        } else {
+            Err(Error::OutOfBounds)
+        }
     }
 }
 

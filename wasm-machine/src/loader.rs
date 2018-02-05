@@ -358,6 +358,7 @@ impl<'s, 't> Loader<'s, 't> {
                     w.write_opcode(RETURN)?;
                 },
                 GET_LOCAL | SET_LOCAL | TEE_LOCAL => {
+                    // Emits OP DEPTH_TO_LOCAL
                     let id = r.read_var_u32()? as usize;
                     let len = locals.len();
                     if id >= len {
@@ -373,8 +374,9 @@ impl<'s, 't> Loader<'s, 't> {
                         }
                         _ => unreachable!()
                     }
+                    let depth = self.type_stack.len() - id;
                     w.write_opcode(op)?;
-                    w.write_u32(id as u32)?;
+                    w.write_u32(depth as u32)?;
                 },
                 GET_GLOBAL | SET_GLOBAL => {
                     let id = r.read_var_u32()? as usize;
@@ -528,7 +530,7 @@ impl<'s, 't> Loader<'s, 't> {
     // }
 }
 
-trait ReadLoader {
+pub trait ReadLoader {
     fn read_opcode(&mut self) -> Result<u8, Error>;
 }
 
@@ -538,7 +540,7 @@ impl<'r> ReadLoader for Reader<'r> {
     }    
 }
 
-trait WriteLoader {
+pub trait WriteLoader {
     fn write_opcode(&mut self, op: u8) -> Result<(), Error>;
     fn write_type(&mut self, tv: TypeValue) -> Result<(), Error>;
     fn write_block(&mut self, signature: TypeValue) -> Result<(), Error>;

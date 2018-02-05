@@ -14,6 +14,7 @@ pub mod writer;
 pub mod stack;
 pub mod scanner;
 pub mod loader;
+pub mod machine;
 
 // use byteorder::{ByteOrder, LittleEndian};
 // use wasm_leb128::{read_i32, read_u32};
@@ -26,6 +27,7 @@ pub enum Error {
     InvalidBlockType,
     ScopesFull,
     FixupsFull,
+    OutOfBounds,
     InvalidIfSignature,
     InvalidReservedValue,
     InvalidBranchTableDefault { id: usize, len: usize},
@@ -58,6 +60,33 @@ impl From<stack::Error> for Error {
 impl From<wasm_leb128::Error> for Error {
     fn from(other: wasm_leb128::Error) -> Error {
         Error::Leb128Error(other)
+    }
+}
+
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Value(i32);
+
+impl From<i32> for Value {
+    fn from(other: i32) -> Value {
+        Value(other)
+    }
+}
+
+impl From<u32> for Value {
+    fn from(other: u32) -> Value {
+        Value(other as i32)
+    }
+}
+
+impl From<Value> for i32 {
+    fn from(other: Value) -> i32 {
+        other.0
+    }
+}
+
+impl From<Value> for u32 {
+    fn from(other: Value) -> u32 {
+        other.0 as u32
     }
 }
 
