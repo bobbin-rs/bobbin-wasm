@@ -24,6 +24,7 @@ pub const FIXUP_OFFSET: u32 = 0xffff_ffff;
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
 pub struct Label {
+    opcode: u8,
     signature: TypeValue,
     offset: u32,
     stack_limit: usize,
@@ -31,7 +32,8 @@ pub struct Label {
 
 impl fmt::Debug for Label {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Label {{ signature: {:?}, offset: 0x{:08x}, stack_limit: {} }}", self.signature, self.offset, self.stack_limit)
+        let opc = Opcode::try_from(self.opcode).unwrap();
+        write!(f, "Label {{ opcode: {} signature: {:?}, offset: 0x{:08x}, stack_limit: {} }}", opc.text, self.signature, self.offset, self.stack_limit)
     }
 }
 
@@ -91,9 +93,10 @@ impl<'s, 't> Interp<'s, 't> {
         }
     }
 
-    pub fn push_label<T: Into<TypeValue>>(&mut self, signature: T, offset: u32) -> Result<(), Error> {
+    pub fn push_label<T: Into<TypeValue>>(&mut self, opcode: u8, signature: T, offset: u32) -> Result<(), Error> {
         let stack_limit = self.type_stack.len();
         let label = Label {
+            opcode,
             signature: signature.into(),
             offset,
             stack_limit,
@@ -210,20 +213,20 @@ impl<'s, 't> Interp<'s, 't> {
 
             match op {
                 BLOCK => {
-                    self.push_label(r.read_var_i7()?, FIXUP_OFFSET)?;
+                    self.push_label(op, r.read_var_i7()?, FIXUP_OFFSET)?;
                     println!("DEPTH -> {}", self.label_depth());
                 },
                 LOOP => {
-                    self.push_label(r.read_var_i7()?, w.pos() as u32)?;
+                    self.push_label(op, r.read_var_i7()?, w.pos() as u32)?;
                     println!("DEPTH -> {}", self.label_depth());
                 },
                 IF => {
-                    self.push_label(r.read_var_i7()?, FIXUP_OFFSET)?;
+                    self.push_label(op, r.read_var_i7()?, FIXUP_OFFSET)?;
                     println!("IF: DEPTH -> {}", self.label_depth());
                     w.write_opcode(INTERP_BR_UNLESS)?;
                     println!("IF: ADD FIXUP {} 0x{:04x}", 0, w.pos());
                     self.add_fixup(0, w.pos() as u32)?;
-                    w.write_u32(0xffffffff)?;
+                    w.write_u32(FIXUP_OFFSET)?;
                 },                
                 END => {
                     // w.write_opcode(op)?;
@@ -237,14 +240,27 @@ impl<'s, 't> Interp<'s, 't> {
                     self.fixup(w)?;
                     println!("ELSE: ADD FIXUP {} 0x{:04x}", 0, w.pos());
                     self.add_fixup(0, w.pos() as u32)?;
-                    w.write_u32(0xffffffff)?;
+                    w.write_u32(FIXUP_OFFSET)?;
                 }
                 BR | BR_IF => {
-                    w.write_opcode(op)?;
                     let depth = r.read_var_u32()?;
+                    let label = self.label_stack.peek(depth as usize)?;
+                    let drop = self.type_stack.len() - label.stack_limit;
+                    println!("to label: {:?}", label);
+                    let (drop, keep) = if label.opcode == LOOP {
+                        (drop, 0)
+                    } else if label.signature == VOID {
+                        (drop, 0)
+                    } else {
+                        (drop - 1, 1)
+                    };
+                    println!("drop_keep: {}, {}", drop, keep);
+                    w.write_drop_keep(drop, keep)?;
+                    
+                    w.write_opcode(op)?;
                     println!("BR / BR_IF ADD FIXUP {} 0x{:04x}", depth, w.pos());
                     self.add_fixup(depth, w.pos() as u32)?;
-                    w.write_u32(0xfffffff)?;
+                    w.write_u32(FIXUP_OFFSET)?;
                 },
                 BR_TABLE => {
                     w.write_opcode(op)?;
@@ -320,7 +336,7 @@ impl<'s, 't> Interp<'s, 't> {
                         }
                         print!(" default {}", r.read_u32()?);
                     }
-                    I32_CONST => print!(" {}", r.read_i32()?),
+                    I32_CONST => print!(" 0x{:x}", r.read_i32()?),
                     GET_LOCAL | SET_LOCAL | TEE_LOCAL => print!(" {}", r.read_u32()?),
                     GET_GLOBAL | SET_GLOBAL => print!(" {}", r.read_u32()?),
                     CALL => print!(" {}", r.read_u32()?),
@@ -331,6 +347,7 @@ impl<'s, 't> Interp<'s, 't> {
                     },
                     MEM_GROW | MEM_SIZE => {},
                     INTERP_BR_UNLESS => print!(" {:08x}", r.read_u32()?),
+                    INTERP_DROP_KEEP => print!(" {} {}", r.read_u32()?, r.read_u32()?),
                     _ => {},
                 }
                 println!("");
@@ -361,7 +378,10 @@ trait WriteInterp {
     fn write_opcode(&mut self, op: u8) -> Result<(), Error>;
     fn write_type(&mut self, tv: TypeValue) -> Result<(), Error>;
     fn write_block(&mut self, signature: TypeValue) -> Result<(), Error>;
+    fn write_br(&mut self, depth: usize) -> Result<(), Error>;
+    fn write_br_if(&mut self, depth: usize) -> Result<(), Error>;
     fn write_end(&mut self) -> Result<(), Error>;
+    fn write_drop_keep(&mut self, drop_count: usize, keep_size: usize) -> Result<(), Error>;
     fn write_i32_const(&mut self, value: i32)-> Result<(), Error>;
 }
 
@@ -377,6 +397,27 @@ impl<'w> WriteInterp for Writer<'w> {
         self.write_type(signature)?;
         Ok(())
     }        
+    fn write_br(&mut self, depth: usize) -> Result<(), Error> {
+        self.write_opcode(BR)?;
+        self.write_var_u32(depth as u32)?;
+        Ok(())
+    }
+    fn write_br_if(&mut self, depth: usize) -> Result<(), Error> {
+        self.write_opcode(BR_IF)?;
+        self.write_var_u32(depth as u32)?;
+        Ok(())
+    }
+    fn write_drop_keep(&mut self, drop_count: usize, keep_count: usize) -> Result<(), Error> {
+        if drop_count == 1 && keep_count == 0 {
+            self.write_opcode(DROP)?;            
+        } else {
+            self.write_opcode(INTERP_DROP_KEEP)?;
+            self.write_u32(drop_count as u32)?;
+            self.write_u32(keep_count as u32)?;
+        }
+        Ok(())
+    }
+
     fn write_end(&mut self) -> Result<(), Error> { self.write_opcode(END) }
     fn write_i32_const(&mut self, value: i32)-> Result<(), Error> {
         self.write_opcode(I32_CONST)?;
@@ -472,6 +513,7 @@ mod tests {
         code.write_i32_const(0x12).unwrap();
         code.write_i32_const(0x34).unwrap();
         code.write_opcode(I32_ADD).unwrap();
+        code.write_br(0).unwrap();
         code.write_end().unwrap();
 
         let mut out = [0u8; 1024];
