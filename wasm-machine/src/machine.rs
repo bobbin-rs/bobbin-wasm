@@ -235,9 +235,29 @@ impl<'g, 'f, 's, 'm, 'vs, 'cs, 'c, 'h, H: 'h + Handler> Machine<'g, 'f, 's, 'm, 
                     self.jump(offset)?;
                 },
                 CALL_INDIRECT => {
-                    let _sig = self.code.read_u32()?;
+                    let sig_id = self.code.read_u32()?;
+                    let (arg_len, ret_len) = {
+                        let signature = self.signature(sig_id)?;
+                        (signature.0.len(), signature.1.len())
+                    };
                     let id = self.pop()?;
-                    self.handler.call(id);
+                    let mut arg_buf = [Value::default(); 8];
+                    for i in 0..arg_len {
+                        arg_buf[i] = self.pop()?;
+                    }
+                    let args = &arg_buf[..arg_len];
+                    let ret = self.handler.call(id, args);
+                    if ret_len > 0 {
+                        if let Some(ret) = ret {
+                            self.push(ret)?;
+                        } else {
+                            return Err(Error::UnexpectedReturnValue { wanted: TypeValue::I32, got: TypeValue::Void })
+                        }
+                    } else {
+                        if let Some(_) = ret {
+                            return Err(Error::UnexpectedReturnValue { wanted: TypeValue::Void, got: TypeValue::I32 })                            
+                        }
+                    }
                 },
                 DROP => {
                     let _: Value = self.pop()?;
@@ -411,8 +431,9 @@ mod tests {
     fn test_machine() {
         pub struct MyHandler {} 
         impl Handler for MyHandler {
-            fn call(&mut self, id: u32) {
-                println!("Called {}", id);
+            fn call(&mut self, id: u32, args: &[Value]) -> Option<Value> {
+                println!("Called {} with {:?}", id, args);
+                None
             }
         }
 

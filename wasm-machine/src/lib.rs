@@ -142,7 +142,7 @@ impl Function {
 }
 
 pub trait Handler {
-    fn call(&mut self, id: u32);
+    fn call(&mut self, id: u32, args: &[Value]) -> Option<Value>;
 }
 
 // pub struct Machine<'a> {
