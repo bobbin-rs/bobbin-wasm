@@ -1,5 +1,5 @@
 use ::core::convert::TryFrom;
-use interp::TypeValue;
+use TypeValue;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {

@@ -13,7 +13,7 @@ pub mod reader;
 pub mod writer;
 pub mod stack;
 pub mod scanner;
-pub mod interp;
+pub mod loader;
 
 // use byteorder::{ByteOrder, LittleEndian};
 // use wasm_leb128::{read_i32, read_u32};
@@ -28,8 +28,8 @@ pub enum Error {
     FixupsFull,
     InvalidSignature,
     UnexpectedStackDepth { wanted: usize, got: usize},
-    UnexpectedType { wanted: interp::TypeValue, got: interp::TypeValue },
-    UnexpectedReturnValue { wanted: interp::TypeValue, got: interp::TypeValue},
+    UnexpectedType { wanted: TypeValue, got: TypeValue },
+    UnexpectedReturnValue { wanted: TypeValue, got: TypeValue},
     OpcodeError(opcode::Error),
     StackError(stack::Error),
     Leb128Error(wasm_leb128::Error),
@@ -53,6 +53,45 @@ impl From<wasm_leb128::Error> for Error {
         Error::Leb128Error(other)
     }
 }
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i8)]
+pub enum TypeValue {
+    None = 0x00,
+    I32 = -0x01,
+    I64 = -0x02,
+    F32 = -0x03,
+    F64 = -0x04,
+    Void = -0x40,
+}
+
+impl Default for TypeValue {
+    fn default() -> Self {
+        TypeValue::None
+    }
+}
+
+impl From<i8> for TypeValue {
+    fn from(other: i8) -> Self {
+        match other {
+             0x00 => TypeValue::None,
+            -0x01 => TypeValue::I32,
+            -0x02 => TypeValue::I64,
+            -0x03 => TypeValue::F32,
+            -0x04 => TypeValue::F64,
+            -0x40 => TypeValue::Void,
+            _ => panic!("Unrecognized TypeValue: 0x{:02x}", other)
+        }
+    }
+}
+
+impl From<TypeValue> for i8 {
+    fn from(other: TypeValue) -> Self {
+        other as i8
+    }
+}
+
 
 // pub struct Machine<'a> {
 //     code: &'a [u8],

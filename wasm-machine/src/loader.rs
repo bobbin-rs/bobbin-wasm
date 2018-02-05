@@ -1,4 +1,5 @@
 use Error;
+use TypeValue;
 use opcode::*;
 use reader::Reader;
 use writer::Writer;
@@ -38,55 +39,17 @@ impl fmt::Debug for Label {
     }
 }
 
-#[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(i8)]
-pub enum TypeValue {
-    None = 0x00,
-    I32 = -0x01,
-    I64 = -0x02,
-    F32 = -0x03,
-    F64 = -0x04,
-    Void = -0x40,
-}
 
-impl Default for TypeValue {
-    fn default() -> Self {
-        TypeValue::None
-    }
-}
-
-impl From<i8> for TypeValue {
-    fn from(other: i8) -> Self {
-        match other {
-             0x00 => TypeValue::None,
-            -0x01 => TypeValue::I32,
-            -0x02 => TypeValue::I64,
-            -0x03 => TypeValue::F32,
-            -0x04 => TypeValue::F64,
-            -0x40 => TypeValue::Void,
-            _ => panic!("Unrecognized TypeValue: 0x{:02x}", other)
-        }
-    }
-}
-
-impl From<TypeValue> for i8 {
-    fn from(other: TypeValue) -> Self {
-        other as i8
-    }
-}
-
-
-pub struct Interp<'s, 't> {
+pub struct Loader<'s, 't> {
     label_stack: Stack<'s, Label>,
     type_stack: Stack<'t, TypeValue>,
     fixups: [Option<Fixup>; 256],
     fixups_pos: usize,
 }
 
-impl<'s, 't> Interp<'s, 't> {
+impl<'s, 't> Loader<'s, 't> {
     pub fn new(label_stack: Stack<'s, Label>, type_stack: Stack<'t, TypeValue>) -> Self {
-        Interp {
+        Loader {
             label_stack: label_stack,
             type_stack: type_stack,
             fixups: [None; 256],
@@ -501,7 +464,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_interp() {
+    fn test_loader() {
         // let code = [
         //     NOP, 
         //     MEM_SIZE, 0x00,
@@ -596,10 +559,10 @@ mod tests {
         let mut type_buf = [TypeValue::default(); 256];
         let type_stack = Stack::new(&mut type_buf);
 
-        let mut interp = Interp::new(label_stack, type_stack);
-        interp.load(TypeValue::I32, &mut r, &mut w).unwrap();
+        let mut loader = Loader::new(label_stack, type_stack);
+        loader.load(TypeValue::I32, &mut r, &mut w).unwrap();
 
         let mut r = Reader::new(w.as_ref());
-        interp.dump(&mut r).unwrap();
+        loader.dump(&mut r).unwrap();
     }
 }
