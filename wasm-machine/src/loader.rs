@@ -237,7 +237,14 @@ impl<'s, 't> Loader<'s, 't> {
         Ok(())
     }
 
-    pub fn load(&mut self, locals: &[TypeValue], globals: &[TypeValue], signature: TypeValue, r: &mut Reader, w: &mut Writer) -> Result<(), Error> {
+    pub fn load(&mut self, 
+        signature: TypeValue, 
+        locals: &[TypeValue], 
+        globals: &[TypeValue], 
+        functions: &[(&[TypeValue], &[TypeValue])],
+        r: &mut Reader,
+        w: &mut Writer
+    ) -> Result<(), Error> {
         for local in locals.iter() {
             self.push_type(*local)?;
         }
@@ -346,12 +353,29 @@ impl<'s, 't> Loader<'s, 't> {
                     w.write_u32(id as u32)?;
                 },
                 CALL => {
+                    let id = r.read_var_u32()? as usize;
+                    let len = functions.len();
+                    if id > len {
+                        return Err(Error::InvalidCall{ id: id, len: len })
+                    }
+                    let (parameters, returns) = functions[id];
+                    if returns.len() > 1 {
+                        return Err(Error::UnexpectedReturnLength { got: returns.len()})
+                    }
+                    for p in parameters.iter() {
+                        self.pop_type_expecting(*p)?;
+                    }
+                    for r in returns.iter() {
+                        self.push_type(*r)?;
+                    }
+
                     w.write_opcode(op)?;
-                    w.write_u32(r.read_var_u32()?)?;
+                    w.write_u32(id as u32)?;
                 },
                 CALL_INDIRECT => {
+                    let signature = r.read_var_u32()?;
                     w.write_opcode(op)?;
-                    w.write_u32(r.read_var_u32()?)?;
+                    w.write_u32(signature)?;
                     r.read_var_u1()?;
                 },
                 I32_LOAD | I32_STORE | I32_LOAD8_S | I32_LOAD8_U | I32_LOAD16_S | I32_LOAD16_U => {
@@ -615,11 +639,19 @@ mod tests {
 
         let mut loader = Loader::new(label_stack, type_stack);
 
+        let f1_p = [I32, I32];
+        let f1_r = [I32];
+
+        let f2_p = [I32];
+        let f2_r = [];
+
+
+        let signature = I32;
         let locals = [I32, I32];
         let globals = [I32, I32];
-        let signature = I32;
+        let functions = [(&f1_p[..], &f1_r[..]), (&f2_p[..], &f2_r[..])];
 
-        loader.load(&locals, &globals, signature, &mut r, &mut w).unwrap();
+        loader.load(signature, &locals, &globals, &functions, &mut r, &mut w).unwrap();
 
         let mut r = Reader::new(w.as_ref());
         loader.dump(&mut r).unwrap();

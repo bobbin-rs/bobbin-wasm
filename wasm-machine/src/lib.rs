@@ -33,6 +33,7 @@ pub enum Error {
     UnexpectedStackDepth { wanted: usize, got: usize},
     UnexpectedType { wanted: TypeValue, got: TypeValue },
     UnexpectedReturnValue { wanted: TypeValue, got: TypeValue},
+    UnexpectedReturnLength { got: usize },
     OpcodeError(opcode::Error),
     StackError(stack::Error),
     Leb128Error(wasm_leb128::Error),
