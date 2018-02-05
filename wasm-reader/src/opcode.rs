@@ -1,3 +1,5 @@
+use core::convert::TryFrom;
+
 macro_rules! opcodes {
     ( $( ($tr:ident, $t1:ident, $t2:ident, $m:expr, $code:expr, $name:ident, $text:expr), )*) => {
         $(
@@ -10,13 +12,15 @@ macro_rules! opcodes {
                 text: $text,
             };
         )*
-        impl Opcode {
-            pub fn from(code: u8) -> Option<Opcode> {
+        
+        impl TryFrom<u8> for Opcode {
+            type Error = Error;
+            pub fn try_from(other: u8) -> Result<Opcode, Self::Error> {
                 match code {
                     $(
-                        $code => Some($name),
+                        $code => Ok($name),
                     )*
-                    _ => None,
+                    _ => Err(Error::IllegalOpcode(code)),
                 }
             }         
         }
@@ -28,6 +32,11 @@ const I32: i8 = -0x01;
 const I64: i8 = -0x02;
 const F32: i8 = -0x03;
 const F64: i8 = -0x04;
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Error {
+    IllegalOpcode(u8)
+}
 
 #[derive(Debug)]
 pub struct Opcode {

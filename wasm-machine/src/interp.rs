@@ -1,34 +1,83 @@
 use Error;
 use opcode::*;
-// use ops::*;
 use reader::Reader;
 use writer::Writer;
 use stack::Stack;
 
-use std::convert::TryFrom;
+use core::fmt;
+use core::convert::TryFrom;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Fixup {
     depth: usize,
-    offset: usize,
+    offset: u32,
+}
+
+impl fmt::Debug for Fixup {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Fixup {{ depth: {}, offset: 0x{:08x} }}", self.depth, self.offset)
+    }
 }
 
 
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TypeInfo {
-    type_value: u8,
+pub const FIXUP_OFFSET: u32 = 0xffff_ffff;
+
+#[derive(Default, Clone, Copy, PartialEq, Eq)]
+pub struct Label {
+    signature: i8,
+    offset: u32,
     stack_limit: usize,
 }
 
+impl fmt::Debug for Label {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Label {{ signature: 0x{:02x}, offset: 0x{:08x}, stack_limit: {} }}", self.signature, self.offset, self.stack_limit)
+    }
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i8)]
+pub enum TypeValue {
+    None = 0x00,
+    I32 = -0x01,
+    I64 = -0x02,
+    F32 = -0x03,
+    F64 = -0x04,
+    Void = 0x40,
+}
+
+impl Default for TypeValue {
+    fn default() -> Self {
+        TypeValue::None
+    }
+}
+
+impl From<i8> for TypeValue {
+    fn from(other: i8) -> Self {
+        match other {
+             0x00 => TypeValue::None,
+            -0x01 => TypeValue::I32,
+            -0x02 => TypeValue::I64,
+            -0x03 => TypeValue::F32,
+            -0x04 => TypeValue::F64,
+            -0x40 => TypeValue::Void,
+            _ => panic!("Unrecognized TypeValue: 0x{:02x}", other)
+        }
+    }
+}
+
+
+
 pub struct Interp<'s, 't> {
-    label_stack: Stack<'s, u32>,
-    type_stack: Stack<'t, TypeInfo>,
+    label_stack: Stack<'s, Label>,
+    type_stack: Stack<'t, TypeValue>,
     fixups: [Option<Fixup>; 256],
     fixups_pos: usize,
 }
 
 impl<'s, 't> Interp<'s, 't> {
-    pub fn new(label_stack: Stack<'s, u32>, type_stack: Stack<'t, TypeInfo>) -> Self {
+    pub fn new(label_stack: Stack<'s, Label>, type_stack: Stack<'t, TypeValue>) -> Self {
         Interp {
             label_stack: label_stack,
             type_stack: type_stack,
@@ -37,11 +86,18 @@ impl<'s, 't> Interp<'s, 't> {
         }
     }
 
-    pub fn push_label(&mut self, val: u32) -> Result<(), Error> {
-        Ok(self.label_stack.push(val)?)
+    pub fn push_label(&mut self, signature: i8, offset: u32) -> Result<(), Error> {
+        let stack_limit = self.type_stack.len();
+        let label = Label {
+            signature,
+            offset,
+            stack_limit,
+        };
+        println!("push_label: {:?}", label);
+        Ok(self.label_stack.push(label)?)
     }
 
-    pub fn pop_label(&mut self) -> Result<u32, Error> {
+    pub fn pop_label(&mut self) -> Result<Label, Error> {
         Ok(self.label_stack.pop()?)
     }
 
@@ -49,16 +105,21 @@ impl<'s, 't> Interp<'s, 't> {
         self.label_stack.len()
     }
 
-    pub fn peek_label(&self, offset: usize) -> Result<u32, Error> {
+    pub fn peek_label(&self, offset: usize) -> Result<Label, Error> {
         Ok(self.label_stack.peek(offset)?)
     }
 
-    pub fn add_fixup(&mut self, rel_depth: u32, offset: usize) -> Result<(), Error> {
+    pub fn push_type<T: Into<TypeValue>>(&mut self, type_value: T) -> Result<(), Error> {
+        Ok(self.type_stack.push(type_value.into())?)
+    }
+
+    pub fn add_fixup(&mut self, rel_depth: u32, offset: u32) -> Result<(), Error> {
         let depth = self.label_depth() - rel_depth as usize;
-        println!("add_fixup: {} 0x{:04x}", depth, offset);
+        let fixup = Fixup { depth: depth, offset: offset };
+        println!("add_fixup: {:?}", fixup);
         for entry in self.fixups.iter_mut() {
             if entry.is_none() {
-                *entry = Some(Fixup { depth: depth, offset: offset });
+                *entry = Some(fixup);
                 return Ok(());
             }
         }
@@ -67,17 +128,17 @@ impl<'s, 't> Interp<'s, 't> {
 
     pub fn fixup(&mut self, w: &mut Writer) -> Result<(), Error> {
         let depth = self.label_depth();        
-        let offset = self.peek_label(0)?;
-        let offset = if offset == 0xffff_ffff { w.pos() } else { offset as usize};
-        println!("fixup: {} -> 0x{:04x}", depth, offset);
+        let offset = self.peek_label(0)?.offset;
+        let offset = if offset == FIXUP_OFFSET { w.pos() } else { offset as usize};
+        println!("fixup: {} -> 0x{:08x}", depth, offset);
         for entry in self.fixups.iter_mut() {
             let del = if let &mut Some(entry) = entry {
                 if entry.depth == depth {
-                    println!(" @ {} 0x{:04x}", entry.depth, entry.offset);
-                    w.write_u32_at(offset as u32, entry.offset)?;
+                    println!(" {:?}", entry);
+                    w.write_u32_at(offset as u32, entry.offset as usize)?;
                     true
                 } else {
-                    println!(" ! {} 0x{:04x}", entry.depth, entry.offset);                    
+                    // println!(" ! {} 0x{:04x}", entry.depth, entry.offset);                    
                     false
                 }
             } else {
@@ -94,44 +155,44 @@ impl<'s, 't> Interp<'s, 't> {
     pub fn load(&mut self, r: &mut Reader, w: &mut Writer) -> Result<(), Error> {
         while r.remaining() > 0 {
             let op = r.read_opcode()?;
+            let opc = Opcode::try_from(op)?;
+            println!("{:04x}: 0x{:02x} {}", w.pos(), opc.code, opc.text);
             match op {
                 BLOCK => {
-                    self.push_label(0xffff_ffff)?;
+                    self.push_label(r.read_var_i7()?, FIXUP_OFFSET)?;
                     println!("DEPTH -> {}", self.label_depth());
-                    let _ = r.read_var_i7()?;
                 },
                 LOOP => {
-                    let _ = r.read_var_i7()?;
-                    self.push_label(w.pos() as u32)?;
+                    self.push_label(r.read_var_i7()?, w.pos() as u32)?;
                     println!("DEPTH -> {}", self.label_depth());
                 },
+                IF => {
+                    self.push_label(r.read_var_i7()?, FIXUP_OFFSET)?;
+                    println!("IF: DEPTH -> {}", self.label_depth());
+                    w.write_opcode(INTERP_BR_UNLESS)?;
+                    println!("IF: ADD FIXUP {} 0x{:04x}", 0, w.pos());
+                    self.add_fixup(0, w.pos() as u32)?;
+                    w.write_u32(0xffffffff)?;
+                },                
                 END => {
                     // w.write_opcode(op)?;
                     println!("FIXUP {} 0x{:04x}", self.label_depth(), w.pos());
                     self.fixup(w)?;
                     self.pop_label()?;
                     println!("DEPTH -> {}", self.label_depth());
-                }
-                IF => {
-                    self.push_label(0xffff_ffff)?;
-                    println!("IF: DEPTH -> {}", self.label_depth());
-                    w.write_opcode(INTERP_BR_UNLESS)?;
-                    let _ = r.read_var_i7()?;
-                    println!("IF: ADD FIXUP {} 0x{:04x}", 0, w.pos());
-                    self.add_fixup(0, w.pos())?;
-                    w.write_u32(0xffffffff)?;
-                }
+                },
                 ELSE => {
                     w.write_opcode(BR)?;
+                    self.fixup(w)?;
                     println!("ELSE: ADD FIXUP {} 0x{:04x}", 0, w.pos());
-                    self.add_fixup(0, w.pos())?;
+                    self.add_fixup(0, w.pos() as u32)?;
                     w.write_u32(0xffffffff)?;
                 }
                 BR | BR_IF => {
                     w.write_opcode(op)?;
                     let depth = r.read_var_u32()?;
                     println!("BR / BR_IF ADD FIXUP {} 0x{:04x}", depth, w.pos());
-                    self.add_fixup(depth, w.pos())?;
+                    self.add_fixup(depth, w.pos() as u32)?;
                     w.write_u32(0xfffffff)?;
                 },
                 BR_TABLE => {
@@ -143,10 +204,6 @@ impl<'s, 't> Interp<'s, 't> {
                     }
                     w.write_u32(r.read_var_u32()?)?;
                 },
-                I32_CONST => {
-                    w.write_opcode(op)?;
-                    w.write_i32(r.read_var_i32()?)?;
-                }
                 GET_LOCAL | SET_LOCAL | TEE_LOCAL => {
                     w.write_opcode(op)?;
                     w.write_u32(r.read_var_u32()?)?;
@@ -173,7 +230,17 @@ impl<'s, 't> Interp<'s, 't> {
                     w.write_opcode(op)?;
                     r.read_var_u1()?;
                 },
+                I32_CONST => {
+                    w.write_opcode(op)?;
+                    w.write_i32(r.read_var_i32()?)?;
+                    self.push_type(I32)?;
+                },
                 _ => {
+                    if opc.is_unop() {
+
+                    } else if opc.is_binop() {
+
+                    }
                     w.write_opcode(op)?;
                 },
             }
@@ -257,36 +324,36 @@ mod tests {
 
     #[test]
     fn test_interp() {
-        let code = [
-            NOP, 
-            MEM_SIZE, 0x00,
-            I32_LOAD, 0x02, 0x00,
-            I32_ADD,
-            I32_SUB,
-            CALL, 0x01,
-            CALL_INDIRECT, 0x01, 0x00,
-            BLOCK, 0x00, // Depth -> 1
-                BR_TABLE, 0x02, 0x00, 0x00, 0x00,
-                LOOP, 0x00, // Depth -> 2
-                    BR, 0x00, // Add Fixup 2
-                    IF, 0x00, // Depth -> 3
-                        BR_IF, 0x02, // Add Fixup 1
-                    END, // Fixup 3, Depth -> 2
-                    IF, 0x00, // Depth -> 3
-                        NOP, 
-                        IF, 0x00, // Depth -> 4
-                            NOP, 
-                        END, // Depth -> 3
-                    ELSE, // replace with BR, add fixup 3
-                        NOP, 
-                        IF, // depth -> 4
-                            NOP, 
-                        END, // depth -> 3
-                    END,  // Fixup 3, Depth -> 2
-                END, // Fixup 2, Depth -> 1
-            END, // Fixup 1, Depth -> 0
-            NOP,
-        ];  
+        // let code = [
+        //     NOP, 
+        //     MEM_SIZE, 0x00,
+        //     I32_LOAD, 0x02, 0x00,
+        //     I32_ADD,
+        //     I32_SUB,
+        //     CALL, 0x01,
+        //     CALL_INDIRECT, 0x01, 0x00,
+        //     BLOCK, 0x00, // Depth -> 1
+        //         BR_TABLE, 0x02, 0x00, 0x00, 0x00,
+        //         LOOP, 0x00, // Depth -> 2
+        //             BR, 0x00, // Add Fixup 2
+        //             IF, 0x00, // Depth -> 3
+        //                 BR_IF, 0x02, // Add Fixup 1
+        //             END, // Fixup 3, Depth -> 2
+        //             IF, 0x00, // Depth -> 3
+        //                 NOP, 
+        //                 IF, 0x00, // Depth -> 4
+        //                     NOP, 
+        //                 END, // Depth -> 3
+        //             ELSE, // replace with BR, add fixup 3
+        //                 NOP, 
+        //                 IF, // depth -> 4
+        //                     NOP, 
+        //                 END, // depth -> 3
+        //             END,  // Fixup 3, Depth -> 2
+        //         END, // Fixup 2, Depth -> 1
+        //     END, // Fixup 1, Depth -> 0
+        //     NOP,
+        // ];  
 
         // 0x00: nop
         // 0x01: mem_size
@@ -332,18 +399,24 @@ mod tests {
         // 0x01: nop
         // 0x02: br 00000001
 
+        let code = [I32_CONST, 0x12];
+
         let mut out = [0u8; 1024];
         let mut r = Reader::new(&code);
         let mut w = Writer::new(&mut out);
 
-        let mut labels_buf = [0u32; 256];
+        let mut labels_buf = [Label::default(); 256];
         let label_stack = Stack::new(&mut labels_buf);
 
-        let mut type_buf = [TypeInfo::default(); 256];
+        let mut type_buf = [TypeValue::default(); 256];
         let type_stack = Stack::new(&mut type_buf);
 
         let mut interp = Interp::new(label_stack, type_stack);
         interp.load(&mut r, &mut w).unwrap();
+        println!("STACK");
+        interp.type_stack.dump();
+        println!("");
+
         let mut r = Reader::new(w.as_ref());
         interp.dump(&mut r).unwrap();
     }

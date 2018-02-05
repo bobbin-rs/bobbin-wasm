@@ -1,3 +1,5 @@
+use core::fmt;
+
 pub type StackResult<T> = Result<T, Error>;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -115,6 +117,22 @@ impl<'a, T: 'a + Copy> Stack<'a, T> {
         Ok(self.pos -= drop_count)
     }
 }
+
+impl<'a, T: 'a + Copy + fmt::Debug> Stack<'a, T> {
+    pub fn dump(&self) {
+        for i in 0..self.len() {
+            println!("0x{:04}: {:?}", i, self.buf[self.pos - i - 1]);
+        }
+    }
+}
+
+
+impl<'a, T: 'a + Copy + fmt::Debug> fmt::Debug for Stack<'a, T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Stack {{ len: {} }}", self.len())
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

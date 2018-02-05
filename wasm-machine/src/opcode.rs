@@ -1,20 +1,21 @@
 use ::core::convert::TryFrom;
+use interp::TypeValue;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum OpcodeError {
+pub enum Error {
     InvalidOpCode(u8),
 }
 
 macro_rules! opcodes {
     ( $( ($tr:ident, $t1:ident, $t2:ident, $m:expr, $code:expr, $name:ident, $text:expr), )*) => {
         impl TryFrom<u8> for Opcode {
-            type Error = OpcodeError;
+            type Error = Error;
             fn try_from(other: u8) -> Result<Self, Self::Error> {
                 match other {
                     $(
                         $code => Ok(Opcode { code: $code, tr: $tr, t1: $t1, t2: $t2, m: $m, text: $text }),
                     )*
-                    _ => Err(OpcodeError::InvalidOpCode(other)),
+                    _ => Err(Error::InvalidOpCode(other)),
                 }
             }
         }
@@ -25,21 +26,31 @@ macro_rules! opcodes {
     }
 }
 
-pub const ___: i8 =  0x00;
-pub const I32: i8 = -0x01;
-pub const I64: i8 = -0x02;
-pub const F32: i8 = -0x03;
-pub const F64: i8 = -0x04;
-pub const VOID: i8 = -0x40;
+pub const ___: TypeValue = TypeValue::None;
+pub const I32: TypeValue = TypeValue::I32;
+pub const I64: TypeValue = TypeValue::I64;
+pub const F32: TypeValue = TypeValue::F32;
+pub const F64: TypeValue = TypeValue::F64;
+pub const VOID: TypeValue = TypeValue::Void;
 
 #[derive(Debug)]
 pub struct Opcode {
     pub code: u8,
-    pub tr: i8,
-    pub t1: i8,
-    pub t2: i8,
+    pub tr: TypeValue,
+    pub t1: TypeValue,
+    pub t2: TypeValue,
     pub m: u8,
     pub text: &'static str,
+}
+
+impl Opcode {
+    pub fn is_unop(&self) -> bool {
+        self.t1 != TypeValue::None && self.t2 == TypeValue::None
+    }
+
+    pub fn is_binop(&self) -> bool {
+        self.t1 != TypeValue::None && self.t2 == TypeValue::None
+    }
 }
 
 /*
