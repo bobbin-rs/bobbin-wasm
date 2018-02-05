@@ -395,12 +395,12 @@ impl<'s, 't> Loader<'s, 't> {
                     let id = r.read_var_u32()? as usize;
                     let len = functions.len();
                     if id > len {
-                        return Err(Error::InvalidCall { id: id, len: len })
+                        return Err(Error::InvalidFunction { id: id, len: len })
                     }
                     let sig_id = functions[id] as usize;
                     let sig_len = signatures.len();
                     if sig_id > sig_len {
-                        return Err(Error::InvalidCall { id: id, len: len })                        
+                        return Err(Error::InvalidFunction { id: id, len: len })                        
                     }
                     let (parameters, returns) = signatures[id];
                     if returns.len() > 1 {
@@ -420,7 +420,7 @@ impl<'s, 't> Loader<'s, 't> {
                     let id = r.read_var_u32()? as usize;
                     let len = signatures.len();
                     if id > len {
-                        return Err(Error::InvalidCallIndirect { id: id, len: len })
+                        return Err(Error::InvalidSignature { id: id, len: len })
                     }
                     let (parameters, returns) = signatures[id];
                     if returns.len() > 1 {
@@ -461,7 +461,7 @@ impl<'s, 't> Loader<'s, 't> {
             }
         }
 
-        println!("Checking Exit");
+        // Check Exit
         self.pop_type_expecting(signature)?;
         self.expect_depth(locals.len())?;
 
