@@ -21,6 +21,9 @@ impl<'a> Module<'a> {
         SectionIter { m: self, pos: 0 }
     }
 
+    pub fn join_reader(&mut self, r: Reader) {
+        self.r.join_reader(r)
+    }
 }
 
 pub struct Section<'a> {

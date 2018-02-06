@@ -146,7 +146,7 @@ mod tests {
         
         r.advance(8);
 
-        r.join(w);
+        r.join_writer(w);
 
         assert_eq!(r.pos(), 8);
         assert_eq!(r.len(), 256);

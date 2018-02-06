@@ -205,7 +205,7 @@ impl<'a> Reader<'a> {
         Ok(v)
     }
 
-    pub fn join(&mut self, w: Writer) {
+    pub fn join_writer(&mut self, w: Writer) {
         let a_ptr = self.buf.as_ptr();
         let a_len = self.buf.len();
         let b_ptr = w.buf.as_ptr();
@@ -216,6 +216,18 @@ impl<'a> Reader<'a> {
             self.buf = slice::from_raw_parts(a_ptr, a_len + b_len);
         }
     }
+
+    pub fn join_reader(&mut self, r: Reader) {
+        let a_ptr = self.buf.as_ptr();
+        let a_len = self.buf.len();
+        let b_ptr = r.buf.as_ptr();
+        let b_len = r.buf.len();
+        
+        unsafe {
+            assert!(a_ptr.offset(a_len as isize) == b_ptr, "Attempted to join with non-contiguous slice");
+            self.buf = slice::from_raw_parts(a_ptr, a_len + b_len);
+        }
+    }    
 }
 
 impl<'a> Index<usize> for Reader<'a> {

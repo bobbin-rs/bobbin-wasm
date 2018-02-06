@@ -14,11 +14,13 @@ pub type ModuleResult<T> = Result<T, Error>;
 pub struct ModuleLoader<'r, 'w> {
     r: Reader<'r>,
     w: Writer<'w>,
+    m: Module<'w>,
 }
 
 impl<'r, 'w> ModuleLoader<'r, 'w> {
-    pub fn new(r: Reader<'r>, w: Writer<'w>) -> Self {
-        ModuleLoader { r, w }
+    pub fn new(r: Reader<'r>, mut w: Writer<'w>) -> Self {
+        let mr = w.split_reader();
+        ModuleLoader { r, w, m: Module::new(mr) }
     }
 
     fn done(&self) -> bool {
@@ -134,9 +136,10 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
         self.load_header()?;        
         while !self.done() {
             let _s = self.load_section()?;
+            let r = self.w.split_reader();
+            self.m.join_reader(r);
         }
-        let r: Reader = self.w.into();
-        Ok(Module::new(r))
+        Ok(self.m)
     }
 
     pub fn load_header(&mut self) -> ModuleResult<()> {        
@@ -366,6 +369,15 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
 
     pub fn load_code(&mut self) -> ModuleResult<()> {
         Ok({
+            println!("Getting info");
+            println!("---");
+            for s in self.m.iter() {
+                println!("{:>12} start=0x{:08x} end=0x{:08x} (size={:08x}) count: {}", 
+                    s.sid, s.off, s.off + s.len, s.len, s.cnt
+                );
+            }
+            println!("---");
+
             let len = self.copy_var_u32()?;
             for _ in 0..len {
                 // body size
