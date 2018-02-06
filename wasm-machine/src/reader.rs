@@ -62,6 +62,14 @@ impl<'a> Reader<'a> {
     }    
 
     #[inline]
+    fn read_at<T, F: FnOnce(&[u8])->T>(&self, offset: usize, size: usize, f: F) -> ReaderResult<T> {        
+        let beg = offset;
+        let end = offset + size;
+        if end > self.buf.len() { return Err(Error::End) }
+        Ok(f(&self.buf[beg..end]))
+    }    
+
+    #[inline]
     pub fn read_u8(&mut self) -> ReaderResult<u8> { 
         self.read(1, |buf| buf[0])
     }
@@ -110,6 +118,57 @@ impl<'a> Reader<'a> {
     pub fn read_f64(&mut self) -> ReaderResult<f64> { 
         self.read(8, LittleEndian::read_f64)
     }
+
+    #[inline]
+    pub fn read_u8_at(&self, offset: usize) -> ReaderResult<u8> { 
+        self.read_at(offset, 1, |buf| buf[0])
+    }
+
+    #[inline]
+    pub fn read_u16_at(&self, offset: usize) -> ReaderResult<u16> { 
+        self.read_at(offset, 2, LittleEndian::read_u16)
+    }
+
+    #[inline]
+    pub fn read_u32_at(&self, offset: usize) -> ReaderResult<u32> { 
+        self.read_at(offset, 4, LittleEndian::read_u32)
+    }
+
+    #[inline]
+    pub fn read_u64_at(&self, offset: usize) -> ReaderResult<u64> { 
+        self.read_at(offset, 8, LittleEndian::read_u64)
+    }
+
+    #[inline]
+    pub fn read_i8_at(&self, offset: usize) -> ReaderResult<i8> { 
+        self.read_at(offset, 1, |buf| buf[0] as i8)
+    }
+
+    #[inline]
+    pub fn read_i16_at(&self, offset: usize) -> ReaderResult<i16> { 
+        self.read_at(offset, 2, LittleEndian::read_i16)
+    }
+
+    #[inline]
+    pub fn read_i32_at(&self, offset: usize) -> ReaderResult<i32> { 
+        self.read_at(offset, 4, LittleEndian::read_i32)
+    }
+
+    #[inline]
+    pub fn read_i64_at(&self, offset: usize) -> ReaderResult<i64> { 
+        self.read_at(offset, 8, LittleEndian::read_i64)
+    }
+
+    #[inline]
+    pub fn read_f32_at(&self, offset: usize) -> ReaderResult<f32> { 
+        self.read_at(offset, 4, LittleEndian::read_f32)
+    }
+
+    #[inline]
+    pub fn read_f64_at(&self, offset: usize) -> ReaderResult<f64> { 
+        self.read_at(offset, 8, LittleEndian::read_f64)
+    }
+
 
     #[inline]
     pub fn read_var_u1(&mut self) -> ReaderResult<u8> { 

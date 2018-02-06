@@ -3,7 +3,6 @@
 #![feature(try_from, offset_to)]
 
 extern crate core;
-
 extern crate byteorder;
 extern crate wasm_leb128;
 
@@ -21,6 +20,8 @@ pub use reader::*;
 pub use writer::*;
 pub use module::*;
 pub use module_loader::*;
+
+use core::fmt;
 
 // use byteorder::{ByteOrder, LittleEndian};
 // use wasm_leb128::{read_i32, read_u32};
@@ -158,4 +159,59 @@ impl Function {
 
 pub trait Handler {
     fn call(&mut self, id: u32, args: &[Value]) -> Option<Value>;
+}
+
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum SectionType {
+    Custom = 0x0,
+    Type = 0x1,
+    Import = 0x2,
+    Function = 0x3,
+    Table = 0x4,
+    Memory = 0x5,
+    Global = 0x6,
+    Export = 0x7,
+    Start = 0x8,
+    Element = 0x9,
+    Code = 0x0a,
+    Data = 0x0b,
+}
+
+impl SectionType {
+    fn try_from_u32(other: u32) -> ModuleResult<Self> {
+        use SectionType::*;
+        Ok(
+            match other {
+                0x00 => Custom,
+                0x01 => Type,
+                0x02 => Import,
+                0x03 => Function,
+                0x04 => Table,
+                0x05 => Memory,
+                0x06 => Global,
+                0x07 => Export,
+                0x08 => Start,
+                0x09 => Element,
+                0x0a => Code,
+                0x0b => Data,
+                _ => return Err(Error::InvalidSection { id: other })                
+            }
+        )
+    }
+    fn try_from(other: u8) -> ModuleResult<Self> {
+        SectionType::try_from_u32(other as u32)
+    }
+}
+
+impl From<u8> for SectionType {
+    fn from(other: u8) -> Self {
+        SectionType::try_from(other).expect("Invalid Section Type")
+    }
+}
+
+impl fmt::Display for SectionType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }

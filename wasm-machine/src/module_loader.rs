@@ -1,4 +1,4 @@
-use {Error, Reader, Writer, TypeValue, Module};
+use {Error, Reader, Writer, TypeValue, SectionType, Module};
 use opcode::{FUNC};
 
 pub const MAGIC_COOKIE: u32 = 0x6d736100;
@@ -6,47 +6,6 @@ pub const VERSION: u32 = 0x1;
 
 pub const FIXUP: u32 = 0xffff_ffff;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum SectionType {
-    Custom = 0x0,
-    Type = 0x1,
-    Import = 0x2,
-    Function = 0x3,
-    Table = 0x4,
-    Memory = 0x5,
-    Global = 0x6,
-    Export = 0x7,
-    Start = 0x8,
-    Element = 0x9,
-    Code = 0x0a,
-    Data = 0x0b,
-}
-
-impl SectionType {
-    fn try_from_u32(other: u32) -> ModuleResult<Self> {
-        use SectionType::*;
-        Ok(
-            match other {
-                0x00 => Custom,
-                0x01 => Type,
-                0x02 => Import,
-                0x03 => Function,
-                0x04 => Table,
-                0x05 => Memory,
-                0x06 => Global,
-                0x07 => Export,
-                0x08 => Start,
-                0x09 => Element,
-                0x0a => Code,
-                0x0b => Data,
-                _ => return Err(Error::InvalidSection { id: other })                
-            }
-        )
-    }
-    fn try_from(other: u8) -> ModuleResult<Self> {
-        SectionType::try_from_u32(other as u32)
-    }
-}
 
 pub type ModuleResult<T> = Result<T, Error>;
 
@@ -190,9 +149,9 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
             let s = SectionType::try_from(self.read_var_u7()?)?;
             let s_len = self.read_var_u32()?;
 
-            println!("load_section: {:?} len: {:02}", s, s_len);
+            // println!("load_section: {:?} len: {:02}", s, s_len);
 
-            self.write_u32(s as u32)?;
+            self.write_u8(s as u8)?;
             let fixup_len = self.write_u32_fixup()?;
 
             let pos = self.r.pos();
@@ -221,7 +180,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
     }
 
     pub fn load_types(&mut self) -> ModuleResult<()> {
-        println!("load_types");
+        // println!("load_types");
         Ok({
             let len = self.copy_var_u32()?;
 
@@ -276,7 +235,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
     }
 
     pub fn load_imports(&mut self) -> ModuleResult<()> {
-        println!("load_imports");
+        // println!("load_imports");
         Ok({
             let len = self.copy_var_u32()?;
             for _ in 0..len {
@@ -302,7 +261,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
     }
 
     pub fn load_functions(&mut self) -> ModuleResult<()> {
-        println!("load_functions");
+        // println!("load_functions");
         Ok({
             let len = self.copy_var_u32()?;
             for _ in 0..len {
@@ -313,7 +272,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
     }
 
     pub fn load_tables(&mut self) -> ModuleResult<()> {
-        println!("load_memory");
+        // println!("load_memory");
         Ok({
             let len = self.copy_var_u32()?;
             for _ in 0..len {
@@ -323,7 +282,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
     }
 
     pub fn load_memory(&mut self) -> ModuleResult<()> {
-        println!("load_memory");
+        // println!("load_memory");
         Ok({
             let len = self.copy_var_u32()?;
             for _ in 0..len {
@@ -341,7 +300,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
     }
 
     pub fn load_globals(&mut self) -> ModuleResult<()> {
-        println!("load_globals");
+        // println!("load_globals");
         Ok({
             let len = self.copy_var_u32()?;
             for _ in 0..len {
@@ -356,7 +315,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
     }
 
     pub fn load_exports(&mut self) -> ModuleResult<()> {
-        println!("load_exports");
+        // println!("load_exports");
         Ok({
             let len = self.copy_var_u32()?;
             for _ in 0..len {
@@ -372,7 +331,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
     }
 
     pub fn load_start(&mut self) -> ModuleResult<()> {
-        println!("load_start");
+        // println!("load_start");
         // start index
         self.copy_var_u32()?;
         Ok(())
@@ -383,7 +342,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
     }
 
     pub fn load_elements(&mut self) -> ModuleResult<()> {        
-        println!("load_elements");
+        // println!("load_elements");
         Ok({
             let len = self.copy_var_u32()?;
             for _ in 0..len {
@@ -409,7 +368,6 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
                 // body size
                 let body_len = self.copy_var_u32()?;
                 let body_end = self.r.pos() + body_len as usize;                
-                println!("body_len: {}", body_len);
                 // locals
                 for _ in 0..self.copy_var_u32()? {
                     // count

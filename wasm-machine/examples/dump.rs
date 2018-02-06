@@ -48,7 +48,12 @@ pub fn run(path: &str) -> Result<(), Error> {
     let mut buf = [0u8; 64 * 1024];
     let r = Reader::new(&mut data[..]);
     let w = Writer::new(&mut buf);
-    let _m = ModuleLoader::new(r, w).load()?;
+    let m = ModuleLoader::new(r, w).load()?;
+    for s in m.iter() {
+        println!("{:>12} start=0x{:08x} end=0x{:08x} (size={:08x}) count: {}", 
+            s.sid, s.off, s.off + s.len, s.len, s.cnt
+        );
+    }
 
     Ok(())
 }
