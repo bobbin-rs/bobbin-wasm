@@ -14,6 +14,11 @@ pub mod stack;
 pub mod scanner;
 pub mod loader;
 pub mod machine;
+pub mod module;
+
+pub use reader::*;
+pub use writer::*;
+pub use module::*;
 
 // use byteorder::{ByteOrder, LittleEndian};
 // use wasm_leb128::{read_i32, read_u32};
@@ -28,6 +33,13 @@ pub enum Error {
     ScopesFull,
     FixupsFull,
     OutOfBounds,
+
+    InvalidHeader,
+    InvalidSection { id: u32 },
+    UnknownSignatureType,
+    UnknownExternalKind,
+    UnexpectedData,
+
     InvalidIfSignature,
     InvalidReservedValue,
     InvalidBranchTableDefault { id: usize, len: usize},
@@ -99,6 +111,8 @@ pub enum TypeValue {
     I64 = -0x02,
     F32 = -0x03,
     F64 = -0x04,
+    AnyFunc = -0x10,
+    Func = -0x20,
     Void = -0x40,
 }
 

@@ -39,6 +39,11 @@ impl<'a> Reader<'a> {
     }
 
     #[inline]
+    pub fn advance(&mut self, offset: usize) {
+        self.pos += offset
+    }
+
+    #[inline]
     pub fn done(&self) -> bool {
         self.pos >= self.buf.len()
     }

@@ -42,6 +42,13 @@ impl<'a> Writer<'a> {
         Ok(())
     }
 
+    pub fn write_i8(&mut self, value: i8) -> WriteResult<()> {
+        if self.pos + 1 >= self.buf.len() { return Err(Error::End) }
+        self.buf[self.pos] = value as u8;
+        self.pos += 1;        
+        Ok(())
+    }
+
     pub fn write_i32(&mut self, value: i32) -> WriteResult<()> {
         if self.pos + 4 >= self.buf.len() { return Err(Error::End) }
         LittleEndian::write_i32(&mut self.buf[self.pos..], value);

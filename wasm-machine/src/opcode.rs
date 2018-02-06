@@ -31,6 +31,8 @@ pub const I32: TypeValue = TypeValue::I32;
 pub const I64: TypeValue = TypeValue::I64;
 pub const F32: TypeValue = TypeValue::F32;
 pub const F64: TypeValue = TypeValue::F64;
+pub const ANYFUNC: TypeValue = TypeValue::AnyFunc;
+pub const FUNC: TypeValue = TypeValue::Func;
 pub const VOID: TypeValue = TypeValue::Void;
 
 #[derive(Debug)]

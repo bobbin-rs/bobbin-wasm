@@ -6,3 +6,6 @@ authors = ["Jonathan Soo <jcsoo@agora.com>"]
 [dependencies]
 wasm-leb128 = {path = "../wasm-leb128" }
 byteorder = { version = "1", default-features = false }
+
+[dev-dependencies]
+clap = "2.29.4"
