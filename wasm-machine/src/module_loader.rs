@@ -170,9 +170,9 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
     }
 
     pub fn load(mut self) -> ModuleResult<Module<'w>> {
-        self.load_header()?;
+        self.load_header()?;        
         while !self.done() {
-            self.load_section()?;
+            let _s = self.load_section()?;
         }
         let r: Reader = self.w.into();
         Ok(Module::new(r))
@@ -185,7 +185,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
         })
     }
     
-    pub fn load_section(&mut self) -> ModuleResult<()> {
+    pub fn load_section(&mut self) -> ModuleResult<SectionType> {
         Ok({
             let s = SectionType::try_from(self.read_var_u7()?)?;
             let s_len = self.read_var_u32()?;
@@ -207,6 +207,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
                 SectionType::Start => self.load_start()?,
                 SectionType::Element => self.load_elements()?,
                 SectionType::Code => self.load_code()?,
+                SectionType::Data => self.load_data()?,
                 _ => self.r.advance(s_len as usize)
             }
             if self.r.pos() != pos + s_len as usize {
@@ -214,7 +215,8 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
             }
 
 
-            self.apply_u32_fixup(fixup_len)?;            
+            self.apply_u32_fixup(fixup_len)?;
+            s
         })
     }
 
@@ -421,6 +423,22 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
                     self.copy_u8()?;
                 }
             }
+        })
+    }
+
+    pub fn load_data(&mut self) -> ModuleResult<()> {
+        Ok({
+           let len = self.copy_var_u32()?;
+           for _ in 0..len {
+               // index
+               self.copy_var_u32()?;
+               // offset
+               self.copy_initializer()?;
+               // data
+               for _ in 0..self.copy_var_u32()? {
+                   self.copy_u8()?;
+               }
+           }
         })
     }
 }
