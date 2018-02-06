@@ -66,7 +66,7 @@ impl<'s, 't> Loader<'s, 't> {
             stack_limit,
             unreachable: false,
         };
-        println!("push_label: {:?}", label);
+        // println!("push_label: {:?}", label);
         Ok(self.label_stack.push(label)?)
     }
 
@@ -82,7 +82,7 @@ impl<'s, 't> Loader<'s, 't> {
         Ok(self.label_stack.peek(offset)?)
     }
 
-    pub fn set_unreachable(&mut self, value: bool) -> Result<(), Error> {
+    pub fn set_unreachable(&mut self, value: bool) -> Result<(), Error> {        
         Ok(self.label_stack.pick(0)?.unreachable = value)
     }
 
@@ -92,13 +92,13 @@ impl<'s, 't> Loader<'s, 't> {
 
     pub fn push_type<T: Into<TypeValue>>(&mut self, type_value: T) -> Result<(), Error> {
         let tv = type_value.into();
-        println!("push_type: {:?}", tv);
+        // println!("push_type: {:?}", tv);
         Ok(self.type_stack.push(tv)?)
     }
 
     pub fn pop_type(&mut self) -> Result<TypeValue, Error> {
         let tv = self.type_stack.pop()?;
-        println!("pop_type: {:?}", tv);
+        // println!("pop_type: {:?}", tv);
         Ok(tv)
     }
 
@@ -140,7 +140,7 @@ impl<'s, 't> Loader<'s, 't> {
     pub fn add_fixup(&mut self, rel_depth: u32, offset: u32) -> Result<(), Error> {
         let depth = self.label_depth() - rel_depth as usize;
         let fixup = Fixup { depth: depth, offset: offset };
-        println!("add_fixup: {:?}", fixup);
+        // println!("add_fixup: {:?}", fixup);
         for entry in self.fixups.iter_mut() {
             if entry.is_none() {
                 *entry = Some(fixup);
@@ -154,11 +154,11 @@ impl<'s, 't> Loader<'s, 't> {
         let depth = self.label_depth();        
         let offset = self.peek_label(0)?.offset;
         let offset = if offset == FIXUP_OFFSET { w.pos() } else { offset as usize};
-        println!("fixup: {} -> 0x{:08x}", depth, offset);
+        // println!("fixup: {} -> 0x{:08x}", depth, offset);
         for entry in self.fixups.iter_mut() {
             let del = if let &mut Some(entry) = entry {
                 if entry.depth == depth {
-                    println!(" {:?}", entry);
+                    // println!(" {:?}", entry);
                     w.write_u32_at(offset as u32, entry.offset as usize)?;
                     true
                 } else {
@@ -172,7 +172,7 @@ impl<'s, 't> Loader<'s, 't> {
                 *entry = None;
             }
         }
-        println!("fixup done");
+        // println!("fixup done");
         Ok(())
     }
 
@@ -201,13 +201,12 @@ impl<'s, 't> Loader<'s, 't> {
                 if label.opcode == IF && label.signature != VOID {
                     return Err(Error::InvalidIfSignature)
                 }
-                println!("label: {:?}", label);
                 self.expect_type(label.signature)?;
                 if label.signature == TypeValue::Void {
                     self.expect_depth(label.stack_limit)?;
                 } else {
                     self.expect_depth(label.stack_limit + 1)?;                    
-                }
+                }                
             },
             BR | BR_IF => {
                 let label = self.label_stack.top()?;
@@ -246,6 +245,9 @@ impl<'s, 't> Loader<'s, 't> {
         r: &mut Reader,
         w: &mut Writer
     ) -> Result<(), Error> {
+        // push function start onto control stack
+        self.push_label(0, signature, r.pos() as u32)?;
+
         for local in locals.iter() {
             self.push_type(*local)?;
         }
@@ -254,8 +256,7 @@ impl<'s, 't> Loader<'s, 't> {
             let op = r.read_opcode()?;
             let opc = Opcode::try_from(op)?;
             println!("{:04x}: 0x{:02x} {}", w.pos(), opc.code, opc.text);
-            self.type_check(opc, signature)?;
-
+            self.type_check(opc, signature)?;            
             match op {
                 BLOCK => {
                     self.push_label(op, r.read_var_i7()?, FIXUP_OFFSET)?;
@@ -275,10 +276,10 @@ impl<'s, 't> Loader<'s, 't> {
                 },                
                 END => {
                     // w.write_opcode(op)?;
-                    println!("FIXUP {} 0x{:04x}", self.label_depth(), w.pos());
+                    // println!("FIXUP {} 0x{:04x}", self.label_depth(), w.pos());
                     self.fixup(w)?;
                     self.pop_label()?;
-                    println!("DEPTH -> {}", self.label_depth());
+                    // println!("DEPTH -> {}", self.label_depth());
                 },
                 ELSE => {
                     w.write_opcode(BR)?;
@@ -477,7 +478,7 @@ impl<'s, 't> Loader<'s, 't> {
             }
         }
 
-        println!("Checking Fixups");
+        // println!("Checking Fixups");
         for entry in self.fixups.iter() {
             if let &Some(entry) = entry {   
                 println!("{:?}", entry);
