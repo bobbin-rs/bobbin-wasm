@@ -7,7 +7,6 @@ extern crate core;
 extern crate byteorder;
 extern crate wasm_leb128;
 
-pub mod ops;
 pub mod opcode;
 pub mod reader;
 pub mod writer;

@@ -106,7 +106,7 @@ mod tests {
         // MagicNumber
         assert_eq!(r.read_u32().unwrap(), 0x6d736100);
         // Version
-        assert_eq!(r.read_u32().unwrap(), 0xd);
+        assert_eq!(r.read_u32().unwrap(), 0x1);
         
         // Section 
 

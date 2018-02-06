@@ -6,7 +6,6 @@ extern crate byteorder;
 
 pub mod buf;
 pub mod section;
-pub mod opcode;
 
 use buf::Buf;
 use section::*;
@@ -64,7 +63,7 @@ impl<'a> Reader<'a> {
 
     pub fn validate(mut self) -> Result<Self, Error> {
         if try!(self.buf.read_u32()) != 0x6d736100 { return Err(Error::InvalidHeader) }
-        if try!(self.buf.read_u32()) != 0x0000000d { return Err(Error::InvalidHeader) }
+        if try!(self.buf.read_u32()) != 0x00000001 { return Err(Error::InvalidHeader) }
         Ok(self)
     }
 
