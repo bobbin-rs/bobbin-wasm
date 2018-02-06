@@ -277,9 +277,10 @@ impl<'s, 't> Loader<'s, 't> {
                 END => {
                     // w.write_opcode(op)?;
                     // println!("FIXUP {} 0x{:04x}", self.label_depth(), w.pos());
+                    println!("END");
                     self.fixup(w)?;
                     self.pop_label()?;
-                    // println!("DEPTH -> {}", self.label_depth());
+                    println!("DEPTH -> {}", self.label_depth());
                 },
                 ELSE => {
                     w.write_opcode(BR)?;
@@ -445,8 +446,12 @@ impl<'s, 't> Loader<'s, 't> {
                 },
                 I32_LOAD | I32_STORE | I32_LOAD8_S | I32_LOAD8_U | I32_LOAD16_S | I32_LOAD16_U => {
                     w.write_opcode(op)?;
-                    w.write_u32(r.read_var_u32()?)?;
-                    w.write_u32(r.read_var_u32()?)?;
+                    let a = r.read_var_u32()?;
+                    println!("  {:08x}", a);
+                    let b = r.read_var_u32()?;
+                    println!("  {:08x}", b);
+                    w.write_u32(a)?;
+                    w.write_u32(b)?;
                 },
                 MEM_GROW | MEM_SIZE => {
                     w.write_opcode(op)?;
@@ -454,7 +459,9 @@ impl<'s, 't> Loader<'s, 't> {
                 },
                 I32_CONST => {
                     w.write_opcode(op)?;
-                    w.write_i32(r.read_var_i32()?)?;
+                    let v = r.read_var_i32()?;
+                    println!(" {:08x}", v);
+                    w.write_i32(v)?;
                 },
                 DROP => {
                     w.write_opcode(op)?;
@@ -464,8 +471,9 @@ impl<'s, 't> Loader<'s, 't> {
                     w.write_opcode(op)?;
                 },
             }
-        }
+        }        
 
+        println!("EXIT");
         // Check Exit
         self.pop_type_expecting(signature)?;
         self.expect_depth(locals.len())?;

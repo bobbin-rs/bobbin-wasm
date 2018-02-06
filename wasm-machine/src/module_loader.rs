@@ -369,6 +369,8 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
             for _ in 0..len {
                 // body size
                 let body_len = self.copy_var_u32()?;
+                let body_beg = self.r.pos();
+                let body_end = body_beg + body_len as usize;
 
                 println!("body len: {}", body_len);
                 // locals
@@ -401,8 +403,15 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
                 let signatures = [];
                 
                 println!("locals: {:?}", locals);
-
-                loader.load(signature, &locals, &globals, &functions, &signatures, &mut self.r, &mut self.w).unwrap();
+                {
+                    let body = &self.r.as_ref()[self.r.pos()..body_end];
+                    for b in body.iter() {
+                        println!("{:02x}", b);
+                    }
+                    let mut r = Reader::new(body);
+                    loader.load(signature, &locals, &globals, &functions, &signatures, &mut r, &mut self.w).unwrap();
+                }
+                self.r.set_pos(body_end);
                 println!("Done loading");
 
 
