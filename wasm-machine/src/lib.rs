@@ -51,6 +51,7 @@ pub enum Error {
     InvalidFunction { id: usize, len: usize },
     InvalidSignature { id: usize, len: usize },
     UnexpectedStackDepth { wanted: usize, got: usize},
+    UnexpectedTypeStackDepth { wanted: usize, got: usize},
     UnexpectedType { wanted: TypeValue, got: TypeValue },
     UnexpectedReturnValue { wanted: TypeValue, got: TypeValue},
     UnexpectedReturnLength { got: usize },

@@ -128,10 +128,10 @@ impl<'s, 't> Loader<'s, 't> {
         }
     }
 
-    pub fn expect_depth(&self, wanted: usize) -> Result<(), Error> {
+    pub fn expect_type_stack_depth(&self, wanted: usize) -> Result<(), Error> {
         let got = self.type_stack.len();
         if wanted != got {
-            Err(Error::UnexpectedStackDepth { wanted, got })
+            Err(Error::UnexpectedTypeStackDepth { wanted, got })
         } else {
             Ok(())
         }
@@ -198,14 +198,17 @@ impl<'s, 't> Loader<'s, 't> {
             },
             ELSE | END => {
                 let label = self.label_stack.top()?;
+                println!("LABEL: {:?}", label);
+                println!("label depth: {}", self.label_stack.len());
+                println!("type depth: {}", self.type_stack.len());
                 if label.opcode == IF && label.signature != VOID {
                     return Err(Error::InvalidIfSignature)
                 }
                 self.expect_type(label.signature)?;
                 if label.signature == TypeValue::Void {
-                    self.expect_depth(label.stack_limit)?;
+                    self.expect_type_stack_depth(label.stack_limit)?;
                 } else {
-                    self.expect_depth(label.stack_limit + 1)?;                    
+                    self.expect_type_stack_depth(label.stack_limit + 1)?;                    
                 }                
             },
             BR | BR_IF => {
@@ -255,8 +258,10 @@ impl<'s, 't> Loader<'s, 't> {
         while r.remaining() > 0 {
             let op = r.read_opcode()?;
             let opc = Opcode::try_from(op)?;
-            println!("{:04x}: 0x{:02x} {}", w.pos(), opc.code, opc.text);
-            self.type_check(opc, signature)?;            
+            println!("{:04x}: 0x{:02x} {} LS: {} TS: {}", w.pos(), opc.code, opc.text, self.label_stack.len(), self.type_stack.len());
+            println!("type check");
+            self.type_check(opc, signature)?;   
+            println!("type check done");
             match op {
                 BLOCK => {
                     self.push_label(op, r.read_var_i7()?, FIXUP_OFFSET)?;
@@ -471,12 +476,13 @@ impl<'s, 't> Loader<'s, 't> {
                     w.write_opcode(op)?;
                 },
             }
+            println!("Op Done");
         }        
 
         println!("EXIT");
         // Check Exit
         self.pop_type_expecting(signature)?;
-        self.expect_depth(locals.len())?;
+        self.expect_type_stack_depth(locals.len())?;
 
         if locals.len() > 0 {
             if signature != VOID {
