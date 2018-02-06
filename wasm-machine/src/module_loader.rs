@@ -182,24 +182,25 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
     }
 
     pub fn load_types(&mut self) -> ModuleResult<()> {
-        // println!("load_types");
+        println!("load_types");
         Ok({
             let len = self.copy_var_u32()?;
 
-            for _ in 0..len {               
+            for i in 0..len {              
+                println!("  {}:", i) ;
                 // Read form 
                 self.read_var_i7_expecting(FUNC as i8, Error::UnknownSignatureType)?;
 
                 // Copy Parameters 
                 let p_len = self.copy_var_u32()?;
                 for _ in 0..p_len {
-                    self.copy_var_i7()?;
+                    println!("    {:02x}", self.copy_var_i7()?);
                 }
 
                 // Copy Returns
                 let s_len = self.copy_var_u32()?;                
                 for _ in 0..s_len {
-                    self.copy_var_i7()?;                    
+                    println!("    -> {:02x}", self.copy_var_i7()?);
                 }                
             }            
         })
@@ -263,12 +264,12 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
     }
 
     pub fn load_functions(&mut self) -> ModuleResult<()> {
-        // println!("load_functions");
+        println!("load_functions");
         Ok({
             let len = self.copy_var_u32()?;
-            for _ in 0..len {
+            for i in 0..len {
                 // function index
-                self.copy_var_u32()?;
+                println!("  {}: {:02x}", i, self.copy_var_u32()?);
             }
         })
     }
@@ -405,9 +406,9 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
                 println!("locals: {:?}", locals);
                 {
                     let body = &self.r.as_ref()[self.r.pos()..body_end];
-                    for b in body.iter() {
-                        println!("{:02x}", b);
-                    }
+                    // for b in body.iter() {
+                    //     println!("{:02x}", b);
+                    // }
                     let mut r = Reader::new(body);
                     loader.load(signature, &locals, &globals, &functions, &signatures, &mut r, &mut self.w).unwrap();
                 }
