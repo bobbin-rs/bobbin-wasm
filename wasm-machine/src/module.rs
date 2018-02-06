@@ -1,4 +1,4 @@
-use {Error, Reader};
+use {Reader};
 
 pub struct Module<'a> {
     r: Reader<'a>,

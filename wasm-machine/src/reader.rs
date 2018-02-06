@@ -1,17 +1,12 @@
 use Error;
+use writer::Writer;
 use wasm_leb128::*;
 
 use byteorder::{ByteOrder, LittleEndian};
+use core::ops::Index;
+use core::slice;
 
 pub type ReaderResult<T> = Result<T, Error>;
-
-// pub trait Reader {
-//     fn read_opcode(&mut self) -> ReaderResult<u8>;
-//     fn read_immediate_i32(&mut self) -> ReaderResult<i32>;
-//     fn read_immediate_u32(&mut self) -> ReaderResult<u32>;
-//     fn read_immediate_u8(&mut self) -> ReaderResult<u8>;
-//     fn read_block_type(&mut self) -> ReaderResult<BlockType>;
-// }
 
 pub struct Reader<'a> {
     buf: &'a [u8],
@@ -21,6 +16,11 @@ pub struct Reader<'a> {
 impl<'a> Reader<'a> {
     pub fn new(buf: &'a [u8]) -> Self {
         Reader { buf: buf, pos: 0 }
+    }
+
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.buf.len()
     }
 
     #[inline]
@@ -144,5 +144,31 @@ impl<'a> Reader<'a> {
         let (v, n) = read_i32(&self.buf[self.pos..])?;
         self.pos += n;
         Ok(v)
+    }
+
+    pub fn join(&mut self, w: Writer) {
+        let a_ptr = self.buf.as_ptr();
+        let a_len = self.buf.len();
+        let b_ptr = w.buf.as_ptr();
+        let b_len = w.buf.len();
+        
+        unsafe {
+            assert!(a_ptr.offset(a_len as isize) == b_ptr, "Attempted to join with non-contiguous slice");
+            self.buf = slice::from_raw_parts(a_ptr, a_len + b_len);
+        }
+    }
+}
+
+impl<'a> Index<usize> for Reader<'a> {
+    type Output = u8;
+
+    fn index(&self, index: usize) -> &u8 {
+        &self.buf[index]
+    }
+}
+
+impl<'a> AsRef<[u8]> for Reader<'a> {
+    fn as_ref(&self) -> &[u8] {
+        self.buf
     }
 }
