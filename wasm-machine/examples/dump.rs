@@ -7,7 +7,7 @@ use std::fs::File;
 
 use clap::{App, Arg};
 
-use wasm::{Reader, Writer, Module};
+use wasm::{Reader, Writer, ModuleLoader};
 
 #[derive(Debug)]
 pub enum Error {
@@ -48,9 +48,8 @@ pub fn run(path: &str) -> Result<(), Error> {
     let mut buf = [0u8; 64 * 1024];
     let r = Reader::new(&mut data[..]);
     let w = Writer::new(&mut buf);
-    let mut m = Module::new(r, w);
-
-    m.load()?;
+    let mut l = ModuleLoader::new(r, w);
+    l.load()?;
 
     Ok(())
 }

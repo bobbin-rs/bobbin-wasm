@@ -15,10 +15,12 @@ pub mod scanner;
 pub mod loader;
 pub mod machine;
 pub mod module;
+pub mod module_loader;
 
 pub use reader::*;
 pub use writer::*;
 pub use module::*;
+pub use module_loader::*;
 
 // use byteorder::{ByteOrder, LittleEndian};
 // use wasm_leb128::{read_i32, read_u32};
