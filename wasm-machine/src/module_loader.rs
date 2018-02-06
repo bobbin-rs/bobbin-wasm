@@ -1,4 +1,4 @@
-use {Error, Reader, Writer, TypeValue};
+use {Error, Reader, Writer, TypeValue, Module};
 use opcode::{FUNC};
 
 pub const MAGIC_COOKIE: u32 = 0x6d736100;
@@ -169,12 +169,13 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
         self.w.write_u32_at(pos as u32, offset as usize)
     }
 
-    pub fn load(&mut self) -> ModuleResult<()> {
+    pub fn load(mut self) -> ModuleResult<Module<'w>> {
         self.load_header()?;
         while !self.done() {
             self.load_section()?;
         }
-        Ok(())
+        let r: Reader = self.w.into();
+        Ok(Module::new(r))
     }
 
     pub fn load_header(&mut self) -> ModuleResult<()> {        
