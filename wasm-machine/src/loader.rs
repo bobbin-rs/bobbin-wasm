@@ -266,17 +266,16 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
         index: u32, 
         locals: &[TypeValue], 
         globals: &[TypeValue], 
-        functions: &[u32],
-        signatures: &[(&[TypeValue], &[TypeValue])],
         r: &mut Reader,
         w: &mut Writer
     ) -> Result<(), Error> {
         // push function start onto control stack
 
         let signature_type = self.module.function_signature_type(index as usize).unwrap();
+        let parameters = &signature_type.parameters;
         println!("Signature:");
         print!("  (");
-        for (i, p) in signature_type.parameters.iter().enumerate() {
+        for (i, p) in parameters.iter().enumerate() {
             if i > 0 { print!(", "); }
             print!("{:?}", TypeValue::from(*p as i8));
         }
@@ -289,10 +288,19 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
 
         self.push_label(0, return_type, r.pos() as u32)?;
 
+        let mut locals_count = 0;
+
+        for p in parameters.iter() {
+            self.push_type(TypeValue::from(*p as i8))?;
+            locals_count += 1;
+        }
+
         for local in locals.iter() {
             self.push_type(*local)?;
-        }
+            locals_count += 1;
+        }        
         w.write_alloca(locals.len())?;
+
         while r.remaining() > 0 {
             let op = r.read_opcode()?;
             let opc = Opcode::try_from(op)?;
@@ -403,11 +411,16 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
                 GET_LOCAL | SET_LOCAL | TEE_LOCAL => {
                     // Emits OP DEPTH_TO_LOCAL
                     let id = r.read_var_u32()? as usize;
-                    let len = locals.len();
+                    let len = locals_count;
                     if id >= len {
                         return Err(Error::InvalidLocal { id: id, len: len })
                     }
-                    let ty = locals[id];
+
+                    let ty = if id < parameters.len() {
+                        TypeValue::from(parameters[id] as i8)
+                    } else {
+                        locals[id - parameters.len()]
+                    };
                     match op {
                         GET_LOCAL => self.push_type(ty)?,
                         SET_LOCAL => self.pop_type_expecting(ty)?,
@@ -438,24 +451,20 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
                 },
                 CALL => {
                     let id = r.read_var_u32()? as usize;
-                    let len = functions.len();
-                    if id > len {
-                        return Err(Error::InvalidFunction { id: id, len: len })
-                    }
-                    let sig_id = functions[id] as usize;
-                    let sig_len = signatures.len();
-                    if sig_id > sig_len {
-                        return Err(Error::InvalidFunction { id: id, len: len })                        
-                    }
-                    let (parameters, returns) = signatures[id];
+                    let signature = if let Some(signature) = self.module.function_signature_type(id) {
+                        signature
+                    } else {
+                        return Err(Error::InvalidFunction { id: id, len: 0 })
+                    };
+                    let (parameters, returns) = (signature.parameters, signature.returns);
                     if returns.len() > 1 {
                         return Err(Error::UnexpectedReturnLength { got: returns.len()})
                     }
                     for p in parameters.iter() {
-                        self.pop_type_expecting(*p)?;
+                        self.pop_type_expecting(TypeValue::from(*p as i8))?;
                     }
                     for r in returns.iter() {
-                        self.push_type(*r)?;
+                        self.push_type(TypeValue::from(*r as i8))?;
                     }
 
                     w.write_opcode(op)?;
@@ -469,21 +478,24 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
 
                     // FIXME: lookup signature from Types section
 
-                    let len = signatures.len();
-                    if id > len {
-                        return Err(Error::InvalidSignature { id: id, len: len })
-                    }
-                    let (parameters, returns) = signatures[id];
+                    let id = r.read_var_u32()? as usize;
+                    let signature = if let Some(signature) = self.module.function_signature_type(id) {
+                        signature
+                    } else {
+                        return Err(Error::InvalidFunction { id: id, len: 0 })
+                    };
+                    let (parameters, returns) = (signature.parameters, signature.returns);
+
                     if returns.len() > 1 {
                         return Err(Error::UnexpectedReturnLength { got: returns.len()})
                     }
                     // Load function index
                     self.pop_type_expecting(I32)?;
                     for p in parameters.iter() {
-                        self.pop_type_expecting(*p)?;
+                        self.pop_type_expecting(TypeValue::from(*p as i8))?;
                     }
                     for r in returns.iter() {
-                        self.push_type(*r)?;
+                        self.push_type(TypeValue::from(*r as i8))?;
                     }                                     
                     w.write_opcode(op)?;                    
                     w.write_u32(id as u32)?;

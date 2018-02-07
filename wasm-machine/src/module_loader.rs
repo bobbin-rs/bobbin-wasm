@@ -399,22 +399,6 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
                         locals_count += 1;
                     }
                 }
-
-                // let signature_type = self.m.function_signature_type(i as usize).unwrap();
-                // println!("Signature:");
-                // print!("  (");
-                // for (i, p) in signature_type.parameters.iter().enumerate() {
-                //     if i > 0 { print!(", "); }
-                //     print!("{:?}", TypeValue::from(*p as i8));
-                // }
-                // let return_type = match signature_type.returns.len() {
-                //     0 => VOID,
-                //     1 => TypeValue::from(signature_type.returns[0] as i8),
-                //     _ => return Err(Error::InvalidReturnType),
-                // };
-                // println!(") -> {:?}", return_type);
-
-
                 
                 let mut labels_buf = [Label::default(); 256];
                 let label_stack = Stack::new(&mut labels_buf);
@@ -425,8 +409,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
 
                 let locals = &locals[..locals_count];
                 let globals = [];
-                let functions = [];
-                let signatures = [];
+
                 
                 println!("locals: {:?}", locals);
                 {
@@ -435,7 +418,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
                     //     println!("{:02x}", b);
                     // }
                     let mut r = Reader::new(body);
-                    loader.load(i, &locals, &globals, &functions, &signatures, &mut r, &mut self.w).unwrap();
+                    loader.load(i, &locals, &globals, &mut r, &mut self.w).unwrap();
                 }
                 self.r.set_pos(body_end);
                 println!("Done loading");
