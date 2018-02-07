@@ -86,6 +86,7 @@ impl<'s, 't> Loader<'s, 't> {
     }
 
     pub fn set_unreachable(&mut self, value: bool) -> Result<(), Error> {        
+        println!("UNREACHABLE: {}", value);
         Ok(self.label_stack.pick(0)?.unreachable = value)
     }
 
@@ -144,7 +145,7 @@ impl<'s, 't> Loader<'s, 't> {
     pub fn type_drop_keep(&mut self, drop: usize, keep: usize) -> Result<(), Error> {
         self.type_stack.dump();
         println!("drop_keep {}, {}", drop,keep);
-        self.type_stack.drop_keep(drop, keep);
+        self.type_stack.drop_keep(drop, keep)?;
         self.type_stack.dump();
         Ok(())
     }
@@ -206,11 +207,11 @@ impl<'s, 't> Loader<'s, 't> {
         match opc.code {
             IF => {
                 let label = self.label_stack.top()?;
-                self.pop_type_expecting(label.signature)?;
+                self.pop_type_expecting(I32)?;
             },
             ELSE | END => {
                 let label = self.label_stack.top()?;
-                // println!("LABEL: {:?}", label);
+                println!("LABEL @ {}: {:?}", self.label_stack.len(), label);
                 // println!("label depth: {}", self.label_stack.len());
                 // println!("type depth: {}", self.type_stack.len());
                 if label.opcode == IF && label.signature != VOID {
@@ -223,12 +224,19 @@ impl<'s, 't> Loader<'s, 't> {
                     self.expect_type_stack_depth(label.stack_limit + 1)?;                    
                 }                
             },
-            BR | BR_IF => {
+            BR => {
                 let label = self.label_stack.top()?;
                 let (drop, keep) = self.get_drop_keep(&label)?;
                 self.type_stack.drop_keep(drop, keep)?;
                 self.set_unreachable(true)?;
             },
+            BR_IF => {
+                self.pop_type_expecting(I32)?;
+                let label = self.label_stack.top()?;
+                let (drop, keep) = self.get_drop_keep(&label)?;
+                self.type_stack.drop_keep(drop, keep)?;
+                self.set_unreachable(true)?;
+            },            
             RETURN => {
                 self.expect_type(signature)?;                
                 let drop = self.type_stack.len();
@@ -366,14 +374,12 @@ impl<'s, 't> Loader<'s, 't> {
                 UNREACHABLE => return Err(Error::Unreachable),
                 RETURN => {
                     let depth = self.type_stack.len();
-                    println!("V: {}", depth);
                     if signature == VOID {
                         w.write_drop_keep(depth, 0)?;
                     } else {
                         w.write_drop_keep(depth - 1, 1)?;
                     }
                     let depth = self.type_stack.len();
-                    println!("V: {}", depth);
                     w.write_opcode(RETURN)?;
                 },
                 GET_LOCAL | SET_LOCAL | TEE_LOCAL => {
