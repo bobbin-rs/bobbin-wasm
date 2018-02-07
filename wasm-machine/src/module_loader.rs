@@ -378,6 +378,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
             println!("---");
 
             let len = self.copy_var_u32()?;
+
             for _ in 0..len {
                 // body size
                 let body_len = self.copy_var_u32()?;
@@ -427,10 +428,6 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
                 println!("Done loading");
 
 
-                // // body
-                // while self.r.pos() < body_end {
-                //     self.copy_u8()?;
-                // }
             }
         })
     }
