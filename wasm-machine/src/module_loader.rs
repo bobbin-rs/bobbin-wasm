@@ -19,8 +19,8 @@ pub struct ModuleLoader<'r, 'w> {
 
 impl<'r, 'w> ModuleLoader<'r, 'w> {
     pub fn new(r: Reader<'r>, mut w: Writer<'w>) -> Self {
-        let mr = w.split_reader();
-        ModuleLoader { r, w, m: Module::new(mr) }
+        let m = Module::new(w.split());
+        ModuleLoader { r, w, m }
     }
 
     fn done(&self) -> bool {
@@ -136,8 +136,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
         self.load_header()?;        
         while !self.done() {
             let _s = self.load_section()?;
-            let r = self.w.split_reader();
-            self.m.join_reader(r);
+            self.m.extend(self.w.split())
         }
         Ok(self.m)
     }
@@ -371,11 +370,11 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
         Ok({
             println!("Getting info");
             println!("---");
-            for s in self.m.iter() {
-                println!("{:>12} start=0x{:08x} end=0x{:08x} (size={:08x}) count: {}", 
-                    s.sid, s.off, s.off + s.len, s.len, s.cnt
-                );
-            }
+            // for s in self.m.iter() {
+            //     println!("{:>12} start=0x{:08x} end=0x{:08x} (size={:08x}) count: {}", 
+            //         s.sid, s.off, s.off + s.len, s.len, s.cnt
+            //     );
+            // }
             println!("---");
 
             let len = self.copy_var_u32()?;

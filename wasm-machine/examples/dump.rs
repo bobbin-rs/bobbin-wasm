@@ -50,9 +50,7 @@ pub fn run(path: &str) -> Result<(), Error> {
     let w = Writer::new(&mut buf);
     let m = ModuleLoader::new(r, w).load()?;
     for s in m.iter() {
-        println!("{:>12} start=0x{:08x} end=0x{:08x} (size={:08x}) count: {}", 
-            s.sid, s.off, s.off + s.len, s.len, s.cnt
-        );
+        println!("{:?}: {:04x}", s.section_type, s.len);
     }
 
     Ok(())

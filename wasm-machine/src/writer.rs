@@ -86,7 +86,7 @@ impl<'a> Writer<'a> {
         Ok(())
     }
 
-    pub fn split_reader(&mut self) -> Reader<'a> {
+    pub fn split(&mut self) -> &'a [u8] {
         unsafe {
             // First Half
             let a_ptr = self.buf.as_ptr();
@@ -101,8 +101,12 @@ impl<'a> Writer<'a> {
             self.pos = 0;
 
             // Return New Reader
-            Reader::new(slice::from_raw_parts(a_ptr, a_len))
-        }
+            slice::from_raw_parts(a_ptr, a_len)
+        }        
+    }
+
+    pub fn split_reader(&mut self) -> Reader<'a> {
+        Reader::new(self.split())
     }
 }
 
