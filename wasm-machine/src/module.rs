@@ -20,6 +20,12 @@ pub struct Function {
     pub signature: u32,
 }
 
+pub struct Memory {
+    flags: u32,
+    minimum: u32,
+    maximum: Option<u32>,
+}
+
 pub struct Global {
     pub global_type: i8,
     pub mutability: u8,
@@ -31,6 +37,10 @@ pub struct Export<'a> {
     pub identifier: &'a [u8],
     pub kind: u8,
     pub index: u32,
+}
+
+pub struct Start {
+    pub function_index: u32,
 }
 
 impl<'a> Module<'a> {

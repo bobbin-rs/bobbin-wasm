@@ -209,7 +209,6 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
     pub fn type_check(&mut self, opc: Opcode, return_type: TypeValue) -> Result<(), Error> {
         match opc.code {
             IF => {
-                let label = self.label_stack.top()?;
                 self.pop_type_expecting(I32)?;
             },
             ELSE | END => {
@@ -404,7 +403,6 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
                     } else {
                         w.write_drop_keep(depth - 1, 1)?;
                     }
-                    let depth = self.type_stack.len();
                     w.write_opcode(RETURN)?;
                 },
                 GET_LOCAL | SET_LOCAL | TEE_LOCAL => {
