@@ -1,4 +1,4 @@
-use {SectionType, TypeValue, Cursor};
+use {SectionType, Cursor};
 
 use core::slice;
 

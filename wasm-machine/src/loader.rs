@@ -74,7 +74,7 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
     }
 
     pub fn pop_label(&mut self) -> Result<Label, Error> {
-        let depth = self.label_stack.len();
+        // let depth = self.label_stack.len();
         let label = self.label_stack.pop()?;
         // println!("-- label: {} => {:?}", depth, label);
         Ok(label)
@@ -265,7 +265,6 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
     pub fn load(&mut self,
         index: u32, 
         locals: &[TypeValue], 
-        _globals: &[TypeValue], 
         r: &mut Reader,
         w: &mut Writer
     ) -> Result<(), Error> {

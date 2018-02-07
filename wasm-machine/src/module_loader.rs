@@ -1,7 +1,7 @@
 use {Error, Reader, Writer, TypeValue, SectionType, Module};
 use loader::{Label, Loader};
 use stack::Stack;
-use opcode::{FUNC, VOID};
+use opcode::{FUNC};
 
 pub const MAGIC_COOKIE: u32 = 0x6d736100;
 pub const VERSION: u32 = 0x1;
@@ -408,17 +408,14 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
                 let mut loader = Loader::new(&self.m, label_stack, type_stack);
 
                 let locals = &locals[..locals_count];
-                let globals = [];
-
-                
-                println!("locals: {:?}", locals);
+               
                 {
                     let body = &self.r.as_ref()[self.r.pos()..body_end];
                     // for b in body.iter() {
                     //     println!("{:02x}", b);
                     // }
                     let mut r = Reader::new(body);
-                    loader.load(i, &locals, &globals, &mut r, &mut self.w).unwrap();
+                    loader.load(i, &locals, &mut r, &mut self.w).unwrap();
                 }
                 self.r.set_pos(body_end);
                 println!("Done loading");
