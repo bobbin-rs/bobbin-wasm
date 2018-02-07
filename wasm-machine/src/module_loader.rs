@@ -187,22 +187,27 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
         println!("load_types");
         Ok({
             let len = self.copy_var_u32()?;
+            println!("  len: {}", len);
 
             for i in 0..len {              
                 println!("  {}:", i) ;
                 // Read form 
-                self.read_var_i7_expecting(FUNC as i8, Error::UnknownSignatureType)?;
-
+                let form = self.read_var_i7_expecting(FUNC as i8, Error::UnknownSignatureType)?;
+                println!("  form: {}", form);
                 // Copy Parameters 
                 let p_len = self.copy_var_u32()?;
+                println!("  p_len: {}", p_len);
                 for _ in 0..p_len {
-                    println!("    {:02x}", self.copy_var_i7()?);
+                    let t = TypeValue::from(self.copy_var_i7()?);
+                    println!("    {:?}", t);
                 }
 
                 // Copy Returns
-                let s_len = self.copy_var_u32()?;                
-                for _ in 0..s_len {
-                    println!("    -> {:02x}", self.copy_var_i7()?);
+                let r_len = self.copy_var_u32()?;                
+                println!("  r_len: {}", r_len);
+                for _ in 0..r_len {
+                    let t = TypeValue::from(self.copy_var_i7()?);
+                    println!("    -> {:?}", t);
                 }                
             }            
         })
@@ -368,18 +373,10 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
 
     pub fn load_code(&mut self) -> ModuleResult<()> {
         Ok({
-            println!("Getting info");
-            println!("---");
-            // for s in self.m.iter() {
-            //     println!("{:>12} start=0x{:08x} end=0x{:08x} (size={:08x}) count: {}", 
-            //         s.sid, s.off, s.off + s.len, s.len, s.cnt
-            //     );
-            // }
-            println!("---");
-
             let len = self.copy_var_u32()?;
 
-            for _ in 0..len {
+            for i in 0..len {
+                println!("---\nFunction {}\n---", i);
                 // body size
                 let body_len = self.copy_var_u32()?;
                 let body_beg = self.r.pos();
@@ -391,17 +388,34 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
                 let mut locals = [TypeValue::default(); 16];
                 let mut locals_count = 0;
 
-                for i in 0..self.copy_var_u32()? {
-                    println!("local {}", i);
+                println!("Locals:");
+
+                for _ in 0..self.copy_var_u32()? {
                     let n = self.copy_var_u32()?;
-                    let t = TypeValue::from(self.copy_var_i7()?);
+                    let t = TypeValue::from(self.copy_var_i7()?);                    
                     for _ in 0..n {
+                        println!("  {:?}", t);
                         locals[locals_count] = t;
                         locals_count += 1;
                     }
                 }
 
+                let signature_type = self.m.function_signature_type(i as usize).unwrap();
+                println!("Signature:");
+                print!("  (");
+                for (i, p) in signature_type.parameters.iter().enumerate() {
+                    if i > 0 { print!(", "); }
+                    print!("{:?}", TypeValue::from(*p as i8));
+                }
+                let return_type = match signature_type.returns.len() {
+                    0 => VOID,
+                    1 => TypeValue::from(signature_type.returns[0] as i8),
+                    _ => return Err(Error::InvalidReturnType),
+                };
+                println!(") -> {:?}", return_type);
 
+
+                
                 let mut labels_buf = [Label::default(); 256];
                 let label_stack = Stack::new(&mut labels_buf);
 
@@ -409,7 +423,6 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
                 let type_stack = Stack::new(&mut type_buf);
                 let mut loader = Loader::new(label_stack, type_stack);
 
-                let signature = VOID;
                 let locals = &locals[..locals_count];
                 let globals = [];
                 let functions = [];
@@ -422,7 +435,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
                     //     println!("{:02x}", b);
                     // }
                     let mut r = Reader::new(body);
-                    loader.load(signature, &locals, &globals, &functions, &signatures, &mut r, &mut self.w).unwrap();
+                    loader.load(return_type, &locals, &globals, &functions, &signatures, &mut r, &mut self.w).unwrap();
                 }
                 self.r.set_pos(body_end);
                 println!("Done loading");

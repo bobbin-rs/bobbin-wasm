@@ -44,7 +44,7 @@ pub enum Error {
     UnknownSignatureType,
     UnknownExternalKind,
     UnexpectedData,
-
+    InvalidReturnType,
     InvalidIfSignature,
     InvalidReservedValue,
     InvalidBranchTableDefault { id: usize, len: usize},

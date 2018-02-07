@@ -66,12 +66,15 @@ impl<'s, 't> Loader<'s, 't> {
             stack_limit,
             unreachable: false,
         };
-        // println!("push_label: {:?}", label);
+        // println!("-- label: {} <= {:?}", self.label_stack.len(), label);
         Ok(self.label_stack.push(label)?)
     }
 
     pub fn pop_label(&mut self) -> Result<Label, Error> {
-        Ok(self.label_stack.pop()?)
+        let depth = self.label_stack.len();
+        let label = self.label_stack.pop()?;
+        // println!("-- label: {} => {:?}", depth, label);
+        Ok(label)
     }
 
     pub fn label_depth(&self) -> usize {
@@ -92,13 +95,14 @@ impl<'s, 't> Loader<'s, 't> {
 
     pub fn push_type<T: Into<TypeValue>>(&mut self, type_value: T) -> Result<(), Error> {
         let tv = type_value.into();
-        // println!("push_type: {:?}", tv);
+        println!("-- type: {} <= {:?}", self.type_stack.len(), tv);
         Ok(self.type_stack.push(tv)?)
     }
 
     pub fn pop_type(&mut self) -> Result<TypeValue, Error> {
+        let depth = self.type_stack.len();
         let tv = self.type_stack.pop()?;
-        // println!("pop_type: {:?}", tv);
+        println!("-- type: {} => {:?}", depth, tv);
         Ok(tv)
     }
 
@@ -135,6 +139,14 @@ impl<'s, 't> Loader<'s, 't> {
         } else {
             Ok(())
         }
+    }
+
+    pub fn type_drop_keep(&mut self, drop: usize, keep: usize) -> Result<(), Error> {
+        self.type_stack.dump();
+        println!("drop_keep {}, {}", drop,keep);
+        self.type_stack.drop_keep(drop, keep);
+        self.type_stack.dump();
+        Ok(())
     }
 
     pub fn add_fixup(&mut self, rel_depth: u32, offset: u32) -> Result<(), Error> {
@@ -198,9 +210,9 @@ impl<'s, 't> Loader<'s, 't> {
             },
             ELSE | END => {
                 let label = self.label_stack.top()?;
-                println!("LABEL: {:?}", label);
-                println!("label depth: {}", self.label_stack.len());
-                println!("type depth: {}", self.type_stack.len());
+                // println!("LABEL: {:?}", label);
+                // println!("label depth: {}", self.label_stack.len());
+                // println!("type depth: {}", self.type_stack.len());
                 if label.opcode == IF && label.signature != VOID {
                     return Err(Error::InvalidIfSignature)
                 }
@@ -225,7 +237,7 @@ impl<'s, 't> Loader<'s, 't> {
                 } else {
                     (drop - 1, 1)
                 };
-                self.type_stack.drop_keep(drop, keep)?;
+                self.type_drop_keep(drop, keep)?;
                 self.set_unreachable(true)?;                
             },
             _ => {
@@ -258,18 +270,16 @@ impl<'s, 't> Loader<'s, 't> {
         while r.remaining() > 0 {
             let op = r.read_opcode()?;
             let opc = Opcode::try_from(op)?;
-            println!("{:04x}: 0x{:02x} {} LS: {} TS: {}", w.pos(), opc.code, opc.text, self.label_stack.len(), self.type_stack.len());
-            println!("type check");
+            println!("{:04x}: V:{} | {} ", w.pos(), self.type_stack.len(), opc.text);
+            // println!("type check");
             self.type_check(opc, signature)?;   
-            println!("type check done");
+            // println!("type check done");
             match op {
                 BLOCK => {
                     self.push_label(op, r.read_var_i7()?, FIXUP_OFFSET)?;
-                    println!("DEPTH -> {}", self.label_depth());
                 },
                 LOOP => {
                     self.push_label(op, r.read_var_i7()?, w.pos() as u32)?;
-                    println!("DEPTH -> {}", self.label_depth());
                 },
                 IF => {
                     self.push_label(op, r.read_var_i7()?, FIXUP_OFFSET)?;
@@ -282,10 +292,9 @@ impl<'s, 't> Loader<'s, 't> {
                 END => {
                     // w.write_opcode(op)?;
                     // println!("FIXUP {} 0x{:04x}", self.label_depth(), w.pos());
-                    println!("END");
+                    // println!("END");
                     self.fixup(w)?;
                     self.pop_label()?;
-                    println!("DEPTH -> {}", self.label_depth());
                 },
                 ELSE => {
                     w.write_opcode(BR)?;
@@ -357,11 +366,14 @@ impl<'s, 't> Loader<'s, 't> {
                 UNREACHABLE => return Err(Error::Unreachable),
                 RETURN => {
                     let depth = self.type_stack.len();
+                    println!("V: {}", depth);
                     if signature == VOID {
                         w.write_drop_keep(depth, 0)?;
                     } else {
-                        w.write_drop_keep(depth - 1, 0)?;
+                        w.write_drop_keep(depth - 1, 1)?;
                     }
+                    let depth = self.type_stack.len();
+                    println!("V: {}", depth);
                     w.write_opcode(RETURN)?;
                 },
                 GET_LOCAL | SET_LOCAL | TEE_LOCAL => {
@@ -452,9 +464,9 @@ impl<'s, 't> Loader<'s, 't> {
                 I32_LOAD | I32_STORE | I32_LOAD8_S | I32_LOAD8_U | I32_LOAD16_S | I32_LOAD16_U => {
                     w.write_opcode(op)?;
                     let a = r.read_var_u32()?;
-                    println!("  {:08x}", a);
+                    println!("  {:02x}", a);
                     let b = r.read_var_u32()?;
-                    println!("  {:08x}", b);
+                    println!("  {:02x}", b);
                     w.write_u32(a)?;
                     w.write_u32(b)?;
                 },
@@ -476,21 +488,21 @@ impl<'s, 't> Loader<'s, 't> {
                     w.write_opcode(op)?;
                 },
             }
-            println!("Op Done");
         }        
 
-        println!("EXIT");
-        // Check Exit
-        self.pop_type_expecting(signature)?;
-        self.expect_type_stack_depth(locals.len())?;
+        println!("{:04x}: V:{} | {} ", w.pos(), self.type_stack.len(), "EXIT");
+        // Check Exit        
+        self.expect_type(signature)?;
+        self.expect_type_stack_depth(if signature == VOID { 0 } else { 1 })?;
+        // self.expect_type_stack_depth(locals.len())?;
 
-        if locals.len() > 0 {
-            if signature != VOID {
-                w.write_drop_keep(locals.len(), 1)?;
-            } else {
-                w.write_drop_keep(locals.len(), 0)?;
-            }
-        }
+        // if locals.len() > 0 {
+        //     if signature != VOID {
+        //         w.write_drop_keep(locals.len(), 1)?;
+        //     } else {
+        //         w.write_drop_keep(locals.len(), 0)?;
+        //     }
+        // }
 
         // println!("Checking Fixups");
         for entry in self.fixups.iter() {
@@ -592,6 +604,7 @@ impl<'w> WriteLoader for Writer<'w> {
         Ok(())
     }
     fn write_drop_keep(&mut self, drop_count: usize, keep_count: usize) -> Result<(), Error> {
+        println!("drop_keep {}, {}", drop_count, keep_count);
         if drop_count == 1 && keep_count == 0 {
             self.write_opcode(DROP)?;            
         } else if drop_count > 0 {
