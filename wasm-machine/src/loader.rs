@@ -1,5 +1,6 @@
 use Error;
 use TypeValue;
+use module::*;
 use opcode::*;
 use reader::Reader;
 use writer::Writer;
@@ -40,16 +41,18 @@ impl fmt::Debug for Label {
 }
 
 
-pub struct Loader<'s, 't> {
+pub struct Loader<'m, 's, 't> {
+    module: &'m Module<'m>,
     label_stack: Stack<'s, Label>,
     type_stack: Stack<'t, TypeValue>,
     fixups: [Option<Fixup>; 256],
     fixups_pos: usize,
 }
 
-impl<'s, 't> Loader<'s, 't> {
-    pub fn new(label_stack: Stack<'s, Label>, type_stack: Stack<'t, TypeValue>) -> Self {
+impl<'m, 's, 't> Loader<'m, 's, 't> {
+    pub fn new(module: &'m Module<'m>, label_stack: Stack<'s, Label>, type_stack: Stack<'t, TypeValue>) -> Self {
         Loader {
+            module: module,
             label_stack: label_stack,
             type_stack: type_stack,
             fixups: [None; 256],
@@ -203,7 +206,7 @@ impl<'s, 't> Loader<'s, 't> {
         )
     }
 
-    pub fn type_check(&mut self, opc: Opcode, signature: TypeValue) -> Result<(), Error> {
+    pub fn type_check(&mut self, opc: Opcode, return_type: TypeValue) -> Result<(), Error> {
         match opc.code {
             IF => {
                 let label = self.label_stack.top()?;
@@ -238,9 +241,9 @@ impl<'s, 't> Loader<'s, 't> {
                 self.set_unreachable(true)?;
             },            
             RETURN => {
-                self.expect_type(signature)?;                
+                self.expect_type(return_type)?;                
                 let drop = self.type_stack.len();
-                let (drop, keep) = if signature == TypeValue::Void {
+                let (drop, keep) = if return_type == TypeValue::Void {
                     (drop, 0)
                 } else {
                     (drop - 1, 1)
@@ -259,8 +262,9 @@ impl<'s, 't> Loader<'s, 't> {
         Ok(())
     }
 
-    pub fn load(&mut self, 
-        signature: TypeValue, 
+    pub fn load(&mut self,
+        index: u32, 
+        signature_type: Type, 
         locals: &[TypeValue], 
         globals: &[TypeValue], 
         functions: &[u32],
@@ -269,7 +273,31 @@ impl<'s, 't> Loader<'s, 't> {
         w: &mut Writer
     ) -> Result<(), Error> {
         // push function start onto control stack
-        self.push_label(0, signature, r.pos() as u32)?;
+
+        let signature_type = self.module.function_signature_type(index as usize).unwrap();
+        println!("Signature:");
+        print!("  (");
+        for (i, p) in signature_type.parameters.iter().enumerate() {
+            if i > 0 { print!(", "); }
+            print!("{:?}", TypeValue::from(*p as i8));
+        }
+        let return_type = match signature_type.returns.len() {
+            0 => VOID,
+            1 => TypeValue::from(signature_type.returns[0] as i8),
+            _ => return Err(Error::InvalidReturnType),
+        };
+        println!(") -> {:?}", return_type);
+
+
+        println!("lookup return type");
+        let return_type = if signature_type.returns.len() == 1 {
+            TypeValue::from(signature_type.returns[0] as i8)
+        } else {
+            VOID
+        };
+        println!("done");
+
+        self.push_label(0, return_type, r.pos() as u32)?;
 
         for local in locals.iter() {
             self.push_type(*local)?;
@@ -280,7 +308,7 @@ impl<'s, 't> Loader<'s, 't> {
             let opc = Opcode::try_from(op)?;
             println!("{:04x}: V:{} | {} ", w.pos(), self.type_stack.len(), opc.text);
             // println!("type check");
-            self.type_check(opc, signature)?;   
+            self.type_check(opc, return_type)?;   
             // println!("type check done");
             match op {
                 BLOCK => {
@@ -374,7 +402,7 @@ impl<'s, 't> Loader<'s, 't> {
                 UNREACHABLE => return Err(Error::Unreachable),
                 RETURN => {
                     let depth = self.type_stack.len();
-                    if signature == VOID {
+                    if return_type == VOID {
                         w.write_drop_keep(depth, 0)?;
                     } else {
                         w.write_drop_keep(depth - 1, 1)?;
@@ -445,8 +473,11 @@ impl<'s, 't> Loader<'s, 't> {
                 },
                 CALL_INDIRECT => {
                     // Emits OP SIG
+
                     let id = r.read_var_u32()? as usize;
                     let _ = r.read_var_u1()?;
+
+                    // FIXME: lookup signature from Types section
 
                     let len = signatures.len();
                     if id > len {
@@ -464,8 +495,8 @@ impl<'s, 't> Loader<'s, 't> {
                     for r in returns.iter() {
                         self.push_type(*r)?;
                     }                                     
-                    w.write_opcode(op)?;
-                    w.write_u32(signature as u32)?;
+                    w.write_opcode(op)?;                    
+                    w.write_u32(id as u32)?;
                 },
                 I32_LOAD | I32_STORE | I32_LOAD8_S | I32_LOAD8_U | I32_LOAD16_S | I32_LOAD16_U => {
                     w.write_opcode(op)?;
@@ -498,8 +529,8 @@ impl<'s, 't> Loader<'s, 't> {
 
         println!("{:04x}: V:{} | {} ", w.pos(), self.type_stack.len(), "EXIT");
         // Check Exit        
-        self.expect_type(signature)?;
-        self.expect_type_stack_depth(if signature == VOID { 0 } else { 1 })?;
+        self.expect_type(return_type)?;
+        self.expect_type_stack_depth(if return_type == VOID { 0 } else { 1 })?;
         // self.expect_type_stack_depth(locals.len())?;
 
         // if locals.len() > 0 {

@@ -421,7 +421,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
 
                 let mut type_buf = [TypeValue::default(); 256];
                 let type_stack = Stack::new(&mut type_buf);
-                let mut loader = Loader::new(label_stack, type_stack);
+                let mut loader = Loader::new(&self.m, label_stack, type_stack);
 
                 let locals = &locals[..locals_count];
                 let globals = [];
@@ -435,7 +435,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
                     //     println!("{:02x}", b);
                     // }
                     let mut r = Reader::new(body);
-                    loader.load(return_type, &locals, &globals, &functions, &signatures, &mut r, &mut self.w).unwrap();
+                    loader.load(i, signature_type, &locals, &globals, &functions, &signatures, &mut r, &mut self.w).unwrap();
                 }
                 self.r.set_pos(body_end);
                 println!("Done loading");
