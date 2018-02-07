@@ -149,14 +149,14 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
     }
     
     pub fn load_section(&mut self) -> ModuleResult<SectionType> {
+        // ID(u8) LEN(u32) [LEN]
         Ok({
             let s = SectionType::try_from(self.read_var_u7()?)?;
             let s_len = self.read_var_u32()?;
-            let s_beg = self.w.pos();
 
             self.write_u8(s as u8)?;
             let fixup_len = self.write_u32_fixup()?;
-
+            let s_beg = self.w.pos();
             let pos = self.r.pos();
             match s {
                 SectionType::Type => self.load_types()?,
@@ -177,7 +177,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
             }
             let s_end = self.w.pos();
             let s_len = s_end - s_beg;
-            //println!("{:08x} to {:08x} (len {:08x})", s_beg, s_end, s_len);
+            println!("{:08x} to {:08x} (len {:08x})", s_beg, s_end, s_len);
             self.apply_u32_fixup(s_len as u32, fixup_len)?;
             s
         })

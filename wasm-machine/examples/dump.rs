@@ -4,10 +4,11 @@ extern crate clap;
 use std::process;
 use std::io::{self, Read};
 use std::fs::File;
+use std::str;
 
 use clap::{App, Arg};
 
-use wasm::{Reader, Writer, ModuleLoader};
+use wasm::{Reader, Writer, ModuleLoader, SectionType};
 
 #[derive(Debug)]
 pub enum Error {
@@ -49,8 +50,27 @@ pub fn run(path: &str) -> Result<(), Error> {
     let r = Reader::new(&mut data[..]);
     let w = Writer::new(&mut buf);
     let m = ModuleLoader::new(r, w).load()?;
+    println!("----");
     for s in m.iter() {
-        println!("{:?}: {:04x}", s.section_type, s.len);
+        println!("{:?}: {:04x}", s.section_type, s.buf.len());
+        match s.section_type {
+            SectionType::Type => {
+                for t in s.types() {
+                    println!("  p: {:?} r: {:?}", t.parameters, t.returns);
+                }
+            },
+            SectionType::Function => {
+                for f in s.functions() {
+                    println!("  s: {:?}", f.signature);
+                }
+            }
+            SectionType::Export => {
+                for e in s.exports() {
+                    println!("  identifier: {:?} kind: {} index: {}", str::from_utf8(e.identifier).unwrap(), e.kind, e.index);
+                }
+            }
+            _ => {},
+        }
     }
 
     Ok(())

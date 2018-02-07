@@ -1,10 +1,29 @@
-use byteorder::{ByteOrder, LittleEndian};
-use core::slice;
+use {SectionType, Cursor};
 
-use {SectionType};
+use core::slice;
 
 pub struct Module<'a> {
     buf: &'a [u8],
+}
+
+pub struct Section<'a> {
+    pub section_type: SectionType,
+    pub buf: &'a [u8],
+}
+
+pub struct Type<'a> {
+    pub parameters: &'a [u8],
+    pub returns: &'a [u8],
+}
+
+pub struct Function {
+    pub signature: u32,
+}
+
+pub struct Export<'a> {
+    pub identifier: &'a [u8],
+    pub kind: u8,
+    pub index: u32,
 }
 
 impl<'a> Module<'a> {
@@ -25,30 +44,39 @@ impl<'a> Module<'a> {
     }
 
     pub fn iter(&self) -> SectionIter {
-        SectionIter { buf: self.buf }
+        SectionIter { buf: Cursor::new(self.buf) }
     }
 }
 
-pub struct Section<'a> {
-    pub section_type: SectionType,
-    pub len: usize,
-    pub payload: &'a [u8],
-}
-
 impl<'a> Section<'a> {
+    pub fn types(&self) -> TypeIter<'a> {
+        if let SectionType::Type = self.section_type {
+            TypeIter { buf: Cursor::new(&self.buf[4..]) }
+        } else {
+            TypeIter { buf: Cursor::new(&[]) }
+        }
+    }
 
+    pub fn functions(&self) -> FunctionIter<'a> {
+        if let SectionType::Function = self.section_type {
+            FunctionIter { buf: Cursor::new(&self.buf[4..]) }
+        } else {
+            FunctionIter { buf: Cursor::new(&[]) }
+        }
+    }
+
+    pub fn exports(&self) -> ExportIter<'a> {
+        if let SectionType::Export = self.section_type {
+            ExportIter { buf: Cursor::new(&self.buf[4..]) }
+        } else {
+            ExportIter { buf: Cursor::new(&[]) }
+        }
+    }    
 }
 
-pub struct Type<'a> {
-    buf: &'a [u8],
-}
-
-pub struct Function<'a> {
-    buf: &'a [u8],
-}
 
 pub struct SectionIter<'a> {
-    buf: &'a [u8],
+    buf: Cursor<'a>,
 }
 
 impl<'a> Iterator for SectionIter<'a> {
@@ -56,16 +84,71 @@ impl<'a> Iterator for SectionIter<'a> {
 
     fn next(&mut self) -> Option<Section<'a>> {
         if self.buf.len() > 0 {
-            let section_type = SectionType::from(self.buf[0]);
-            let len = LittleEndian::read_u16(&self.buf[1..]) as usize;
-            let payload = &self.buf[2..len];
-            self.buf = &self.buf[len..];
-            Some(Section { section_type, len, payload })
+            let section_type = SectionType::from(self.buf.read_u8());
+            let len = self.buf.read_u32() as usize;
+            let buf = self.buf.slice(len);
+            Some(Section { section_type, buf })
         } else {
             None
         }
     }
 }
+
+pub struct TypeIter<'a> {
+    buf: Cursor<'a>,
+}
+
+impl<'a> Iterator for TypeIter<'a> {
+    type Item = Type<'a>;
+
+    fn next(&mut self) -> Option<Type<'a>> {
+        if self.buf.len() > 0 {
+            let p_len = self.buf.read_u32();
+            let p_buf = self.buf.slice(p_len as usize);
+            let r_len = self.buf.read_u32();
+            let r_buf = self.buf.slice(r_len as usize);
+            Some(Type { parameters: p_buf, returns: r_buf })
+        } else {
+            None
+        }
+    }
+}
+
+pub struct FunctionIter<'a> {
+    buf: Cursor<'a>,
+}
+
+impl<'a> Iterator for FunctionIter<'a> {
+    type Item = Function;
+
+    fn next(&mut self) -> Option<Function> {
+        if self.buf.len() > 0 {
+            Some(Function { signature: self.buf.read_u32() })
+        } else {
+            None
+        }
+    }
+}
+
+pub struct ExportIter<'a> {
+    buf: Cursor<'a>,
+}
+
+impl<'a> Iterator for ExportIter<'a> {
+    type Item = Export<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.buf.len() > 0 {
+            let identifier = self.buf.slice_identifier();
+            let kind = self.buf.read_u8();
+            let index = self.buf.read_u32();
+            Some(Export { identifier, kind, index })
+        } else {
+            None
+        }
+    }
+}
+
 
 // pub struct Section<'a> {
 //     m: &'a Module<'a>,
