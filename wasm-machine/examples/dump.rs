@@ -60,8 +60,9 @@ pub fn run(path: &str) -> Result<(), Error> {
                 }
             },
             SectionType::Function => {
-                for f in s.functions() {
-                    println!("  s: {:?}", f.signature);
+                for (i, _) in s.functions().enumerate() {
+                    let t = m.function_signature_type(i).unwrap();
+                    println!("  s: ({:?}) -> {:?}", t.parameters, t.returns);
                 }
             }
             SectionType::Export => {

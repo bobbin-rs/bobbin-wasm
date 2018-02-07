@@ -46,6 +46,15 @@ impl<'a> Module<'a> {
     pub fn iter(&self) -> SectionIter {
         SectionIter { buf: Cursor::new(self.buf) }
     }
+
+    pub fn section(&self, st: SectionType) -> Option<Section> {
+        self.iter().find(|s| s.section_type == st)
+    }
+
+    pub fn function_signature_type(&self, index: usize) -> Option<Type> {
+        let f = self.section(SectionType::Function).unwrap().functions().nth(index).unwrap();
+        self.section(SectionType::Type).unwrap().types().nth(f.signature as usize)
+    }
 }
 
 impl<'a> Section<'a> {
