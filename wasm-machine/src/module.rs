@@ -1,4 +1,4 @@
-use {SectionType, Cursor};
+use {SectionType, TypeValue, Cursor};
 
 use core::slice;
 
@@ -18,6 +18,13 @@ pub struct Type<'a> {
 
 pub struct Function {
     pub signature: u32,
+}
+
+pub struct Global {
+    pub global_type: i8,
+    pub mutability: u8,
+    pub init_opcode: u8,
+    pub init_parameter: u32,
 }
 
 pub struct Export<'a> {
@@ -55,6 +62,10 @@ impl<'a> Module<'a> {
         let f = self.section(SectionType::Function).unwrap().functions().nth(index).unwrap();
         self.section(SectionType::Type).unwrap().types().nth(f.signature as usize)
     }
+
+    pub fn global(&self, index: usize) -> Option<Global> {
+        self.section(SectionType::Global).unwrap().globals().nth(index)
+    }
 }
 
 impl<'a> Section<'a> {
@@ -73,6 +84,14 @@ impl<'a> Section<'a> {
             FunctionIter { buf: Cursor::new(&[]) }
         }
     }
+
+    pub fn globals(&self) -> GlobalIter<'a> {
+        if let SectionType::Global = self.section_type {
+            GlobalIter { buf: Cursor::new(&self.buf[4..]) }
+        } else {
+            GlobalIter { buf: Cursor::new(&[]) }
+        }
+    }    
 
     pub fn exports(&self) -> ExportIter<'a> {
         if let SectionType::Export = self.section_type {
@@ -138,6 +157,27 @@ impl<'a> Iterator for FunctionIter<'a> {
         }
     }
 }
+
+pub struct GlobalIter<'a> {
+    buf: Cursor<'a>,
+}
+
+impl<'a> Iterator for GlobalIter<'a> {
+    type Item = Global;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.buf.len() > 0 {
+            let global_type = self.buf.read_i8();
+            let mutability = self.buf.read_u8();
+            let init_opcode = self.buf.read_u8();
+            let init_parameter = self.buf.read_u32();
+            Some(Global { global_type, mutability, init_opcode, init_parameter })
+        } else {
+            None
+        }
+    }
+}
+
 
 pub struct ExportIter<'a> {
     buf: Cursor<'a>,

@@ -41,4 +41,10 @@ impl<'a> Cursor<'a> {
         self.buf = &self.buf[4..];
         v
     }
+
+    pub fn read_i8(&mut self) -> i8 {
+        let v = self.buf[0] as i8;
+        self.buf = &self.buf[1..];
+        v
+    }    
 }

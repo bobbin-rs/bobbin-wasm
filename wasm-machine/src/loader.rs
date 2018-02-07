@@ -265,7 +265,7 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
     pub fn load(&mut self,
         index: u32, 
         locals: &[TypeValue], 
-        globals: &[TypeValue], 
+        _globals: &[TypeValue], 
         r: &mut Reader,
         w: &mut Writer
     ) -> Result<(), Error> {
@@ -436,11 +436,12 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
                 },
                 GET_GLOBAL | SET_GLOBAL => {
                     let id = r.read_var_u32()? as usize;
-                    let len = globals.len();
-                    if id > len {
-                        return Err(Error::InvalidGlobal { id: id, len: len })                        
-                    }
-                    let ty = globals[id];
+                    let global = if let Some(global) = self.module.global(id) {
+                        global
+                    } else {
+                        return Err(Error::InvalidGlobal { id: id, len: 0 })
+                    };
+                    let ty = TypeValue::from(global.global_type);
                     match op {
                         GET_GLOBAL => self.push_type(ty)?,
                         SET_GLOBAL => self.pop_type_expecting(ty)?,
@@ -475,10 +476,7 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
 
                     let id = r.read_var_u32()? as usize;
                     let _ = r.read_var_u1()?;
-
-                    // FIXME: lookup signature from Types section
-
-                    let id = r.read_var_u32()? as usize;
+                    
                     let signature = if let Some(signature) = self.module.function_signature_type(id) {
                         signature
                     } else {
