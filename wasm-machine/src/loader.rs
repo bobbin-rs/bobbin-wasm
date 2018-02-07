@@ -264,7 +264,6 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
 
     pub fn load(&mut self,
         index: u32, 
-        signature_type: Type, 
         locals: &[TypeValue], 
         globals: &[TypeValue], 
         functions: &[u32],
@@ -287,15 +286,6 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
             _ => return Err(Error::InvalidReturnType),
         };
         println!(") -> {:?}", return_type);
-
-
-        println!("lookup return type");
-        let return_type = if signature_type.returns.len() == 1 {
-            TypeValue::from(signature_type.returns[0] as i8)
-        } else {
-            VOID
-        };
-        println!("done");
 
         self.push_label(0, return_type, r.pos() as u32)?;
 
