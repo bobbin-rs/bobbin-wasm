@@ -101,11 +101,18 @@ impl Delegate for DetailsDumper {
         })
     }
 
+    fn global(&mut self, index: u32, tv: TypeValue, mutability: u8, init_opcode: u8, init_immediate: u32) -> DelegateResult {    
+        Ok({
+            println!(" - global[{}] {:?} mutable={} init 0x{:02x}={} ", index, tv, mutability, init_opcode, init_immediate);
+        })
+    }
+
     fn export(&mut self, index: u32, id: &[u8], kind: ExternalKind, _external_index: u32) -> DelegateResult { 
         Ok({
             println!(" - {:?}[{}] -> {:?}", kind, index, str::from_utf8(id)?)
         })
     }   
+
     fn data_segment(&mut self, index: u32, _memory_index: u32, _offset_opcode: u8, offset_immediate: u32, data: &[u8]) -> DelegateResult { 
         Ok({
             println!(" - segment[{}] size={} - init {}={} ", index, data.len(), "i32", offset_immediate);

@@ -421,14 +421,20 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
     pub fn load_globals(&mut self) -> ModuleResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#global-section
         Ok({
-            for _ in 0..self.copy_count()? {
+            let num = self.r.read_var_u32()?;
+            self.d.globals_start(num)?;
+            for i in 0..num {
                 // value type
-                self.copy_type()?;
+                let vt = TypeValue::from(self.r.read_var_i7()?);
                 // mutability
-                self.copy_var_u1()?;
+                let mutability = self.r.read_var_u1()?;
                 // initializer
-                self.copy_initializer()?;
+                let init_opcode = self.r.read_u8()?;
+                let init_immediate = self.r.read_var_u32()?;
+                let _end_opcode = self.r.read_u8()?;
+                self.d.global(i, vt, mutability, init_opcode, init_immediate)?;
             }
+            self.d.globals_end()?;
         })
     }
 
