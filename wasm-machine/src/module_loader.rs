@@ -399,9 +399,19 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#linear-memory-section
         Ok({
             let len = self.copy_len()?;
-            for _ in 0..len {
-                self.copy_linear_memory_description()?;
+            self.d.memories_start(len)?;
+            for i in 0..len {
+                let flags = self.r.read_var_u32()?;
+                let minimum = self.r.read_var_u32()?;
+                let maximum = if flags & 1 != 0 { 
+                    Some(self.r.read_var_u32()?)
+                } else {
+                    None
+                };
+                self.d.memory(i, flags, minimum, maximum)?;
+                // self.copy_linear_memory_description()?;
             }
+            self.d.memories_end()?;
         })
     }
 

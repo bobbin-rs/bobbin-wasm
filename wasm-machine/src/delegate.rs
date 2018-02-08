@@ -27,6 +27,10 @@ pub trait Delegate {
     fn function(&mut self, index: u32, sig: u32) -> DelegateResult { Ok(()) }
     fn functions_end(&mut self) -> DelegateResult { Ok(()) }
 
+    fn memories_start(&mut self, count: u32) -> DelegateResult { Ok(()) }
+    fn memory(&mut self, index: u32, flags: u32, minimum: u32, maximum: Option<u32>) -> DelegateResult { Ok(()) }
+    fn memories_end(&mut self) -> DelegateResult { Ok(()) }    
+
     fn exports_start(&mut self, count: u32) -> DelegateResult { Ok(()) }
     fn export(&mut self, index: u32, id: &[u8], kind: i8, external_index: u32) -> DelegateResult { Ok(()) }
     fn exports_end(&mut self) -> DelegateResult { Ok(()) }

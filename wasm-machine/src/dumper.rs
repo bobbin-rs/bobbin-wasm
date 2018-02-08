@@ -16,7 +16,7 @@ impl Delegate for HeaderDumper {
             println!("{:>9} start={:#010x} end={:#010x} (size={:#010x}) count: 1", s_type.as_str(), s_start, s_end, s_len)
         })
     }    
-    
+
     fn end(&mut self, _pos: u32) -> DelegateResult {
         Ok({ 
             println!("");
@@ -80,6 +80,16 @@ impl Delegate for DetailsDumper {
     fn function(&mut self, index: u32, sig: u32) -> DelegateResult { 
         Ok({
             println!(" - func[{}] sig={}", index, sig);
+        })
+    }
+
+    fn memory(&mut self, index: u32, _flags: u32, minimum: u32, maximum: Option<u32>) -> DelegateResult {
+        Ok({
+            print!(" - memory[{}] pages: initial={}", index, minimum);
+            if let Some(maximum) = maximum {
+                print!(" maximum={}", maximum);
+            }
+            println!("");
         })
     }
 
