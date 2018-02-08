@@ -1,4 +1,5 @@
-use {SectionType, TypeValue, Cursor};
+use {SectionType, TypeValue, Value, Cursor};
+use opcode::{I32_CONST, GET_GLOBAL};
 
 use core::slice;
 
@@ -8,6 +9,13 @@ pub enum ExportIndex {
     Table(u32),
     Memory(u32),
     Global(u32),
+}
+
+pub enum ExportItem<'a> {
+    Function(Function<'a>),
+    Table(Table<'a>),
+    Memory(Memory<'a>),
+    Global(Global<'a>),
 }
 
 impl From<(u8, u32)> for ExportIndex {
@@ -66,7 +74,13 @@ impl<'a> Function<'a> {
     }
 }
 
-pub struct Memory {
+pub struct Table<'a> {
+    pub module: &'a Module<'a>,
+    pub index: u32,
+}
+
+pub struct Memory<'a> {
+    pub module: &'a Module<'a>,    
     pub index: u32,
     pub flags: u32,
     pub minimum: u32,
@@ -83,12 +97,33 @@ pub struct Global<'a> {
 }
 
 impl<'a> Global<'a> {
+    pub fn init_value(&self) -> Value {
+        match self.init_opcode {
+            I32_CONST => Value::from(self.init_parameter),
+            // F32_CONST => Value::from(self.init_parameter as f32),
+            GET_GLOBAL => self.module.global(self.init_parameter).unwrap().init_value(),
+            _ => unimplemented!(),
+        }
+    }
 }
 
 pub struct Export<'a> {
+    pub module: &'a Module<'a>,
     pub index: u32,
     pub identifier: &'a [u8],
     pub export_index: ExportIndex,
+}
+
+impl<'a> Export<'a> {
+    pub fn export_item(&self) -> Option<ExportItem<'a>> {
+        use ExportIndex::*;
+        match self.export_index {
+            Function(index) => self.module.function(index).map(ExportItem::Function),
+            Table(index) => self.module.table(index).map(ExportItem::Table),
+            Memory(index) => self.module.memory(index).map(ExportItem::Memory),
+            Global(index) => self.module.global(index).map(ExportItem::Global),
+        }
+    }
 }
 
 pub struct Start<'a> {
@@ -139,8 +174,20 @@ impl<'a> Module<'a> {
         self.section(SectionType::Function).unwrap().functions().nth(index as usize)
     }
 
+    pub fn table(&self, index: u32) -> Option<Table> {
+        self.section(SectionType::Table).unwrap().tables().nth(index as usize)
+    }
+
+    pub fn memory(&self, index: u32) -> Option<Memory> {
+        self.section(SectionType::Table).unwrap().memories().nth(index as usize)
+    }
+
     pub fn global(&self, index: u32) -> Option<Global> {
         self.section(SectionType::Global).unwrap().globals().nth(index as usize)
+    }
+
+    pub fn start(&self) -> Option<Function> {
+        self.section(SectionType::Start).and_then(|s| self.function(Cursor::new(s.buf).read_u32()))
     }
 }
 
@@ -161,6 +208,22 @@ impl<'a> Section<'a> {
         }
     }
 
+    pub fn tables(&self) -> TableIter<'a> {
+        if let SectionType::Table = self.section_type {
+            TableIter { module: self.module, index: 0, buf: Cursor::new(&self.buf[4..]) }
+        } else {
+            TableIter { module: self.module, index: 0, buf: Cursor::new(&[]) }
+        }
+    }
+
+    pub fn memories(&self) -> MemoryIter<'a> {
+        if let SectionType::Memory = self.section_type {
+            MemoryIter { module: self.module, index: 0, buf: Cursor::new(&self.buf[4..]) }
+        } else {
+            MemoryIter { module: self.module, index: 0, buf: Cursor::new(&[]) }
+        }
+    }        
+
     pub fn globals(&self) -> GlobalIter<'a> {
         if let SectionType::Global = self.section_type {
             GlobalIter { module: self.module, index: 0, buf: Cursor::new(&self.buf[4..]) }
@@ -171,9 +234,9 @@ impl<'a> Section<'a> {
 
     pub fn exports(&self) -> ExportIter<'a> {
         if let SectionType::Export = self.section_type {
-            ExportIter { index: 0, buf: Cursor::new(&self.buf[4..]) }
+            ExportIter { module: self.module, index: 0, buf: Cursor::new(&self.buf[4..]) }
         } else {
-            ExportIter { index: 0, buf: Cursor::new(&[]) }
+            ExportIter { module: self.module, index: 0, buf: Cursor::new(&[]) }
         }
     }    
 }
@@ -265,6 +328,54 @@ impl<'a> Iterator for FunctionIter<'a> {
     }
 }
 
+pub struct TableIter<'a> {
+    module: &'a Module<'a>,
+    index: u32,
+    buf: Cursor<'a>,
+}
+
+impl<'a> Iterator for TableIter<'a> {
+    type Item = Table<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.buf.len() > 0 {
+            let index = self.index;
+            self.index += 1;
+            Some(Table { module: self.module, index })
+        } else {
+            None
+        }
+    }
+}
+
+
+pub struct MemoryIter<'a> {
+    module: &'a Module<'a>,
+    index: u32,
+    buf: Cursor<'a>,
+}
+
+impl<'a> Iterator for MemoryIter<'a> {
+    type Item = Memory<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.buf.len() > 0 {
+            let index = self.index;
+            let flags = self.buf.read_u32();
+            let minimum = self.buf.read_u32();
+            let maximum = if flags == 1 {
+                Some(self.buf.read_u32())
+            } else {
+                None
+            };
+            self.index += 1;
+            Some(Memory { module: self.module, index, flags, minimum, maximum })
+        } else {
+            None
+        }
+    }
+}
+
 pub struct GlobalIter<'a> {
     module: &'a Module<'a>,
     index: u32,
@@ -291,6 +402,7 @@ impl<'a> Iterator for GlobalIter<'a> {
 
 
 pub struct ExportIter<'a> {
+    module: &'a Module<'a>,
     index: u32,
     buf: Cursor<'a>,
 }
@@ -305,7 +417,7 @@ impl<'a> Iterator for ExportIter<'a> {
             let kind = self.buf.read_u8();
             let export_index = ExportIndex::from((kind, self.buf.read_u32()));
             self.index += 1;
-            Some(Export { index, identifier, export_index })
+            Some(Export { module: self.module, index, identifier, export_index })
         } else {
             None
         }
