@@ -8,7 +8,7 @@ use std::str;
 
 use clap::{App, Arg};
 
-use wasm::{Reader, Writer, ModuleLoader, SectionType};
+use wasm::{Reader, Writer, ModuleLoader};
 
 #[derive(Debug)]
 pub enum Error {
@@ -47,42 +47,46 @@ pub fn run(path: &str) -> Result<(), Error> {
     file.read_to_end(&mut data)?;
 
     let mut buf = [0u8; 64 * 1024];
+    let mut d = wasm::dumper::Dumper{};
     let r = Reader::new(&mut data[..]);
     let w = Writer::new(&mut buf);
-    let m = ModuleLoader::new(r, w).load()?;
-    println!("----");
-    for s in m.iter() {
-        println!("{:?}: {:04x}", s.section_type, s.buf.len());
-        match s.section_type {
-            SectionType::Type => {
-                for t in s.types() {
-                    println!("  p: {:?} r: {:?}", t.parameters, t.returns);
-                }
-            },
-            SectionType::Function => {
-                for f in s.functions() {
-                    let t = m.function_signature_type(f.index).unwrap();
-                    println!("  s: ({:?}) -> {:?}", t.parameters, t.returns);
-                }
-            }
-            SectionType::Export => {
-                for e in s.exports() {
-                    println!("  identifier: {:?} index: {:?}", str::from_utf8(e.identifier).unwrap(), e.export_index);
-                }
-            },
-            SectionType::Code => {
-                for c in s.codes() {
-                    println!("  len: {:04x}", c.body.len());
-                }
-            },
-            SectionType::Data => {
-                for d in s.data() {
-                    println!("   {:04x} {:?}", d.offset_parameter, d.data);
-                }
-            }
-            _ => {},
-        }
-    }
+    let _m = ModuleLoader::new(&mut d, r, w).load()?;
+
+
+
+    // println!("----");
+    // for s in m.iter() {
+    //     println!("{:?}: {:04x}", s.section_type, s.buf.len());
+    //     match s.section_type {
+    //         SectionType::Type => {
+    //             for t in s.types() {
+    //                 println!("  p: {:?} r: {:?}", t.parameters, t.returns);
+    //             }
+    //         },
+    //         SectionType::Function => {
+    //             for f in s.functions() {
+    //                 let t = m.function_signature_type(f.index).unwrap();
+    //                 println!("  s: ({:?}) -> {:?}", t.parameters, t.returns);
+    //             }
+    //         }
+    //         SectionType::Export => {
+    //             for e in s.exports() {
+    //                 println!("  identifier: {:?} index: {:?}", str::from_utf8(e.identifier).unwrap(), e.export_index);
+    //             }
+    //         },
+    //         SectionType::Code => {
+    //             for c in s.codes() {
+    //                 println!("  len: {:04x}", c.body.len());
+    //             }
+    //         },
+    //         SectionType::Data => {
+    //             for d in s.data() {
+    //                 println!("   {:04x} {:?}", d.offset_parameter, d.data);
+    //             }
+    //         }
+    //         _ => {},
+    //     }
+    // }
 
     Ok(())
 }

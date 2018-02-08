@@ -1,6 +1,6 @@
-use {Error, Reader, Writer, TypeValue, SectionType, Module};
-use loader::{Label, Loader};
-use stack::Stack;
+use {Error, Reader, Writer, TypeValue, SectionType, Module, Delegate};
+// use loader::{Label, Loader};
+// use stack::Stack;
 use opcode::*;
 use core::convert::TryFrom;
 
@@ -19,16 +19,17 @@ pub enum ExternalKind {
 
 pub type ModuleResult<T> = Result<T, Error>;
 
-pub struct ModuleLoader<'r, 'w> {
+pub struct ModuleLoader<'d, 'r, 'w, D: 'd + Delegate> {
+    d: &'d mut D,
     r: Reader<'r>,
     w: Writer<'w>,
     m: Module<'w>,
 }
 
-impl<'r, 'w> ModuleLoader<'r, 'w> {
-    pub fn new(r: Reader<'r>, mut w: Writer<'w>) -> Self {
+impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
+    pub fn new(d: &'d mut D, r: Reader<'r>, mut w: Writer<'w>) -> Self {
         let m = Module::new(w.split());
-        ModuleLoader { r, w, m }
+        ModuleLoader { d, r, w, m }
     }
 
     fn done(&self) -> bool {
@@ -184,11 +185,13 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
     }
 
     pub fn load(mut self) -> ModuleResult<Module<'w>> {
+        self.d.start()?;
         self.load_header()?;        
         while !self.done() {
             let _s = self.load_section()?;
             self.m.extend(self.w.split())
         }
+        self.d.end(self.r.pos() as u32)?;
         Ok(self.m)
     }
 
@@ -203,12 +206,17 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
         // ID(u8) LEN(u32) [LEN]
         Ok({
             let s = SectionType::try_from(self.read_var_u7()?)?;
+
             let s_len = self.read_var_u32()?;
+            let s_beg = self.r.pos() as u32;
+            let s_end = s_beg + s_len;
+
+            self.d.section_start(s, s_beg, s_end, s_len)?;
 
             self.write_u8(s as u8)?;
             let fixup_len = self.write_u32_fixup()?;
             let w_beg = self.w.pos();
-            let s_beg = self.r.pos();
+
             match s {
                 SectionType::Type => self.load_types()?,
                 SectionType::Import => self.load_imports()?,
@@ -223,10 +231,12 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
                 SectionType::Data => self.load_data()?,
                 _ => self.r.advance(s_len as usize)
             }
-            let s_end = self.r.pos();
-            if s_end - s_beg != s_len as usize {
-                return Err(Error::UnexpectedData { wanted: s_len, got: (s_end - s_beg) as u32 })
+            let r_pos = self.r.pos() as u32;
+            if r_pos != s_end {            
+                return Err(Error::UnexpectedData { wanted: s_len, got: (r_pos - s_beg) as u32 })
             }
+            self.d.section_end()?;
+
             let w_end = self.w.pos();
             let w_len = w_end - w_beg;            
             self.apply_u32_fixup(w_len as u32, fixup_len)?;
@@ -445,59 +455,59 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
     pub fn load_code(&mut self) -> ModuleResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#code-section
         Ok({
-            for i in 0..self.copy_count()? {
+            for _ in 0..self.copy_count()? {
                 self.load_function_body()?;
-                continue;
+                // continue;
 
-                println!("---\nFunction {}\n---", i);
-                // body size
-                let body_len = self.read_var_u32()?;
-                let body_len_fixup = self.write_u32_fixup()?;
+                // println!("---\nFunction {}\n---", i);
+                // // body size
+                // let body_len = self.read_var_u32()?;
+                // let body_len_fixup = self.write_u32_fixup()?;
 
-                let body_w_beg = self.w.pos();
+                // let body_w_beg = self.w.pos();
 
-                let body_beg = self.r.pos();
-                let body_end = body_beg + body_len as usize;
+                // let body_beg = self.r.pos();
+                // let body_end = body_beg + body_len as usize;
 
-                println!("body len: {}", body_len);
-                // locals
+                // println!("body len: {}", body_len);
+                // // locals
 
-                let mut locals = [TypeValue::default(); 16];
-                let mut locals_count = 0;
+                // let mut locals = [TypeValue::default(); 16];
+                // let mut locals_count = 0;
 
-                println!("Locals:");
+                // println!("Locals:");
 
-                for _ in 0..self.copy_var_u32()? {
-                    let n = self.copy_var_u32()?;
-                    let t = TypeValue::from(self.copy_var_i7()?);                    
-                    for _ in 0..n {
-                        println!("  {:?}", t);
-                        locals[locals_count] = t;
-                        locals_count += 1;
-                    }
-                }
+                // for _ in 0..self.copy_var_u32()? {
+                //     let n = self.copy_var_u32()?;
+                //     let t = TypeValue::from(self.copy_var_i7()?);                    
+                //     for _ in 0..n {
+                //         println!("  {:?}", t);
+                //         locals[locals_count] = t;
+                //         locals_count += 1;
+                //     }
+                // }
                 
-                let mut labels_buf = [Label::default(); 256];
-                let label_stack = Stack::new(&mut labels_buf);
+                // let mut labels_buf = [Label::default(); 256];
+                // let label_stack = Stack::new(&mut labels_buf);
 
-                let mut type_buf = [TypeValue::default(); 256];
-                let type_stack = Stack::new(&mut type_buf);
+                // let mut type_buf = [TypeValue::default(); 256];
+                // let type_stack = Stack::new(&mut type_buf);
                
-                {
-                    let mut loader = Loader::new(&self.m, label_stack, type_stack);
+                // {
+                //     let mut loader = Loader::new(&self.m, label_stack, type_stack);
 
-                    let locals = &locals[..locals_count];
-                    let body = &self.r.as_ref()[self.r.pos()..body_end];
-                    // for b in body.iter() {
-                    //     println!("{:02x}", b);
-                    // }
-                    let mut r = Reader::new(body);
-                    loader.load(i, &locals, &mut r, &mut self.w).unwrap();
-                }
-                self.r.set_pos(body_end);
-                let body_w_end = self.w.pos();
-                self.apply_u32_fixup((body_w_end - body_w_beg) as u32, body_len_fixup)?;
-                println!("Done loading, body len was {}", body_w_end - body_w_beg);
+                //     let locals = &locals[..locals_count];
+                //     let body = &self.r.as_ref()[self.r.pos()..body_end];
+                //     // for b in body.iter() {
+                //     //     println!("{:02x}", b);
+                //     // }
+                //     let mut r = Reader::new(body);
+                //     loader.load(i, &locals, &mut r, &mut self.w).unwrap();
+                // }
+                // self.r.set_pos(body_end);
+                // let body_w_end = self.w.pos();
+                // self.apply_u32_fixup((body_w_end - body_w_beg) as u32, body_len_fixup)?;
+                // println!("Done loading, body len was {}", body_w_end - body_w_beg);
             }
         })
     }
@@ -505,7 +515,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
     pub fn load_data(&mut self) -> ModuleResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#data-section
         Ok({
-            for i in 0..self.copy_count()? {
+            for _ in 0..self.copy_count()? {
                 // index
                 self.copy_memory_index()?;
                 // offset

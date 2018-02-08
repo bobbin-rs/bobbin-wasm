@@ -16,12 +16,16 @@ pub mod loader;
 pub mod machine;
 pub mod module;
 pub mod module_loader;
+pub mod delegate;
+pub mod dumper;
 
 pub use cursor::*;
 pub use reader::*;
 pub use writer::*;
 pub use module::*;
 pub use module_loader::*;
+pub use delegate::*;
+pub use dumper::*;
 
 use core::fmt;
 
@@ -206,7 +210,26 @@ impl SectionType {
     fn try_from(other: u8) -> ModuleResult<Self> {
         SectionType::try_from_u32(other as u32)
     }
+
+    fn as_str(&self) -> &'static str {
+        use SectionType::*;
+        match *self {
+            Custom => "Custom",
+            Type => "Type",
+            Import => "Import",
+            Function => "Function",
+            Table => "Table",
+            LinearMemory => "LinearMemory",
+            Global => "Global",
+            Export => "Export",
+            Start => "Start",
+            Element => "Element",
+            Code => "Code",
+            Data => "Data",            
+        }
+    }
 }
+
 
 impl From<u8> for SectionType {
     fn from(other: u8) -> Self {
@@ -216,6 +239,6 @@ impl From<u8> for SectionType {
 
 impl fmt::Display for SectionType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "abc")
     }
 }
