@@ -53,7 +53,51 @@ impl Opcode {
     pub fn is_binop(&self) -> bool {
         self.t1 != TypeValue::None && self.t2 == TypeValue::None
     }
+
+    pub fn immediate_type(&self) -> ImmediateType {
+        ImmediateType::from(self.code)
+    }
 }
+
+pub enum ImmediateType {
+    None,
+    BlockSignature,
+    BranchDepth,
+    BranchTable,
+    I32,
+    I64,
+    F32,
+    F64,
+    Local,
+    Global,
+    Call,
+    CallIndirect,
+    LoadStore,
+    Memory,
+}
+
+impl From<u8> for ImmediateType {
+    fn from(other: u8) -> ImmediateType {
+        use self::ImmediateType::*;
+        match other {
+            BLOCK | LOOP | IF => BlockSignature,
+            BR | BR_IF => BranchDepth,
+            BR_TABLE => BranchTable,
+            I32_CONST => I32,
+            I64_CONST => I64,
+            F32_CONST => F32,
+            F64_CONST => F64,
+            GET_LOCAL | SET_LOCAL | TEE_LOCAL => Local,
+            GET_GLOBAL | SET_GLOBAL => Global,
+            CALL => Call,
+            CALL_INDIRECT => CallIndirect,
+            I32_LOAD ... I64_STORE32 => LoadStore,
+            MEM_SIZE | MEM_GROW => Memory,
+            _ => None,
+        }
+    }
+}
+
 
 /*
  *   tr: result type

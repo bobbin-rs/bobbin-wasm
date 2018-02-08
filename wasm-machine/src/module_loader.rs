@@ -1,7 +1,8 @@
 use {Error, Reader, Writer, TypeValue, SectionType, Module};
 use loader::{Label, Loader};
 use stack::Stack;
-use opcode::{FUNC};
+use opcode::*;
+use core::convert::TryFrom;
 
 pub const MAGIC_COOKIE: u32 = 0x6d736100;
 pub const VERSION: u32 = 0x1;
@@ -521,14 +522,27 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
                 self.copy_local()?;
             }
             // body
-            while self.r.pos() < r_end {                
-                println!("{:02x}", self.copy_u8()?);
+            while self.r.pos() < r_end {
+                self.load_instruction()?;
             }
-            println!("done");
             let w_end = self.w.pos();
             let w_len = w_end - w_beg;
 
             self.apply_u32_fixup(w_len as u32, body_fixup)?;
+        })
+    }
+
+    pub fn load_instruction(&mut self) -> ModuleResult<()> {
+        Ok({
+            let offset = self.r.pos();
+            let op = Opcode::try_from(self.copy_u8()?)?;
+            self.trace(offset, op)?;
+        })
+    }
+
+    pub fn trace(&self, offset: usize, op: Opcode) -> ModuleResult<()> {
+        Ok({
+            println!("{:04x}: {}", offset, op.text);
         })
     }
 }
