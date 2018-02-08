@@ -28,6 +28,7 @@ pub use delegate::*;
 pub use dumper::*;
 
 use core::fmt;
+use core::str;
 
 // use byteorder::{ByteOrder, LittleEndian};
 // use wasm_leb128::{read_i32, read_u32};
@@ -62,6 +63,7 @@ pub enum Error {
     UnexpectedType { wanted: TypeValue, got: TypeValue },
     UnexpectedReturnValue { wanted: TypeValue, got: TypeValue},
     UnexpectedReturnLength { got: u32 },
+    Utf8Error(str::Utf8Error),
     OpcodeError(opcode::Error),
     StackError(stack::Error),
     Leb128Error(wasm_leb128::Error),
@@ -79,6 +81,14 @@ impl From<stack::Error> for Error {
         Error::StackError(other)
     }
 }
+
+
+impl From<str::Utf8Error> for Error {
+    fn from(other: str::Utf8Error) -> Error {
+        Error::Utf8Error(other)
+    }
+}
+
 
 impl From<wasm_leb128::Error> for Error {
     fn from(other: wasm_leb128::Error) -> Error {

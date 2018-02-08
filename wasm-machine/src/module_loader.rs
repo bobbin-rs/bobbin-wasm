@@ -178,7 +178,8 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
     }
 
     fn copy_identifier(&mut self) -> ModuleResult<()> {
-        for _ in 0..self.copy_count()? {
+        let n = self.copy_len()?;
+        for _ in 0..n {
             self.copy_u8()?;
         }
         Ok(())
@@ -420,19 +421,29 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
 
     pub fn load_exports(&mut self) -> ModuleResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#export-section
-        use ExternalKind::*;
         Ok({
-            for _ in 0..self.copy_count()? { 
+            let count = self.copy_count()?;
+            self.d.exports_start(count)?;
+            for i in 0..count { 
                 // identifier
-                self.copy_identifier()?;
+                let id_len = self.read_var_u32()?;
+                let id_beg = self.r.pos();
+                self.r.advance(id_len as usize);
+                let id_end = self.r.pos();
+                
                 // kind                
-                match self.copy_external_kind()? {
-                    Function => self.copy_function_index()?,
-                    Table => self.copy_table_index()?,
-                    Memory => self.copy_memory_index()?,
-                    Global => self.copy_global_index()?,
-                };
+                let kind = self.r.read_var_i7()?;
+                // index
+                let index = self.r.read_var_u32()?;
+                // let kind = match self.copy_external_kind()? {
+                //     Function => self.copy_function_index()?,
+                //     Table => self.copy_table_index()?,
+                //     Memory => self.copy_memory_index()?,
+                //     Global => self.copy_global_index()?,
+                // };
+                self.d.export(i, &self.r.as_ref()[id_beg..id_end], kind, index)?;
             }
+            self.d.exports_end()?;
         })
     }
 

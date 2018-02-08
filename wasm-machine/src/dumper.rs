@@ -1,5 +1,6 @@
 use {SectionType, TypeValue};
 use delegate::*;
+use core::str;
 
 pub struct HeaderDumper {}
 
@@ -69,5 +70,10 @@ impl Delegate for DetailsDumper {
             println!(" - func[{}] sig={}", index, sig);
         })
     }
-    
+
+    fn export(&mut self, index: u32, id: &[u8], _kind: i8, _external_index: u32) -> DelegateResult { 
+        Ok({
+            println!(" - func[{}] -> {:?}", index, str::from_utf8(id)?)
+        })
+    }   
 }

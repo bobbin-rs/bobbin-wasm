@@ -209,6 +209,14 @@ impl<'a> Reader<'a> {
         self.pos += n;
         Ok(v)
     }
+
+    #[inline]
+    pub fn read_identifier(&mut self) -> ReaderResult<&[u8]> {
+        let n = self.read_var_u32()? as usize;
+        let id = &self.buf[self.pos..self.pos+n];
+        self.pos += n;
+        Ok(id)
+    }
 }
 
 impl<'a> Index<usize> for Reader<'a> {
