@@ -70,24 +70,22 @@ impl<'g, 'f, 's, 'm, 'vs, 'cs, 'c, 'h, H: 'h + Handler> Machine<'g, 'f, 's, 'm, 
     // Functions
 
     pub fn function_offset(&self, id: u32) -> Result<u32, Error> {
-        let id = id as usize;
-        let len = self.functions.len();
+        let len = self.functions.len() as u32;
         if id < len {
-            Ok(self.functions[id].offset)
+            Ok(self.functions[id as usize].offset)
         } else {
-            Err(Error::InvalidFunction { id, len })
+            Err(Error::InvalidFunction { id })
         }
     }
 
     // Signatures
 
     pub fn signature(&self, id: u32) -> Result<(&[TypeValue], &[TypeValue]), Error> {
-        let id = id as usize;
-        let len = self.signatures.len();
+        let len = self.signatures.len() as u32;
         if id < len {
-            Ok(self.signatures[id])
+            Ok(self.signatures[id as usize])
         } else {
-            Err(Error::InvalidSignature { id, len })
+            Err(Error::InvalidSignature { id })
         }
         
     }

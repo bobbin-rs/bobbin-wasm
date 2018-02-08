@@ -11,7 +11,7 @@ use core::convert::TryFrom;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Fixup {
-    depth: usize,
+    depth: u32,
     offset: u32,
 }
 
@@ -29,7 +29,7 @@ pub struct Label {
     opcode: u8,
     signature: TypeValue,
     offset: u32,
-    stack_limit: usize,
+    stack_limit: u32,
     unreachable: bool,
 }
 
@@ -61,7 +61,7 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
     }
 
     pub fn push_label<T: Into<TypeValue>>(&mut self, opcode: u8, signature: T, offset: u32) -> Result<(), Error> {
-        let stack_limit = self.type_stack.len();
+        let stack_limit = self.type_stack.len() as u32;
         let label = Label {
             opcode,
             signature: signature.into(),
@@ -80,8 +80,8 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
         Ok(label)
     }
 
-    pub fn label_depth(&self) -> usize {
-        self.label_stack.len()
+    pub fn label_depth(&self) -> u32 {
+        self.label_stack.len() as u32
     }
 
     pub fn peek_label(&self, offset: usize) -> Result<Label, Error> {
@@ -136,8 +136,8 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
         }
     }
 
-    pub fn expect_type_stack_depth(&self, wanted: usize) -> Result<(), Error> {
-        let got = self.type_stack.len();
+    pub fn expect_type_stack_depth(&self, wanted: u32) -> Result<(), Error> {
+        let got = self.type_stack.len() as u32;
         if wanted != got {
             Err(Error::UnexpectedTypeStackDepth { wanted, got })
         } else {
@@ -145,16 +145,16 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
         }
     }
 
-    pub fn type_drop_keep(&mut self, drop: usize, keep: usize) -> Result<(), Error> {
+    pub fn type_drop_keep(&mut self, drop: u32, keep: u32) -> Result<(), Error> {
         self.type_stack.dump();
         println!("drop_keep {}, {}", drop,keep);
-        self.type_stack.drop_keep(drop, keep)?;
+        self.type_stack.drop_keep(drop as usize, keep as usize)?;
         self.type_stack.dump();
         Ok(())
     }
 
     pub fn add_fixup(&mut self, rel_depth: u32, offset: u32) -> Result<(), Error> {
-        let depth = self.label_depth() - rel_depth as usize;
+        let depth = self.label_depth() - rel_depth;
         let fixup = Fixup { depth: depth, offset: offset };
         // println!("add_fixup: {:?}", fixup);
         for entry in self.fixups.iter_mut() {
@@ -192,8 +192,8 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
         Ok(())
     }
 
-    fn get_drop_keep(&mut self, label: &Label) -> Result<(usize, usize), Error> {
-        let drop = self.type_stack.len() - label.stack_limit;
+    fn get_drop_keep(&mut self, label: &Label) -> Result<(u32, u32), Error> {
+        let drop = self.type_stack.len() as u32 - label.stack_limit;
         let drop = if self.is_unreachable()? { 0 } else { drop };
         Ok(
             if label.opcode == LOOP {
@@ -229,19 +229,19 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
             BR => {
                 let label = self.label_stack.top()?;
                 let (drop, keep) = self.get_drop_keep(&label)?;
-                self.type_stack.drop_keep(drop, keep)?;
+                self.type_stack.drop_keep(drop as usize, keep as usize)?;
                 self.set_unreachable(true)?;
             },
             BR_IF => {
                 self.pop_type_expecting(I32)?;
                 let label = self.label_stack.top()?;
                 let (drop, keep) = self.get_drop_keep(&label)?;
-                self.type_stack.drop_keep(drop, keep)?;
+                self.type_stack.drop_keep(drop as usize, keep as usize)?;
                 self.set_unreachable(true)?;
             },            
             RETURN => {
                 self.expect_type(return_type)?;                
-                let drop = self.type_stack.len();
+                let drop = self.type_stack.len() as u32;
                 let (drop, keep) = if return_type == TypeValue::Void {
                     (drop, 0)
                 } else {
@@ -269,7 +269,7 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
     ) -> Result<(), Error> {
         // push function start onto control stack
 
-        let signature_type = self.module.function_signature_type(index as usize).unwrap();
+        let signature_type = self.module.function_signature_type(index).unwrap();
         let parameters = &signature_type.parameters;
         println!("Signature:");
         print!("  (");
@@ -342,7 +342,7 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
                     let label = self.label_stack.peek(depth as usize)?;
                     let (drop, keep) = self.get_drop_keep(&label)?;
                     println!("drop_keep: {}, {}", drop, keep);
-                    w.write_drop_keep(drop, keep)?;                    
+                    w.write_drop_keep(drop, keep)?;
                     w.write_opcode(op)?;
                     println!("BR / BR_IF ADD FIXUP {} 0x{:04x}", depth, w.pos());
                     self.add_fixup(depth, w.pos() as u32)?;
@@ -397,7 +397,7 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
                 },
                 UNREACHABLE => return Err(Error::Unreachable),
                 RETURN => {
-                    let depth = self.type_stack.len();
+                    let depth = self.type_stack.len() as u32;
                     if return_type == VOID {
                         w.write_drop_keep(depth, 0)?;
                     } else {
@@ -407,16 +407,16 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
                 },
                 GET_LOCAL | SET_LOCAL | TEE_LOCAL => {
                     // Emits OP DEPTH_TO_LOCAL
-                    let id = r.read_var_u32()? as usize;
+                    let id = r.read_var_u32()?;
                     let len = locals_count;
                     if id >= len {
-                        return Err(Error::InvalidLocal { id: id, len: len })
+                        return Err(Error::InvalidLocal { id: id })
                     }
 
-                    let ty = if id < parameters.len() {
-                        TypeValue::from(parameters[id] as i8)
+                    let ty = if id < parameters.len() as u32 {
+                        TypeValue::from(parameters[id as usize] as i8)
                     } else {
-                        locals[id - parameters.len()]
+                        locals[(id as usize) - parameters.len()]
                     };
                     match op {
                         GET_LOCAL => self.push_type(ty)?,
@@ -427,16 +427,16 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
                         }
                         _ => unreachable!()
                     }
-                    let depth = self.type_stack.len() - id;
+                    let depth = (self.type_stack.len() as u32) - id;
                     w.write_opcode(op)?;
                     w.write_u32(depth as u32)?;
                 },
                 GET_GLOBAL | SET_GLOBAL => {
-                    let id = r.read_var_u32()? as usize;
+                    let id = r.read_var_u32()?;
                     let global = if let Some(global) = self.module.global(id) {
                         global
                     } else {
-                        return Err(Error::InvalidGlobal { id: id, len: 0 })
+                        return Err(Error::InvalidGlobal { id: id })
                     };
                     let ty = TypeValue::from(global.global_type);
                     match op {
@@ -448,15 +448,15 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
                     w.write_u32(id as u32)?;
                 },
                 CALL => {
-                    let id = r.read_var_u32()? as usize;
+                    let id = r.read_var_u32()?;
                     let signature = if let Some(signature) = self.module.function_signature_type(id) {
                         signature
                     } else {
-                        return Err(Error::InvalidFunction { id: id, len: 0 })
+                        return Err(Error::InvalidFunction { id: id })
                     };
                     let (parameters, returns) = (signature.parameters, signature.returns);
                     if returns.len() > 1 {
-                        return Err(Error::UnexpectedReturnLength { got: returns.len()})
+                        return Err(Error::UnexpectedReturnLength { got: returns.len() as u32})
                     }
                     for p in parameters.iter() {
                         self.pop_type_expecting(TypeValue::from(*p as i8))?;
@@ -471,18 +471,18 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
                 CALL_INDIRECT => {
                     // Emits OP SIG
 
-                    let id = r.read_var_u32()? as usize;
+                    let id = r.read_var_u32()?;
                     let _ = r.read_var_u1()?;
                     
                     let signature = if let Some(signature) = self.module.function_signature_type(id) {
                         signature
                     } else {
-                        return Err(Error::InvalidFunction { id: id, len: 0 })
+                        return Err(Error::InvalidFunction { id: id })
                     };
                     let (parameters, returns) = (signature.parameters, signature.returns);
 
                     if returns.len() > 1 {
-                        return Err(Error::UnexpectedReturnLength { got: returns.len()})
+                        return Err(Error::UnexpectedReturnLength { got: returns.len() as u32})
                     }
                     // Load function index
                     self.pop_type_expecting(I32)?;
@@ -610,7 +610,7 @@ pub trait WriteLoader {
     fn write_br(&mut self, depth: usize) -> Result<(), Error>;
     fn write_br_if(&mut self, depth: usize) -> Result<(), Error>;
     fn write_end(&mut self) -> Result<(), Error>;
-    fn write_drop_keep(&mut self, drop_count: usize, keep_size: usize) -> Result<(), Error>;
+    fn write_drop_keep(&mut self, drop_count: u32, keep_size: u32) -> Result<(), Error>;
     fn write_alloca(&mut self, count: usize) -> Result<(), Error>;
     fn write_i32_const(&mut self, value: i32)-> Result<(), Error>;
 }
@@ -637,7 +637,7 @@ impl<'w> WriteLoader for Writer<'w> {
         self.write_var_u32(depth as u32)?;
         Ok(())
     }
-    fn write_drop_keep(&mut self, drop_count: usize, keep_count: usize) -> Result<(), Error> {
+    fn write_drop_keep(&mut self, drop_count: u32, keep_count: u32) -> Result<(), Error> {
         println!("drop_keep {}, {}", drop_count, keep_count);
         if drop_count == 1 && keep_count == 0 {
             self.write_opcode(DROP)?;            

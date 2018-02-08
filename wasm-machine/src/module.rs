@@ -17,7 +17,7 @@ pub struct Type<'a> {
 }
 
 pub struct Function {
-    pub signature: u32,
+    pub signature_type: u32,
 }
 
 pub struct Memory {
@@ -68,13 +68,13 @@ impl<'a> Module<'a> {
         self.iter().find(|s| s.section_type == st)
     }
 
-    pub fn function_signature_type(&self, index: usize) -> Option<Type> {
-        let f = self.section(SectionType::Function).unwrap().functions().nth(index).unwrap();
-        self.section(SectionType::Type).unwrap().types().nth(f.signature as usize)
+    pub fn function_signature_type(&self, index: u32) -> Option<Type> {
+        let f = self.section(SectionType::Function).unwrap().functions().nth(index as usize).unwrap();
+        self.section(SectionType::Type).unwrap().types().nth(f.signature_type as usize)
     }
 
-    pub fn global(&self, index: usize) -> Option<Global> {
-        self.section(SectionType::Global).unwrap().globals().nth(index)
+    pub fn global(&self, index: u32) -> Option<Global> {
+        self.section(SectionType::Global).unwrap().globals().nth(index as usize)
     }
 }
 
@@ -161,7 +161,7 @@ impl<'a> Iterator for FunctionIter<'a> {
 
     fn next(&mut self) -> Option<Function> {
         if self.buf.len() > 0 {
-            Some(Function { signature: self.buf.read_u32() })
+            Some(Function { signature_type: self.buf.read_u32() })
         } else {
             None
         }
@@ -207,67 +207,3 @@ impl<'a> Iterator for ExportIter<'a> {
         }
     }
 }
-
-
-// pub struct Section<'a> {
-//     m: &'a Module<'a>,
-//     pub off: u32,
-//     pub sid: SectionType,
-//     pub len: u32,
-//     pub cnt: u32,
-// }
-
-// impl<'a> Section<'a> {
-//     pub fn iter_types(&'a self) -> TypeIter<'a> {
-//         assert!(self.sid == SectionType::Type);
-//         TypeIter { m: self.m, s: self, pos: self.off, n: 0 }
-//     }
-
-//     // pub fn iter_functions(&'a self) -> FunctionIter<'a> {
-//     //     assert!(self.sid == SectionType::Type);
-//     //     FunctionIter { m: self, s: self, pos: self.off }
-//     // }    
-// }
-
-
-// pub struct TypeIter<'a> {
-//     m: &'a Module<'a>,
-//     s: &'a Section<'a>,
-//     pos: u32,
-//     n: u32,
-// }
-
-// impl<'a> Iterator for TypeIter<'a> {
-//     type Item = Type<'a>;
-//     fn next(&mut self) -> Option<Type<'a>> {
-//         if self.n < self.s.cnt {           
-//             let pos = self.pos as u32;
-//             let n = self.n;            
-//             let len = self.m.read_u32_at(self.pos as usize);
-//             self.n += 1;
-//             self.pos += len;
-//             Some(Type{ m: self.m, s: self.s, pos, n })
-//         } else {
-//             None
-//         }
-//     }
-// }
-
-// pub struct Type<'a> {
-//     m: &'a Module<'a>,
-//     s: &'a Section<'a>,
-//     pos: u32,
-//     n: u32,    
-// }
-
-// // impl<'a> Type<'a> {
-// //     pub fn params(&self) -> &[u8] {
-
-// //     }
-// // }
-
-// // pub struct FunctionIter<'a> {
-// //     m: &'a Module<'a>,
-// //     pos: usize,
-// //     s: &'a Section<'a>,    
-// // }
