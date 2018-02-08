@@ -113,6 +113,12 @@ impl Delegate for DetailsDumper {
         })
     }   
 
+    fn start_function(&mut self, function_index: u32) -> DelegateResult {
+        Ok({
+            println!(" - start function: {}", function_index);
+        })
+    }
+
     fn data_segment(&mut self, index: u32, _memory_index: u32, _offset_opcode: u8, offset_immediate: u32, data: &[u8]) -> DelegateResult { 
         Ok({
             println!(" - segment[{}] size={} - init {}={} ", index, data.len(), "i32", offset_immediate);

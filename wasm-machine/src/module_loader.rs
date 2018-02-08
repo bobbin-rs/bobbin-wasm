@@ -477,7 +477,8 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#start-section
         Ok({
             // start index
-            self.copy_function_index()?;
+            let function_index = self.r.read_var_u32()?;
+            self.d.start_function(function_index)?;
         })
     }
 
