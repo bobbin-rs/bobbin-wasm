@@ -468,17 +468,10 @@ impl<'a> Iterator for ExportIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            println!("len: {}", self.buf.len());
             let index = self.index;
             let identifier = self.buf.slice_identifier();
-            println!("id: {:?}", identifier);
-            println!("len: {}", self.buf.len());
             let kind = self.buf.read_u8();
-            println!("kind: {}", kind);
-            println!("len: {}", self.buf.len());
             let export_index = ExportIndex::from((kind, self.buf.read_u32()));
-            println!("index: {:?}", export_index);
-            println!("len: {}", self.buf.len());
             self.index += 1;
             Some(Export { module: self.module, index, identifier, export_index })
         } else {
