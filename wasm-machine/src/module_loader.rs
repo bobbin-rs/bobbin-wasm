@@ -133,7 +133,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
         self.copy_var_u7()
     }
 
-    fn copy_type_value(&mut self) -> ModuleResult<i8> {
+    fn copy_type(&mut self) -> ModuleResult<i8> {
         self.copy_var_i7()
     }
 
@@ -201,7 +201,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
             self.write_u8(s as u8)?;
             let fixup_len = self.write_u32_fixup()?;
             let w_beg = self.w.pos();
-            let pos = self.r.pos();
+            let s_beg = self.r.pos();
             match s {
                 SectionType::Type => self.load_types()?,
                 SectionType::Import => self.load_imports()?,
@@ -216,8 +216,9 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
                 SectionType::Data => self.load_data()?,
                 _ => self.r.advance(s_len as usize)
             }
-            if self.r.pos() != pos + s_len as usize {
-                return Err(Error::UnexpectedData)
+            let s_end = self.r.pos();
+            if s_end - s_beg != s_len as usize {
+                return Err(Error::UnexpectedData { wanted: s_len, got: (s_end - s_beg) as u32 })
             }
             let w_end = self.w.pos();
             let w_len = w_end - w_beg;            
@@ -249,7 +250,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#table-description
         Ok({
             // table element type
-            self.copy_type_value()?;
+            self.copy_type()?;
             // resizable
             self.copy_resizable_limits()?;
         })
@@ -260,7 +261,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#global-description
         Ok({
             // type
-            self.copy_type_value()?;
+            self.copy_type()?;
             // mutability
             self.copy_var_u1()?;
         })
@@ -291,6 +292,15 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
         })
     }   
 
+    pub fn copy_local(&mut self) -> ModuleResult<()> {
+        Ok({
+            // count
+            self.copy_count()?;
+            // value type
+            self.copy_type()?;
+        })
+    }
+
     pub fn load_types(&mut self) -> ModuleResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#type-section
         Ok({
@@ -300,12 +310,12 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
 
                 // parameters 
                 for _ in 0..self.copy_count()? {
-                    self.copy_type_value()?;
+                    self.copy_type()?;
                 }
 
                 // returns
                 for _ in 0..self.copy_count()? {
-                    self.copy_type_value()?;
+                    self.copy_type()?;
                 }                
             }            
         })
@@ -365,7 +375,7 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
         Ok({
             for _ in 0..self.copy_count()? {
                 // value type
-                self.copy_type_value()?;
+                self.copy_type()?;
                 // mutability
                 self.copy_var_u1()?;
                 // initializer
@@ -427,6 +437,9 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#code-section
         Ok({
             for i in 0..self.copy_count()? {
+                self.load_function_body()?;
+                continue;
+
                 println!("---\nFunction {}\n---", i);
                 // body size
                 let body_len = self.read_var_u32()?;
@@ -493,6 +506,29 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
                    self.copy_u8()?;
                }
            }
+        })
+    }
+
+    pub fn load_function_body(&mut self) -> ModuleResult<()> {
+        Ok({
+            // body_size
+            let body_size = self.read_var_u32()?;
+            let body_fixup = self.write_u32_fixup()?;
+            let w_beg = self.w.pos();
+            let r_end = self.r.pos() + body_size as usize;
+            // locals
+            for _ in 0..self.copy_count()? {
+                self.copy_local()?;
+            }
+            // body
+            while self.r.pos() < r_end {                
+                println!("{:02x}", self.copy_u8()?);
+            }
+            println!("done");
+            let w_end = self.w.pos();
+            let w_len = w_end - w_beg;
+
+            self.apply_u32_fixup(w_len as u32, body_fixup)?;
         })
     }
 }
