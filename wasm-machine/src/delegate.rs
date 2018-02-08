@@ -1,5 +1,5 @@
 #![allow(unused_variables)]
-use {Error, SectionType, TypeValue};
+use {Error, SectionType, TypeValue, ExternalKind};
 
 pub type DelegateResult = Result<(), Error>;
 
@@ -27,12 +27,16 @@ pub trait Delegate {
     fn function(&mut self, index: u32, sig: u32) -> DelegateResult { Ok(()) }
     fn functions_end(&mut self) -> DelegateResult { Ok(()) }
 
+    fn tables_start(&mut self, count: u32) -> DelegateResult { Ok(()) }
+    fn table(&mut self, index: u32, element_type: TypeValue, flags: u32, minimum: u32, maximum: Option<u32>) -> DelegateResult { Ok(()) }
+    fn tables_end(&mut self) -> DelegateResult { Ok(()) }
+
     fn memories_start(&mut self, count: u32) -> DelegateResult { Ok(()) }
     fn memory(&mut self, index: u32, flags: u32, minimum: u32, maximum: Option<u32>) -> DelegateResult { Ok(()) }
     fn memories_end(&mut self) -> DelegateResult { Ok(()) }    
 
     fn exports_start(&mut self, count: u32) -> DelegateResult { Ok(()) }
-    fn export(&mut self, index: u32, id: &[u8], kind: i8, external_index: u32) -> DelegateResult { Ok(()) }
+    fn export(&mut self, index: u32, id: &[u8], kind: ExternalKind, external_index: u32) -> DelegateResult { Ok(()) }
     fn exports_end(&mut self) -> DelegateResult { Ok(()) }
 
     fn data_segments_start(&mut self, count: u32) -> DelegateResult { Ok(()) }

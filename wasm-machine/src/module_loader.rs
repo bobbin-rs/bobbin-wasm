@@ -1,4 +1,4 @@
-use {Error, Reader, Writer, TypeValue, SectionType, Module, Delegate};
+use {Error, Reader, Writer, TypeValue, SectionType, ExternalKind, Module, Delegate};
 // use loader::{Label, Loader};
 // use stack::Stack;
 use opcode::*;
@@ -8,14 +8,6 @@ pub const MAGIC_COOKIE: u32 = 0x6d736100;
 pub const VERSION: u32 = 0x1;
 
 pub const FIXUP: u32 = 0xffff_ffff;
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum ExternalKind {
-    Function = 0x00,
-    Table = 0x01,
-    Memory = 0x02,
-    Global = 0x03,
-}
 
 pub type ModuleResult<T> = Result<T, Error>;
 
@@ -389,9 +381,20 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
     pub fn load_tables(&mut self) -> ModuleResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#table-section
         Ok({
-            for _ in 0..self.copy_len()? {
-                self.copy_table_description()?;
+            let num = self.r.read_var_u32()?;
+            self.d.tables_start(num)?;
+            for i in 0..num {
+                let element_type = self.r.read_var_i7()?;
+                let flags = self.r.read_var_u32()?;
+                let minimum = self.r.read_var_u32()?;
+                let maximum = if flags & 1 != 0 { 
+                    Some(self.r.read_var_u32()?)
+                } else {
+                    None
+                };               
+                self.d.table(i, TypeValue::from(element_type), flags, minimum, maximum)?;
             }
+            self.d.tables_end()?;
         })
     }
 
@@ -431,6 +434,7 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
 
     pub fn load_exports(&mut self) -> ModuleResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#export-section
+        use ExternalKind::*;
         Ok({
             let count = self.copy_count()?;
             self.d.exports_start(count)?;
@@ -442,7 +446,13 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
                 let id_end = self.r.pos();
                 
                 // kind                
-                let kind = self.r.read_var_i7()?;
+                let kind = match self.read_var_u7()? {
+                    0x00 => Function,
+                    0x01 => Table,
+                    0x02 => Memory,
+                    0x03 => Global,
+                    id @ _ => return Err(Error::InvalidGlobalKind{ id }),
+                };
                 // index
                 let index = self.r.read_var_u32()?;
                 // let kind = match self.copy_external_kind()? {

@@ -123,6 +123,14 @@ impl From<Value> for u32 {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum ExternalKind {
+    Function = 0x00,
+    Table = 0x01,
+    Memory = 0x02,
+    Global = 0x03,
+}
+
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i8)]
@@ -151,6 +159,8 @@ impl From<i8> for TypeValue {
             -0x02 => TypeValue::I64,
             -0x03 => TypeValue::F32,
             -0x04 => TypeValue::F64,
+            -0x10 => TypeValue::AnyFunc,
+            -0x20 => TypeValue::Func,
             -0x40 => TypeValue::Void,
             _ => panic!("Unrecognized TypeValue: 0x{:02x}", other)
         }

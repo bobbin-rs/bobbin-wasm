@@ -1,4 +1,4 @@
-use {SectionType, TypeValue};
+use {SectionType, TypeValue, ExternalKind};
 use delegate::*;
 use core::str;
 
@@ -85,6 +85,12 @@ impl Delegate for DetailsDumper {
         })
     }
 
+    fn table(&mut self, index: u32, element_type: TypeValue, _flags: u32, minimum: u32, _maximum: Option<u32>) -> DelegateResult { 
+        Ok({
+            println!(" - table[{}] type={:?} initial={}", index, element_type, minimum);
+        })
+    }
+
     fn memory(&mut self, index: u32, _flags: u32, minimum: u32, maximum: Option<u32>) -> DelegateResult {
         Ok({
             print!(" - memory[{}] pages: initial={}", index, minimum);
@@ -95,9 +101,9 @@ impl Delegate for DetailsDumper {
         })
     }
 
-    fn export(&mut self, index: u32, id: &[u8], _kind: i8, _external_index: u32) -> DelegateResult { 
+    fn export(&mut self, index: u32, id: &[u8], kind: ExternalKind, _external_index: u32) -> DelegateResult { 
         Ok({
-            println!(" - func[{}] -> {:?}", index, str::from_utf8(id)?)
+            println!(" - {:?}[{}] -> {:?}", kind, index, str::from_utf8(id)?)
         })
     }   
     fn data_segment(&mut self, index: u32, _memory_index: u32, _offset_opcode: u8, offset_immediate: u32, data: &[u8]) -> DelegateResult { 
