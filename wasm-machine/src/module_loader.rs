@@ -8,6 +8,13 @@ pub const VERSION: u32 = 0x1;
 
 pub const FIXUP: u32 = 0xffff_ffff;
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum ExternalKind {
+    Function = 0x00,
+    Table = 0x01,
+    Memory = 0x02,
+    Global = 0x03,
+}
 
 pub type ModuleResult<T> = Result<T, Error>;
 
@@ -86,13 +93,17 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
         self.w.write_u32(FIXUP)?;
         Ok(pos as u32)
     }
+    
+    fn apply_u32_fixup(&mut self, value: u32, offset: u32) -> ModuleResult<()> {
+        // println!("apply_fixup: {:08x} @ {:08x}", value, offset);
+        self.w.write_u32_at(value as u32, offset as usize)
+    }
 
     fn copy_u8(&mut self) -> ModuleResult<u8> {
         let val = self.r.read_u8()?;
         self.w.write_u8(val)?;
         Ok(val)
     }    
-
 
     fn copy_var_u1(&mut self) -> ModuleResult<u8> {
         let val = self.r.read_var_u1()?;
@@ -118,18 +129,51 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
         Ok(val)
     }
 
-    fn copy_identifier(&mut self) -> ModuleResult<()> {
-        let len = self.copy_var_u32()?;
-        for _ in 0..len {
-            let v = self.read_u8()?;
-            self.write_u8(v)?;
-        }
-        Ok(())
+    fn copy_kind(&mut self) -> ModuleResult<u8> {
+        self.copy_var_u7()
     }
 
-    fn apply_u32_fixup(&mut self, value: u32, offset: u32) -> ModuleResult<()> {
-        // println!("apply_fixup: {:08x} @ {:08x}", value, offset);
-        self.w.write_u32_at(value as u32, offset as usize)
+    fn copy_type_value(&mut self) -> ModuleResult<i8> {
+        self.copy_var_i7()
+    }
+
+    fn copy_index(&mut self) -> ModuleResult<u32> {
+        self.copy_var_u32()
+    }
+
+    fn copy_type_index(&mut self) -> ModuleResult<u32> {
+        self.copy_index()
+    }
+
+    fn copy_function_index(&mut self) -> ModuleResult<u32> {
+        self.copy_index()
+    }
+
+    fn copy_table_index(&mut self) -> ModuleResult<u32> {
+        self.copy_index()
+    }
+
+    fn copy_memory_index(&mut self) -> ModuleResult<u32> {
+        self.copy_index()
+    }    
+
+    fn copy_global_index(&mut self) -> ModuleResult<u32> {
+        self.copy_index()
+    }    
+
+    fn copy_len(&mut self) -> ModuleResult<u32> {
+        self.copy_var_u32()
+    }
+
+    fn copy_count(&mut self) -> ModuleResult<u32> {
+        self.copy_var_u32()
+    }
+
+    fn copy_identifier(&mut self) -> ModuleResult<()> {
+        for _ in 0..self.copy_count()? {
+            self.copy_u8()?;
+        }
+        Ok(())
     }
 
     pub fn load(mut self) -> ModuleResult<Module<'w>> {
@@ -156,14 +200,14 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
 
             self.write_u8(s as u8)?;
             let fixup_len = self.write_u32_fixup()?;
-            let s_beg = self.w.pos();
+            let w_beg = self.w.pos();
             let pos = self.r.pos();
             match s {
                 SectionType::Type => self.load_types()?,
                 SectionType::Import => self.load_imports()?,
                 SectionType::Function => self.load_functions()?,
                 SectionType::Table => self.load_tables()?,
-                SectionType::Memory => self.load_memory()?,
+                SectionType::LinearMemory => self.load_linear_memory()?,
                 SectionType::Global => self.load_globals()?,
                 SectionType::Export => self.load_exports()?,
                 SectionType::Start => self.load_start()?,
@@ -175,147 +219,153 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
             if self.r.pos() != pos + s_len as usize {
                 return Err(Error::UnexpectedData)
             }
-            let s_end = self.w.pos();
-            let s_len = s_end - s_beg;
-            println!("{:08x} to {:08x} (len {:08x})", s_beg, s_end, s_len);
-            self.apply_u32_fixup(s_len as u32, fixup_len)?;
+            let w_end = self.w.pos();
+            let w_len = w_end - w_beg;            
+            self.apply_u32_fixup(w_len as u32, fixup_len)?;
             s
         })
     }
 
-    pub fn load_types(&mut self) -> ModuleResult<()> {
-        println!("load_types");
+    pub fn copy_resizable_limits(&mut self) -> ModuleResult<()> {    
+        // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#resizable-limits
         Ok({
-            let len = self.copy_var_u32()?;
-            println!("  len: {}", len);
+            // flags
+            let f = self.copy_var_u32()?;
+            // minimum
+            self.copy_var_u32()?;
+            if f & 1 != 0 {
+                // maximum
+                self.copy_var_u32()?;
+            }
+        })
+    }
 
-            for i in 0..len {              
-                println!("  {}:", i) ;
-                // Read form 
-                let form = self.read_var_i7_expecting(FUNC as i8, Error::UnknownSignatureType)?;
-                println!("  form: {}", form);
-                // Copy Parameters 
-                let p_len = self.copy_var_u32()?;
-                println!("  p_len: {}", p_len);
-                for _ in 0..p_len {
-                    let t = TypeValue::from(self.copy_var_i7()?);
-                    println!("    {:?}", t);
+    pub fn copy_linear_memory_description(&mut self) -> ModuleResult<()> {
+        // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#linear-memory-description
+        self.copy_resizable_limits()
+    }
+
+    pub fn copy_table_description(&mut self) -> ModuleResult<()> {
+        // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#table-description
+        Ok({
+            // table element type
+            self.copy_type_value()?;
+            // resizable
+            self.copy_resizable_limits()?;
+        })
+    }
+
+
+    pub fn copy_global_description(&mut self) -> ModuleResult<()> {
+        // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#global-description
+        Ok({
+            // type
+            self.copy_type_value()?;
+            // mutability
+            self.copy_var_u1()?;
+        })
+    }
+
+    pub fn copy_external_kind(&mut self) -> ModuleResult<ExternalKind> {
+        // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#external-kinds
+        use ExternalKind::*;
+        Ok({
+            match self.copy_var_u7()? {
+                0x00 => Function,
+                0x01 => Table,
+                0x02 => Memory,
+                0x03 => Global,
+                id @ _ => return Err(Error::InvalidGlobalKind{ id }),
+            }
+        })
+    }
+
+
+    pub fn copy_initializer(&mut self) -> ModuleResult<()> {
+        // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#instantiation-time-initializers
+        Ok({
+            // opcode
+            self.copy_u8()?;
+            // id
+            self.copy_var_u32()?;
+        })
+    }   
+
+    pub fn load_types(&mut self) -> ModuleResult<()> {
+        // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#type-section
+        Ok({
+            for _ in 0..self.copy_count()? {              
+                // form 
+                let _form = self.read_var_i7_expecting(FUNC as i8, Error::UnknownSignatureType)?;
+
+                // parameters 
+                for _ in 0..self.copy_count()? {
+                    self.copy_type_value()?;
                 }
 
-                // Copy Returns
-                let r_len = self.copy_var_u32()?;                
-                println!("  r_len: {}", r_len);
-                for _ in 0..r_len {
-                    let t = TypeValue::from(self.copy_var_i7()?);
-                    println!("    -> {:?}", t);
+                // returns
+                for _ in 0..self.copy_count()? {
+                    self.copy_type_value()?;
                 }                
             }            
         })
     }
 
-    pub fn copy_resizable_limits(&mut self) -> ModuleResult<()> {    
-        // flags
-        let f = self.copy_var_u32()?;
-        // minimum
-        self.copy_var_u32()?;
-        if f & 1 != 0 {
-            // copy maximum
-            self.copy_var_u32()?;
-        }
-        Ok(())
-    }
-
-    pub fn copy_table_description(&mut self) -> ModuleResult<()> {
-        // table element type
-        self.copy_var_i7()?;
-        self.copy_resizable_limits()?;
-        Ok(())        
-    }
-
-    pub fn copy_linear_memory_description(&mut self) -> ModuleResult<()> {
-        self.copy_resizable_limits()?;
-        Ok(())
-    }
-
-    pub fn copy_global_description(&mut self) -> ModuleResult<()> {
-        // value type
-        self.copy_var_i7()?;
-        self.copy_var_u1()?;
-        Ok(())        
-    }
-
     pub fn load_imports(&mut self) -> ModuleResult<()> {
-        // println!("load_imports");
+        // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#import-section
+        use ExternalKind::*;
         Ok({
-            let len = self.copy_var_u32()?;
-            for _ in 0..len {
-                // copy module_name
+            for _ in 0..self.copy_count()? {
+                // module_name
                 self.copy_identifier()?;
-                // copy export_name
+                // export_name
                 self.copy_identifier()?;
-                // copy external kind
-                let kind = self.copy_var_u7()?;
-                match kind {
-                    // Function
-                    0x00 => { self.copy_var_u32()?; },
-                    // Table
-                    0x01 => self.copy_table_description()?,
-                    // Memory
-                    0x02 => self.copy_linear_memory_description()?,                        
-                    // Global
-                    0x03 => self.copy_global_description()?,
-                    _ => return Err(Error::UnknownExternalKind)
+                // external_kind
+                match self.copy_external_kind()? {
+                    Function => { self.copy_type_index()?; },
+                    Table => self.copy_table_description()?,
+                    Memory => self.copy_linear_memory_description()?,                        
+                    Global => self.copy_global_description()?,
                 }
             }
         })
     }
 
     pub fn load_functions(&mut self) -> ModuleResult<()> {
-        println!("load_functions");
+        // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#function-section
         Ok({
-            let len = self.copy_var_u32()?;
-            for i in 0..len {
-                // function index
-                println!("  {}: {:02x}", i, self.copy_var_u32()?);
+            for _ in 0..self.copy_count()? {
+                // type index
+                self.copy_type_index()?;
             }
         })
     }
 
     pub fn load_tables(&mut self) -> ModuleResult<()> {
-        // println!("load_memory");
+        // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#table-section
         Ok({
-            let len = self.copy_var_u32()?;
-            for _ in 0..len {
+            for _ in 0..self.copy_len()? {
                 self.copy_table_description()?;
             }
         })
     }
 
-    pub fn load_memory(&mut self) -> ModuleResult<()> {
-        // println!("load_memory");
+    pub fn load_linear_memory(&mut self) -> ModuleResult<()> {
+        // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#linear-memory-section
         Ok({
-            let len = self.copy_var_u32()?;
+            let len = self.copy_len()?;
             for _ in 0..len {
                 self.copy_linear_memory_description()?;
             }
         })
     }
 
-    pub fn copy_initializer(&mut self) -> ModuleResult<()> {
-        // opcode
-        self.copy_u8()?;
-        // id
-        self.copy_var_u32()?;
-        Ok(())
-    }
-
     pub fn load_globals(&mut self) -> ModuleResult<()> {
-        // println!("load_globals");
+        // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#global-section
         Ok({
-            let len = self.copy_var_u32()?;
-            for _ in 0..len {
+            for _ in 0..self.copy_count()? {
                 // value type
-                self.copy_var_i7()?;
+                self.copy_type_value()?;
                 // mutability
                 self.copy_var_u1()?;
                 // initializer
@@ -325,39 +375,41 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
     }
 
     pub fn load_exports(&mut self) -> ModuleResult<()> {
-        // println!("load_exports");
+        // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#export-section
+        use ExternalKind::*;
         Ok({
-            let len = self.copy_var_u32()?;
-            for _ in 0..len {
-                // id
+            for _ in 0..self.copy_count()? { 
+                // identifier
                 self.copy_identifier()?;
-                // kind
-                let _kind = self.copy_var_u7()?;
-                // index
-                self.copy_var_u32()?;
-                // todo: validate index based on kind
+                // kind                
+                match self.copy_external_kind()? {
+                    Function => self.copy_function_index()?,
+                    Table => self.copy_table_index()?,
+                    Memory => self.copy_memory_index()?,
+                    Global => self.copy_global_index()?,
+                };
             }
         })
     }
 
     pub fn load_start(&mut self) -> ModuleResult<()> {
-        // println!("load_start");
-        // start index
-        self.copy_var_u32()?;
-        Ok(())
+        // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#start-section
+        Ok({
+            // start index
+            self.copy_function_index()?;
+        })
     }
 
     pub fn table_type(&self, _index: u32) -> ModuleResult<TypeValue> {
         Err(Error::Unimplemented)
     }
 
-    pub fn load_elements(&mut self) -> ModuleResult<()> {        
-        // println!("load_elements");
+    pub fn load_elements(&mut self) -> ModuleResult<()> {
+        // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#element-section
         Ok({
-            let len = self.copy_var_u32()?;
-            for _ in 0..len {
+            for _ in 0..self.copy_count()? {
                 // index
-                let id = self.copy_var_u32()?;
+                let id = self.copy_index()?;
                 // offset initializer
                 self.copy_initializer()?;
                 // if the table's element type is anyfunc:
@@ -372,10 +424,9 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
     }
 
     pub fn load_code(&mut self) -> ModuleResult<()> {
+        // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#code-section
         Ok({
-            let len = self.copy_var_u32()?;
-
-            for i in 0..len {
+            for i in 0..self.copy_count()? {
                 println!("---\nFunction {}\n---", i);
                 // body size
                 let body_len = self.read_var_u32()?;
@@ -425,22 +476,20 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
                 let body_w_end = self.w.pos();
                 self.apply_u32_fixup((body_w_end - body_w_beg) as u32, body_len_fixup)?;
                 println!("Done loading, body len was {}", body_w_end - body_w_beg);
-
-
             }
         })
     }
 
     pub fn load_data(&mut self) -> ModuleResult<()> {
+        // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#data-section
         Ok({
-           let len = self.copy_var_u32()?;
-           for _ in 0..len {
+           for _ in 0..self.copy_count()? {
                // index
-               self.copy_var_u32()?;
+               self.copy_memory_index()?;
                // offset
                self.copy_initializer()?;
                // data
-               for _ in 0..self.copy_var_u32()? {
+               for _ in 0..self.copy_count()? {
                    self.copy_u8()?;
                }
            }

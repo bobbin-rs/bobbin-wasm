@@ -120,7 +120,7 @@ impl<'a> Export<'a> {
         match self.export_index {
             Function(index) => self.module.function(index).map(ExportItem::Function),
             Table(index) => self.module.table(index).map(ExportItem::Table),
-            Memory(index) => self.module.memory(index).map(ExportItem::Memory),
+            Memory(index) => self.module.linear_memory(index).map(ExportItem::Memory),
             Global(index) => self.module.global(index).map(ExportItem::Global),
         }
     }
@@ -210,8 +210,8 @@ impl<'a> Module<'a> {
         self.section(SectionType::Table).unwrap().tables().nth(index as usize)
     }
 
-    pub fn memory(&self, index: u32) -> Option<Memory> {
-        self.section(SectionType::Table).unwrap().memories().nth(index as usize)
+    pub fn linear_memory(&self, index: u32) -> Option<Memory> {
+        self.section(SectionType::Table).unwrap().linear_memories().nth(index as usize)
     }
 
     pub fn global(&self, index: u32) -> Option<Global> {
@@ -248,11 +248,11 @@ impl<'a> Section<'a> {
         }
     }
 
-    pub fn memories(&self) -> MemoryIter<'a> {
-        if let SectionType::Memory = self.section_type {
-            MemoryIter { module: self.module, index: 0, buf: Cursor::new(&self.buf[4..]) }
+    pub fn linear_memories(&self) -> LinearMemoryIter<'a> {
+        if let SectionType::LinearMemory = self.section_type {
+            LinearMemoryIter { module: self.module, index: 0, buf: Cursor::new(&self.buf[4..]) }
         } else {
-            MemoryIter { module: self.module, index: 0, buf: Cursor::new(&[]) }
+            LinearMemoryIter { module: self.module, index: 0, buf: Cursor::new(&[]) }
         }
     }        
 
@@ -405,13 +405,13 @@ impl<'a> Iterator for TableIter<'a> {
 }
 
 
-pub struct MemoryIter<'a> {
+pub struct LinearMemoryIter<'a> {
     module: &'a Module<'a>,
     index: u32,
     buf: Cursor<'a>,
 }
 
-impl<'a> Iterator for MemoryIter<'a> {
+impl<'a> Iterator for LinearMemoryIter<'a> {
     type Item = Memory<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -468,10 +468,17 @@ impl<'a> Iterator for ExportIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
+            println!("len: {}", self.buf.len());
             let index = self.index;
             let identifier = self.buf.slice_identifier();
+            println!("id: {:?}", identifier);
+            println!("len: {}", self.buf.len());
             let kind = self.buf.read_u8();
+            println!("kind: {}", kind);
+            println!("len: {}", self.buf.len());
             let export_index = ExportIndex::from((kind, self.buf.read_u32()));
+            println!("index: {:?}", export_index);
+            println!("len: {}", self.buf.len());
             self.index += 1;
             Some(Export { module: self.module, index, identifier, export_index })
         } else {
