@@ -60,14 +60,14 @@ pub fn run(path: &str) -> Result<(), Error> {
                 }
             },
             SectionType::Function => {
-                for (i, _) in s.functions().enumerate() {
-                    let t = m.function_signature_type(i).unwrap();
+                for f in s.functions() {
+                    let t = m.function_signature_type(f.index).unwrap();
                     println!("  s: ({:?}) -> {:?}", t.parameters, t.returns);
                 }
             }
             SectionType::Export => {
                 for e in s.exports() {
-                    println!("  identifier: {:?} kind: {} index: {}", str::from_utf8(e.identifier).unwrap(), e.kind, e.index);
+                    println!("  identifier: {:?} index: {:?}", str::from_utf8(e.identifier).unwrap(), e.export_index);
                 }
             }
             _ => {},

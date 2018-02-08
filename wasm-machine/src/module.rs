@@ -2,31 +2,57 @@ use {SectionType, Cursor};
 
 use core::slice;
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum ExportIndex {
+    Function(u32),
+    Table(u32),
+    Memory(u32),
+    Global(u32),
+}
+
+impl From<(u8, u32)> for ExportIndex {
+    fn from(other: (u8, u32)) -> Self {
+        use ExportIndex::*;
+        match other.0 {
+            0x00 => Function(other.1),
+            0x01 => Table(other.1),
+            0x02 => Memory(other.1),
+            0x03 => Global(other.1),
+            _ => panic!("Invalid Kind: {:02x}", other.0)
+        }
+    }
+}
+
 pub struct Module<'a> {
     buf: &'a [u8],
 }
 
 pub struct Section<'a> {
+    pub index: u32,
     pub section_type: SectionType,
     pub buf: &'a [u8],
 }
 
 pub struct Type<'a> {
+    pub index: u32,
     pub parameters: &'a [u8],
     pub returns: &'a [u8],
 }
 
 pub struct Function {
-    pub signature_type: u32,
+    pub index: u32,
+    pub signature_type_index: u32,
 }
 
 pub struct Memory {
-    flags: u32,
-    minimum: u32,
-    maximum: Option<u32>,
+    pub index: u32,
+    pub flags: u32,
+    pub minimum: u32,
+    pub maximum: Option<u32>,
 }
 
 pub struct Global {
+    pub index: u32,
     pub global_type: i8,
     pub mutability: u8,
     pub init_opcode: u8,
@@ -34,9 +60,9 @@ pub struct Global {
 }
 
 pub struct Export<'a> {
-    pub identifier: &'a [u8],
-    pub kind: u8,
     pub index: u32,
+    pub identifier: &'a [u8],
+    pub export_index: ExportIndex,
 }
 
 pub struct Start {
@@ -61,7 +87,7 @@ impl<'a> Module<'a> {
     }
 
     pub fn iter(&self) -> SectionIter {
-        SectionIter { buf: Cursor::new(self.buf) }
+        SectionIter { index: 0, buf: Cursor::new(self.buf) }
     }
 
     pub fn section(&self, st: SectionType) -> Option<Section> {
@@ -70,7 +96,7 @@ impl<'a> Module<'a> {
 
     pub fn function_signature_type(&self, index: u32) -> Option<Type> {
         let f = self.section(SectionType::Function).unwrap().functions().nth(index as usize).unwrap();
-        self.section(SectionType::Type).unwrap().types().nth(f.signature_type as usize)
+        self.section(SectionType::Type).unwrap().types().nth(f.signature_type_index as usize)
     }
 
     pub fn global(&self, index: u32) -> Option<Global> {
@@ -81,39 +107,40 @@ impl<'a> Module<'a> {
 impl<'a> Section<'a> {
     pub fn types(&self) -> TypeIter<'a> {
         if let SectionType::Type = self.section_type {
-            TypeIter { buf: Cursor::new(&self.buf[4..]) }
+            TypeIter { index: 0, buf: Cursor::new(&self.buf[4..]) }
         } else {
-            TypeIter { buf: Cursor::new(&[]) }
+            TypeIter { index: 0, buf: Cursor::new(&[]) }
         }
     }
 
     pub fn functions(&self) -> FunctionIter<'a> {
         if let SectionType::Function = self.section_type {
-            FunctionIter { buf: Cursor::new(&self.buf[4..]) }
+            FunctionIter { index: 0, buf: Cursor::new(&self.buf[4..]) }
         } else {
-            FunctionIter { buf: Cursor::new(&[]) }
+            FunctionIter { index: 0, buf: Cursor::new(&[]) }
         }
     }
 
     pub fn globals(&self) -> GlobalIter<'a> {
         if let SectionType::Global = self.section_type {
-            GlobalIter { buf: Cursor::new(&self.buf[4..]) }
+            GlobalIter { index: 0, buf: Cursor::new(&self.buf[4..]) }
         } else {
-            GlobalIter { buf: Cursor::new(&[]) }
+            GlobalIter { index: 0, buf: Cursor::new(&[]) }
         }
     }    
 
     pub fn exports(&self) -> ExportIter<'a> {
         if let SectionType::Export = self.section_type {
-            ExportIter { buf: Cursor::new(&self.buf[4..]) }
+            ExportIter { index: 0, buf: Cursor::new(&self.buf[4..]) }
         } else {
-            ExportIter { buf: Cursor::new(&[]) }
+            ExportIter { index: 0, buf: Cursor::new(&[]) }
         }
     }    
 }
 
 
 pub struct SectionIter<'a> {
+    index: u32,
     buf: Cursor<'a>,
 }
 
@@ -122,10 +149,12 @@ impl<'a> Iterator for SectionIter<'a> {
 
     fn next(&mut self) -> Option<Section<'a>> {
         if self.buf.len() > 0 {
+            let index = self.index;
             let section_type = SectionType::from(self.buf.read_u8());
             let len = self.buf.read_u32() as usize;
             let buf = self.buf.slice(len);
-            Some(Section { section_type, buf })
+            self.index += 1;
+            Some(Section { index, section_type, buf })
         } else {
             None
         }
@@ -133,6 +162,7 @@ impl<'a> Iterator for SectionIter<'a> {
 }
 
 pub struct TypeIter<'a> {
+    index: u32,
     buf: Cursor<'a>,
 }
 
@@ -141,11 +171,13 @@ impl<'a> Iterator for TypeIter<'a> {
 
     fn next(&mut self) -> Option<Type<'a>> {
         if self.buf.len() > 0 {
+            let index = self.index;
             let p_len = self.buf.read_u32();
             let p_buf = self.buf.slice(p_len as usize);
             let r_len = self.buf.read_u32();
             let r_buf = self.buf.slice(r_len as usize);
-            Some(Type { parameters: p_buf, returns: r_buf })
+            self.index += 1;
+            Some(Type { index, parameters: p_buf, returns: r_buf })
         } else {
             None
         }
@@ -153,6 +185,7 @@ impl<'a> Iterator for TypeIter<'a> {
 }
 
 pub struct FunctionIter<'a> {
+    index: u32,
     buf: Cursor<'a>,
 }
 
@@ -161,7 +194,9 @@ impl<'a> Iterator for FunctionIter<'a> {
 
     fn next(&mut self) -> Option<Function> {
         if self.buf.len() > 0 {
-            Some(Function { signature_type: self.buf.read_u32() })
+            let index = self.index;
+            self.index += 1;
+            Some(Function { index, signature_type_index: self.buf.read_u32() })
         } else {
             None
         }
@@ -169,6 +204,7 @@ impl<'a> Iterator for FunctionIter<'a> {
 }
 
 pub struct GlobalIter<'a> {
+    index: u32,
     buf: Cursor<'a>,
 }
 
@@ -177,11 +213,13 @@ impl<'a> Iterator for GlobalIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
+            let index = self.index;
             let global_type = self.buf.read_i8();
             let mutability = self.buf.read_u8();
             let init_opcode = self.buf.read_u8();
             let init_parameter = self.buf.read_u32();
-            Some(Global { global_type, mutability, init_opcode, init_parameter })
+            self.index += 1;
+            Some(Global { index, global_type, mutability, init_opcode, init_parameter })
         } else {
             None
         }
@@ -190,6 +228,7 @@ impl<'a> Iterator for GlobalIter<'a> {
 
 
 pub struct ExportIter<'a> {
+    index: u32,
     buf: Cursor<'a>,
 }
 
@@ -198,10 +237,12 @@ impl<'a> Iterator for ExportIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
+            let index = self.index;
             let identifier = self.buf.slice_identifier();
             let kind = self.buf.read_u8();
-            let index = self.buf.read_u32();
-            Some(Export { identifier, kind, index })
+            let export_index = ExportIndex::from((kind, self.buf.read_u32()));
+            self.index += 1;
+            Some(Export { index, identifier, export_index })
         } else {
             None
         }
