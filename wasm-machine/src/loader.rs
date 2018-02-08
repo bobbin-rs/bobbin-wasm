@@ -302,7 +302,7 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
         while r.remaining() > 0 {
             let op = r.read_opcode()?;
             let opc = Opcode::try_from(op)?;
-            println!("{:04x}: V:{} | {} ", w.pos(), self.type_stack.len(), opc.text);
+            println!("{:04x}/{:04x}: V:{} | {} ", r.pos(), w.pos(), self.type_stack.len(), opc.text);
             // println!("type check");
             self.type_check(opc, return_type)?;   
             // println!("type check done");

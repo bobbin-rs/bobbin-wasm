@@ -378,7 +378,11 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
             for i in 0..len {
                 println!("---\nFunction {}\n---", i);
                 // body size
-                let body_len = self.copy_var_u32()?;
+                let body_len = self.read_var_u32()?;
+                let body_len_fixup = self.write_u32_fixup()?;
+
+                let body_w_beg = self.w.pos();
+
                 let body_beg = self.r.pos();
                 let body_end = body_beg + body_len as usize;
 
@@ -405,11 +409,11 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
 
                 let mut type_buf = [TypeValue::default(); 256];
                 let type_stack = Stack::new(&mut type_buf);
-                let mut loader = Loader::new(&self.m, label_stack, type_stack);
-
-                let locals = &locals[..locals_count];
                
                 {
+                    let mut loader = Loader::new(&self.m, label_stack, type_stack);
+
+                    let locals = &locals[..locals_count];
                     let body = &self.r.as_ref()[self.r.pos()..body_end];
                     // for b in body.iter() {
                     //     println!("{:02x}", b);
@@ -418,7 +422,9 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
                     loader.load(i, &locals, &mut r, &mut self.w).unwrap();
                 }
                 self.r.set_pos(body_end);
-                println!("Done loading");
+                let body_w_end = self.w.pos();
+                self.apply_u32_fixup((body_w_end - body_w_beg) as u32, body_len_fixup)?;
+                println!("Done loading, body len was {}", body_w_end - body_w_beg);
 
 
             }

@@ -69,6 +69,11 @@ pub fn run(path: &str) -> Result<(), Error> {
                 for e in s.exports() {
                     println!("  identifier: {:?} index: {:?}", str::from_utf8(e.identifier).unwrap(), e.export_index);
                 }
+            },
+            SectionType::Code => {
+                for c in s.codes() {
+                    println!("  len: {:04x}", c.body.len());
+                }
             }
             _ => {},
         }
