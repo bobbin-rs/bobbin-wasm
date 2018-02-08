@@ -50,13 +50,19 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     file.read_to_end(&mut data)?;
 
     let mut buf = [0u8; 64 * 1024];
-    let r = Reader::new(&mut data[..]);
-    let w = Writer::new(&mut buf);
+    
+    
 
     if matches.is_present("headers") {
+        let r = Reader::new(&mut data[..]);
+        let w = Writer::new(&mut buf);
         let mut d = wasm::dumper::HeaderDumper{};
         let _m = ModuleLoader::new(&mut d, r, w).load()?;        
-    } else if matches.is_present("details") {
+    } 
+    
+    if matches.is_present("details") {
+        let r = Reader::new(&mut data[..]);
+        let w = Writer::new(&mut buf);
         let mut d = wasm::dumper::DetailsDumper{};
         let _m = ModuleLoader::new(&mut d, r, w).load()?;                
     }

@@ -655,7 +655,8 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
         })
     }
 
-    pub fn trace<T, F: FnOnce()->T>(&self, f: F) -> ModuleResult<T> {
-        Ok(f())
+    pub fn trace<F: FnOnce()->()>(&self, _f: F) -> ModuleResult<()> {
+        // Ok(f())
+        Ok(())
     }
 }
