@@ -1,4 +1,4 @@
-use {SectionType, Cursor};
+use {SectionType, TypeValue, Cursor};
 
 use core::slice;
 
@@ -28,6 +28,7 @@ pub struct Module<'a> {
 }
 
 pub struct Section<'a> {
+    module: &'a Module<'a>,
     pub index: u32,
     pub section_type: SectionType,
     pub buf: &'a [u8],
@@ -37,6 +38,20 @@ pub struct Type<'a> {
     pub index: u32,
     pub parameters: &'a [u8],
     pub returns: &'a [u8],
+}
+
+impl<'a> Type<'a> {
+    pub fn parameters(&self) -> TypeValuesIter<'a> {
+        TypeValuesIter { index: 0, buf: self.parameters }
+    }
+
+    pub fn returns(&self) -> TypeValuesIter<'a> {
+        TypeValuesIter { index: 0, buf: self.returns }
+    }
+
+    pub fn return_type(&self) -> Option<TypeValue> {
+        self.returns.first().map(|t| TypeValue::from(*t as i8))
+    }
 }
 
 pub struct Function {
@@ -87,7 +102,7 @@ impl<'a> Module<'a> {
     }
 
     pub fn iter(&self) -> SectionIter {
-        SectionIter { index: 0, buf: Cursor::new(self.buf) }
+        SectionIter { module: self, index: 0, buf: Cursor::new(self.buf) }
     }
 
     pub fn section(&self, st: SectionType) -> Option<Section> {
@@ -140,6 +155,7 @@ impl<'a> Section<'a> {
 
 
 pub struct SectionIter<'a> {
+    module: &'a Module<'a>,
     index: u32,
     buf: Cursor<'a>,
 }
@@ -154,7 +170,7 @@ impl<'a> Iterator for SectionIter<'a> {
             let len = self.buf.read_u32() as usize;
             let buf = self.buf.slice(len);
             self.index += 1;
-            Some(Section { index, section_type, buf })
+            Some(Section { module: self.module, index, section_type, buf })
         } else {
             None
         }
@@ -178,6 +194,26 @@ impl<'a> Iterator for TypeIter<'a> {
             let r_buf = self.buf.slice(r_len as usize);
             self.index += 1;
             Some(Type { index, parameters: p_buf, returns: r_buf })
+        } else {
+            None
+        }
+    }
+}
+
+pub struct TypeValuesIter<'a> {
+    index: u32,
+    buf: &'a [u8],
+}
+
+impl<'a> Iterator for TypeValuesIter<'a> {
+    type Item = TypeValue;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.buf.len() > 0 {
+            let i = self.index;
+            let t = TypeValue::from(self.buf[i as usize] as i8);
+            self.index += 1;
+            Some(t)
         } else {
             None
         }
