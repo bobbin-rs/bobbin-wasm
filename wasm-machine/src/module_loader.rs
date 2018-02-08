@@ -551,17 +551,27 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
     pub fn load_data(&mut self) -> ModuleResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#data-section
         Ok({
-            for _ in 0..self.copy_count()? {
+            let num = self.read_var_u32()?;
+            self.d.data_segments_start(num)?;
+            for i in 0..num {
                 // index
-                self.copy_memory_index()?;
+                let memory_index = self.read_var_u32()?;                
+
                 // offset
-                self.copy_initializer()?;
+                let offset_opcode = self.read_u8()?;
+                let offset_immediate = self.read_var_u32()?;                
+                let _offset_end = self.read_u8()?;
+
                 // data
-                let num = self.copy_var_u32()?;
-                for _ in 0..num {
-                    self.copy_u8()?;                   
-                }
+                let data_len = self.r.read_var_u32()?;
+                let data_beg = self.r.pos();
+                self.r.advance(data_len as usize);
+                let data_end = self.r.pos();
+                let data = &self.r.as_ref()[data_beg..data_end];
+                
+                self.d.data_segment(i, memory_index, offset_opcode, offset_immediate, data)?;
             }
+            self.d.data_segments_end()?;
         })
     }
 

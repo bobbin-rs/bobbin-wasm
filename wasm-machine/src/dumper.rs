@@ -38,7 +38,9 @@ impl Delegate for DetailsDumper {
 
     fn section_start(&mut self, s_type: SectionType, _s_start: u32, _s_end: u32, _s_len: u32) -> DelegateResult {
         Ok({
-            println!("{}:", s_type.as_str());            
+            if s_type != SectionType::Code {
+                println!("{}:", s_type.as_str());            
+            }
         })
     }    
     
@@ -98,6 +100,19 @@ impl Delegate for DetailsDumper {
             println!(" - func[{}] -> {:?}", index, str::from_utf8(id)?)
         })
     }   
+    fn data_segment(&mut self, index: u32, _memory_index: u32, _offset_opcode: u8, offset_immediate: u32, data: &[u8]) -> DelegateResult { 
+        Ok({
+            println!(" - segment[{}] size={} - init {}={} ", index, data.len(), "i32", offset_immediate);
+            print!(" - {:07x}:", offset_immediate);
+            for (i, d) in data.iter().enumerate() {
+                if i % 2 == 0 {
+                    print!(" ");
+                }
+                print!("{:02x}", d);
+            }
+            println!("");
+        })
+    }
 
     fn end(&mut self, _pos: u32) -> DelegateResult {
         Ok({ 
