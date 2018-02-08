@@ -28,7 +28,7 @@ pub struct Module<'a> {
 }
 
 pub struct Section<'a> {
-    module: &'a Module<'a>,
+    pub module: &'a Module<'a>,
     pub index: u32,
     pub section_type: SectionType,
     pub buf: &'a [u8],
@@ -54,9 +54,16 @@ impl<'a> Type<'a> {
     }
 }
 
-pub struct Function {
+pub struct Function<'a> {
+    pub module: &'a Module<'a>,
     pub index: u32,
     pub signature_type_index: u32,
+}
+
+impl<'a> Function<'a> {
+    pub fn signature_type(&self) -> Option<Type<'a>> {
+        self.module.signature_type(self.signature_type_index)
+    }
 }
 
 pub struct Memory {
@@ -111,7 +118,11 @@ impl<'a> Module<'a> {
 
     pub fn function_signature_type(&self, index: u32) -> Option<Type> {
         let f = self.section(SectionType::Function).unwrap().functions().nth(index as usize).unwrap();
-        self.section(SectionType::Type).unwrap().types().nth(f.signature_type_index as usize)
+        self.signature_type(f.signature_type_index)
+    }
+
+    pub fn signature_type(&self, index: u32) -> Option<Type> {
+        self.section(SectionType::Type).unwrap().types().nth(index as usize)
     }
 
     pub fn global(&self, index: u32) -> Option<Global> {
@@ -130,9 +141,9 @@ impl<'a> Section<'a> {
 
     pub fn functions(&self) -> FunctionIter<'a> {
         if let SectionType::Function = self.section_type {
-            FunctionIter { index: 0, buf: Cursor::new(&self.buf[4..]) }
+            FunctionIter { module: self.module, index: 0, buf: Cursor::new(&self.buf[4..]) }
         } else {
-            FunctionIter { index: 0, buf: Cursor::new(&[]) }
+            FunctionIter { module: self.module, index: 0, buf: Cursor::new(&[]) }
         }
     }
 
@@ -163,7 +174,7 @@ pub struct SectionIter<'a> {
 impl<'a> Iterator for SectionIter<'a> {
     type Item = Section<'a>;
 
-    fn next(&mut self) -> Option<Section<'a>> {
+    fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
             let index = self.index;
             let section_type = SectionType::from(self.buf.read_u8());
@@ -185,7 +196,7 @@ pub struct TypeIter<'a> {
 impl<'a> Iterator for TypeIter<'a> {
     type Item = Type<'a>;
 
-    fn next(&mut self) -> Option<Type<'a>> {
+    fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
             let index = self.index;
             let p_len = self.buf.read_u32();
@@ -221,18 +232,19 @@ impl<'a> Iterator for TypeValuesIter<'a> {
 }
 
 pub struct FunctionIter<'a> {
+    module: &'a Module<'a>,
     index: u32,
     buf: Cursor<'a>,
 }
 
 impl<'a> Iterator for FunctionIter<'a> {
-    type Item = Function;
+    type Item = Function<'a>;
 
-    fn next(&mut self) -> Option<Function> {
+    fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
             let index = self.index;
             self.index += 1;
-            Some(Function { index, signature_type_index: self.buf.read_u32() })
+            Some(Function { module: self.module, index, signature_type_index: self.buf.read_u32() })
         } else {
             None
         }

@@ -479,18 +479,18 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
                     } else {
                         return Err(Error::InvalidFunction { id: id })
                     };
-                    let (parameters, returns) = (signature.parameters, signature.returns);
 
-                    if returns.len() > 1 {
-                        return Err(Error::UnexpectedReturnLength { got: returns.len() as u32})
+                    let ret_count = signature.returns.len() as u32;
+                    if ret_count > 1 {
+                        return Err(Error::UnexpectedReturnLength { got: ret_count })
                     }
                     // Load function index
                     self.pop_type_expecting(I32)?;
-                    for p in parameters.iter() {
-                        self.pop_type_expecting(TypeValue::from(*p as i8))?;
+                    for p in signature.parameters() {
+                        self.pop_type_expecting(p)?;
                     }
-                    for r in returns.iter() {
-                        self.push_type(TypeValue::from(*r as i8))?;
+                    for r in signature.returns() {
+                        self.push_type(r)?;
                     }                                     
                     w.write_opcode(op)?;                    
                     w.write_u32(id as u32)?;
