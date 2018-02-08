@@ -73,12 +73,16 @@ pub struct Memory {
     pub maximum: Option<u32>,
 }
 
-pub struct Global {
+pub struct Global<'a> {
+    pub module: &'a Module<'a>,    
     pub index: u32,
-    pub global_type: i8,
+    pub global_type: TypeValue,
     pub mutability: u8,
     pub init_opcode: u8,
     pub init_parameter: u32,
+}
+
+impl<'a> Global<'a> {
 }
 
 pub struct Export<'a> {
@@ -87,8 +91,15 @@ pub struct Export<'a> {
     pub export_index: ExportIndex,
 }
 
-pub struct Start {
+pub struct Start<'a> {
+    pub module: &'a Module<'a>,
     pub function_index: u32,
+}
+
+impl<'a> Start<'a> {
+    pub fn function(&self) -> Option<Function<'a>> {
+        self.module.function(self.function_index)
+    }
 }
 
 impl<'a> Module<'a> {
@@ -117,12 +128,15 @@ impl<'a> Module<'a> {
     }
 
     pub fn function_signature_type(&self, index: u32) -> Option<Type> {
-        let f = self.section(SectionType::Function).unwrap().functions().nth(index as usize).unwrap();
-        self.signature_type(f.signature_type_index)
+        self.function(index).and_then(|f| self.signature_type(f.signature_type_index))
     }
 
     pub fn signature_type(&self, index: u32) -> Option<Type> {
         self.section(SectionType::Type).unwrap().types().nth(index as usize)
+    }
+
+    pub fn function(&self, index: u32) -> Option<Function> {
+        self.section(SectionType::Function).unwrap().functions().nth(index as usize)
     }
 
     pub fn global(&self, index: u32) -> Option<Global> {
@@ -149,9 +163,9 @@ impl<'a> Section<'a> {
 
     pub fn globals(&self) -> GlobalIter<'a> {
         if let SectionType::Global = self.section_type {
-            GlobalIter { index: 0, buf: Cursor::new(&self.buf[4..]) }
+            GlobalIter { module: self.module, index: 0, buf: Cursor::new(&self.buf[4..]) }
         } else {
-            GlobalIter { index: 0, buf: Cursor::new(&[]) }
+            GlobalIter { module: self.module, index: 0, buf: Cursor::new(&[]) }
         }
     }    
 
@@ -252,22 +266,23 @@ impl<'a> Iterator for FunctionIter<'a> {
 }
 
 pub struct GlobalIter<'a> {
+    module: &'a Module<'a>,
     index: u32,
     buf: Cursor<'a>,
 }
 
 impl<'a> Iterator for GlobalIter<'a> {
-    type Item = Global;
+    type Item = Global<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
             let index = self.index;
-            let global_type = self.buf.read_i8();
+            let global_type = TypeValue::from(self.buf.read_i8());
             let mutability = self.buf.read_u8();
             let init_opcode = self.buf.read_u8();
             let init_parameter = self.buf.read_u32();
             self.index += 1;
-            Some(Global { index, global_type, mutability, init_opcode, init_parameter })
+            Some(Global { module: self.module, index, global_type, mutability, init_opcode, init_parameter })
         } else {
             None
         }
