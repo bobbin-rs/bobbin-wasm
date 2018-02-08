@@ -248,11 +248,11 @@ impl<'a> Section<'a> {
         }
     }
 
-    pub fn linear_memories(&self) -> LinearMemoryIter<'a> {
-        if let SectionType::LinearMemory = self.section_type {
-            LinearMemoryIter { module: self.module, index: 0, buf: Cursor::new(&self.buf[4..]) }
+    pub fn linear_memories(&self) -> MemoryIter<'a> {
+        if let SectionType::Memory = self.section_type {
+            MemoryIter { module: self.module, index: 0, buf: Cursor::new(&self.buf[4..]) }
         } else {
-            LinearMemoryIter { module: self.module, index: 0, buf: Cursor::new(&[]) }
+            MemoryIter { module: self.module, index: 0, buf: Cursor::new(&[]) }
         }
     }        
 
@@ -405,13 +405,13 @@ impl<'a> Iterator for TableIter<'a> {
 }
 
 
-pub struct LinearMemoryIter<'a> {
+pub struct MemoryIter<'a> {
     module: &'a Module<'a>,
     index: u32,
     buf: Cursor<'a>,
 }
 
-impl<'a> Iterator for LinearMemoryIter<'a> {
+impl<'a> Iterator for MemoryIter<'a> {
     type Item = Memory<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {

@@ -223,7 +223,7 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
                 SectionType::Import => self.load_imports()?,
                 SectionType::Function => self.load_functions()?,
                 SectionType::Table => self.load_tables()?,
-                SectionType::LinearMemory => self.load_linear_memory()?,
+                SectionType::Memory => self.load_linear_memory()?,
                 SectionType::Global => self.load_globals()?,
                 SectionType::Export => self.load_exports()?,
                 SectionType::Start => self.load_start()?,
