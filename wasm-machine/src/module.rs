@@ -137,6 +137,38 @@ impl<'a> Start<'a> {
     }
 }
 
+pub struct Element<'a> {
+    pub module: &'a Module<'a>,
+    pub index: u32,
+    // pub table_index: u32,
+    // pub offset_opcode: u8,
+    // pub offset_parameter: u32,a
+}
+
+impl<'a> Element<'a> {
+}
+
+pub struct Code<'a> {
+    pub module: &'a Module<'a>,
+    pub index: u32,
+    pub body: &'a [u8],
+}
+
+impl<'a> Code<'a> {
+}
+
+pub struct Data<'a> {
+    pub module: &'a Module<'a>,
+    pub index: u32,
+    pub memory_index: u32,
+    pub offset_opcode: u8,
+    pub offset_parameter: u32,
+    pub data: &'a [u8],
+}
+
+impl<'a> Data<'a> {
+}
+
 impl<'a> Module<'a> {
     pub fn new(buf: &'a [u8]) -> Self {
         Module { buf }
@@ -238,7 +270,31 @@ impl<'a> Section<'a> {
         } else {
             ExportIter { module: self.module, index: 0, buf: Cursor::new(&[]) }
         }
-    }    
+    }
+
+    pub fn elements(&self) -> ElementIter<'a> {
+        if let SectionType::Element = self.section_type {
+            ElementIter { module: self.module, index: 0, buf: Cursor::new(&self.buf[4..]) }
+        } else {
+            ElementIter { module: self.module, index: 0, buf: Cursor::new(&[]) }
+        }
+    }
+
+    pub fn codes(&self) -> CodeIter<'a> {
+        if let SectionType::Code = self.section_type {
+            CodeIter { module: self.module, index: 0, buf: Cursor::new(&self.buf[4..]) }
+        } else {
+            CodeIter { module: self.module, index: 0, buf: Cursor::new(&[]) }
+        }
+    }
+
+    pub fn data(&self) -> DataIter<'a> {
+        if let SectionType::Data = self.section_type {
+            DataIter { module: self.module, index: 0, buf: Cursor::new(&self.buf[4..]) }
+        } else {
+            DataIter { module: self.module, index: 0, buf: Cursor::new(&[]) }
+        }
+    }
 }
 
 
@@ -418,6 +474,73 @@ impl<'a> Iterator for ExportIter<'a> {
             let export_index = ExportIndex::from((kind, self.buf.read_u32()));
             self.index += 1;
             Some(Export { module: self.module, index, identifier, export_index })
+        } else {
+            None
+        }
+    }
+}
+
+pub struct ElementIter<'a> {
+    module: &'a Module<'a>,
+    index: u32,
+    buf: Cursor<'a>,
+}
+
+impl<'a> Iterator for ElementIter<'a> {
+    type Item = Element<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.buf.len() > 0 {
+            let index = self.index;
+            self.index += 1;
+            Some(Element { module: self.module, index })
+        } else {
+            None
+        }
+    }
+}
+
+pub struct CodeIter<'a> {
+    module: &'a Module<'a>,
+    index: u32,
+    buf: Cursor<'a>,
+}
+
+impl<'a> Iterator for CodeIter<'a> {
+    type Item = Code<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.buf.len() > 0 {
+            let index = self.index;
+            let body_len = self.buf.read_u32();
+            let body = self.buf.slice(body_len as usize);
+            self.index += 1;            
+            Some(Code { module: self.module, index, body })
+        } else {
+            None
+        }
+    }
+}
+
+pub struct DataIter<'a> {
+    module: &'a Module<'a>,
+    index: u32,
+    buf: Cursor<'a>,
+}
+
+impl<'a> Iterator for DataIter<'a> {
+    type Item = Data<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.buf.len() > 0 {
+            let index = self.index;
+            let memory_index = self.buf.read_u32();
+            let offset_opcode = self.buf.read_u8();
+            let offset_parameter = self.buf.read_u32();
+            let data_len = self.buf.read_u32();
+            let data = self.buf.slice(data_len as usize);
+            self.index += 1;
+            Some(Data { module: self.module, index, memory_index, offset_opcode, offset_parameter, data })
         } else {
             None
         }
