@@ -130,6 +130,12 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
         Ok(val)
     }
 
+    fn copy_var_i32(&mut self) -> ModuleResult<i32> {
+        let val = self.r.read_var_i32()?;
+        self.w.write_i32(val)?;
+        Ok(val)
+    }
+
     fn copy_kind(&mut self) -> ModuleResult<u8> {
         self.copy_var_u7()
     }
@@ -533,16 +539,80 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
     }
 
     pub fn load_instruction(&mut self) -> ModuleResult<()> {
+        use self::ImmediateType::*;
         Ok({
             let offset = self.r.pos();
             let op = Opcode::try_from(self.copy_u8()?)?;
-            self.trace(offset, op)?;
+            match op.immediate_type() {
+                None => {
+                    self.trace(|| println!("{:04x}: {}", offset, op.text))?;
+                },
+                BlockSignature => {
+                    let _block_signature = TypeValue::from(self.copy_type()?);
+                    self.trace(|| println!("{:04x}: {}", offset, op.text))?;
+                },
+                BranchDepth => {
+                    let depth = self.read_var_u32()?;
+                    self.trace(|| println!("{:04x}: {} {}", offset, op.text, depth))?;
+                },
+                BranchTable => {
+                    self.trace(|| print!("{:04x}: {}", offset, op.text))?;
+                    for _ in 0..self.copy_count()? {
+                        let depth = self.read_var_u32()?;
+                        self.trace(|| print!(" {}", depth))?;
+                    }
+                    let default = self.read_var_u32()?;
+                    self.trace(|| println!(" {}", default))?;
+                    
+                },
+                Local => {
+                    let value = self.copy_index()?;
+                    self.trace(|| println!("{:04x}: {} ${}", offset, op.text, value))?;
+                },
+                Global => {
+                    let value = self.copy_index()?;
+                    self.trace(|| println!("{:04x}: {} ${}", offset, op.text, value))?;
+                },
+                Call => {
+                    let value = self.copy_index()?;
+                    self.trace(|| println!("{:04x}: {} ${}", offset, op.text, value))?;
+                },
+                CallIndirect => {
+                    self.trace(|| print!("{:04x}: {}", offset, op.text))?;
+                    for _ in 0..self.copy_count()? {
+                        let depth = self.copy_var_u32()?;
+                        self.trace(|| print!(" {}", depth))?
+                    }
+                    let default = self.copy_var_u32()?;
+                    self.trace(|| println!(" {}", default))?;
+                },
+
+                I32 => {
+                    let value = self.copy_var_i32()?;
+                    self.trace(|| println!("{:04x}: {} ${}", offset, op.text, value))?;
+                },
+                F32 => unimplemented!(),
+                I64 => unimplemented!(),
+                F64 => unimplemented!(),      
+
+                I32LoadStore => {
+                    let flags = self.copy_var_u32()?;
+                    let offset = self.copy_var_u32()?;
+                    self.trace(|| println!("{:04x}: {} {} @{:04x}", offset, op.text, flags, offset))?;
+                },
+                F32LoadStore => unimplemented!(),
+                I64LoadStore => unimplemented!(),
+                F64LoadStore => unimplemented!(),
+
+                Memory => {
+                    let _reserved = self.copy_var_u1()?;
+                    self.trace(|| println!("{:04x}: {}", offset, op.text))?;
+                },                
+            }
         })
     }
 
-    pub fn trace(&self, offset: usize, op: Opcode) -> ModuleResult<()> {
-        Ok({
-            println!("{:04x}: {}", offset, op.text);
-        })
+    pub fn trace<T, F: FnOnce()->T>(&self, f: F) -> ModuleResult<T> {
+        Ok(f())
     }
 }

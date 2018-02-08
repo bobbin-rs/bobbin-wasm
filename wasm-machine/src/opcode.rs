@@ -59,6 +59,7 @@ impl Opcode {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ImmediateType {
     None,
     BlockSignature,
@@ -72,7 +73,10 @@ pub enum ImmediateType {
     Global,
     Call,
     CallIndirect,
-    LoadStore,
+    I32LoadStore,
+    I64LoadStore,
+    F32LoadStore,
+    F64LoadStore,
     Memory,
 }
 
@@ -83,15 +87,26 @@ impl From<u8> for ImmediateType {
             BLOCK | LOOP | IF => BlockSignature,
             BR | BR_IF => BranchDepth,
             BR_TABLE => BranchTable,
-            I32_CONST => I32,
-            I64_CONST => I64,
-            F32_CONST => F32,
-            F64_CONST => F64,
             GET_LOCAL | SET_LOCAL | TEE_LOCAL => Local,
             GET_GLOBAL | SET_GLOBAL => Global,
             CALL => Call,
             CALL_INDIRECT => CallIndirect,
-            I32_LOAD ... I64_STORE32 => LoadStore,
+
+            I32_CONST => I32,
+            F32_CONST => F32,
+            I64_CONST => I64,
+            F64_CONST => F64,
+
+            I32_LOAD | I32_STORE |
+            I32_LOAD8_S ... I32_LOAD16_U |
+            I32_STORE8 ... I32_STORE16 => I32LoadStore,
+            F32_LOAD | F32_STORE => F32LoadStore,
+
+            I64_LOAD | I64_STORE |
+            I64_LOAD8_S ... I64_LOAD32_U |
+            I64_STORE8 ... I64_STORE32 => I64LoadStore,
+            F64_LOAD | F64_STORE => F64LoadStore,
+            
             MEM_SIZE | MEM_GROW => Memory,
             _ => None,
         }
