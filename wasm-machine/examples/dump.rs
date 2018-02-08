@@ -4,9 +4,8 @@ extern crate clap;
 use std::process;
 use std::io::{self, Read};
 use std::fs::File;
-use std::str;
 
-use clap::{App, Arg};
+use clap::{App, Arg, ArgMatches};
 
 use wasm::{Reader, Writer, ModuleLoader};
 
@@ -31,26 +30,37 @@ impl From<wasm::Error> for Error {
 pub fn main() {
     let matches = App::new("dump")
         .arg(Arg::with_name("path")
-            .required(true)
-        ).get_matches();
+            .required(true))
+        .arg(Arg::with_name("headers")
+            .short("h"))
+        .arg(Arg::with_name("details")
+            .short("x"))            
+        .get_matches();
     
-    let path = matches.value_of("path").unwrap();
-    if let Err(e) = run(path) {
+    if let Err(e) = run(matches) {
         eprintln!("Error: {:?}", e);
         process::exit(1);
     }
 }
 
-pub fn run(path: &str) -> Result<(), Error> {
+pub fn run(matches: ArgMatches) -> Result<(), Error> {
+    let path = matches.value_of("path").unwrap();    
     let mut file = File::open(&path)?;
     let mut data: Vec<u8> = Vec::new();
     file.read_to_end(&mut data)?;
 
     let mut buf = [0u8; 64 * 1024];
-    let mut d = wasm::dumper::Dumper{};
     let r = Reader::new(&mut data[..]);
     let w = Writer::new(&mut buf);
-    let _m = ModuleLoader::new(&mut d, r, w).load()?;
+
+    if matches.is_present("headers") {
+        let mut d = wasm::dumper::HeaderDumper{};
+        let _m = ModuleLoader::new(&mut d, r, w).load()?;        
+    } else if matches.is_present("details") {
+        let mut d = wasm::dumper::DetailsDumper{};
+        let _m = ModuleLoader::new(&mut d, r, w).load()?;                
+    }
+
 
 
 

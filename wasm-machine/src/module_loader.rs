@@ -323,20 +323,33 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
     pub fn load_types(&mut self) -> ModuleResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#type-section
         Ok({
-            for _ in 0..self.copy_count()? {              
-                // form 
-                let _form = self.read_var_i7_expecting(FUNC as i8, Error::UnknownSignatureType)?;
+            let count = self.copy_count()?;
+            self.d.types_start(count)?;
+
+            for i in 0..count {
+                let form = self.read_var_i7_expecting(FUNC as i8, Error::UnknownSignatureType)?;
+                self.d.type_start(i, form)?;
 
                 // parameters 
-                for _ in 0..self.copy_count()? {
-                    self.copy_type()?;
+                let p_count = self.copy_count()?;
+                self.d.type_parameters_start(p_count)?;
+                for i in 0..p_count {
+                    let t = self.copy_type()?;
+                    self.d.type_parameter(i, TypeValue::from(t))?;
                 }
+                self.d.type_parameters_end()?;
 
                 // returns
-                for _ in 0..self.copy_count()? {
-                    self.copy_type()?;
-                }                
-            }            
+                let r_count = self.copy_count()?;
+                self.d.type_returns_start(r_count)?;
+                for i in 0..r_count {
+                    let t = self.copy_type()?;
+                    self.d.type_return(i, TypeValue::from(t))?;
+                }
+                self.d.type_returns_end()?;
+                self.d.type_end()?;
+            }
+            self.d.types_end()?;
         })
     }
 
@@ -363,9 +376,11 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
     pub fn load_functions(&mut self) -> ModuleResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#function-section
         Ok({
-            for _ in 0..self.copy_count()? {
-                // type index
-                self.copy_type_index()?;
+            let count = self.copy_count()?;
+            self.d.functions_start(count)?;
+            for i in 0..count {
+                let sig = self.copy_type_index()?;
+                self.d.function(i, sig)?;
             }
         })
     }
