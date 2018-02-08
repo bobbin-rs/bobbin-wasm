@@ -90,6 +90,58 @@ pub fn read_i32(buf: &[u8]) -> Result<(i32, usize), Error> {
 }
 
 #[inline]
+pub fn read_u64(buf: &[u8]) -> Result<(u64, usize), Error> {
+    let mut i = 0;
+    let mut result = 0;    
+    let mut shift = 0;
+    loop {
+        let b = buf[i];
+        result |= ((b & 0b0111_1111) as u64) << shift;
+        shift += 7;
+        i += 1;
+        if b & 0b1000_0000 == 0 {
+            break;
+        }
+    }
+    unsafe {
+        let size = shift + 1 - ctlz(buf[i-1]);
+        if !(size <= 64) { return Err(Error::Overflow) }
+    }
+    Ok((result, i))
+}
+
+#[inline]
+pub fn read_i64(buf: &[u8]) -> Result<(i64, usize), Error> {
+    const SIGN_BIT: u8 = 0b0100_0000;
+
+    let mut i = 0;
+    let mut result: i64 = 0;    
+    let mut shift = 0;
+    loop {
+        let b = buf[i];
+        result |= ((b & 0b0111_1111) as i64) << shift;
+        shift += 7;
+        i += 1;
+        if b & 0b1000_0000 == 0 {
+            break;
+        }
+    }
+    let last_byte = buf[i-1];    
+    unsafe {
+        let size = if (last_byte & SIGN_BIT) == 0 {
+            shift + 1 - ctlz(last_byte) as usize
+        } else {
+            shift + 2 - ctlz(!(last_byte | 0b1000_0000)) as usize
+        };
+        if !(size <= 64) { return Err(Error::Overflow) }
+    }   
+    if shift < 64 && (last_byte & 0b0100_0000) != 0 {
+        result |= ((1 << shift) as i64).wrapping_neg();
+    }
+    Ok((result, i))
+}
+
+#[inline]
 pub fn write_u1(buf: &mut [u8], value: bool) -> Result<usize, Error> {
     if buf.len() < 1 { return Err(Error::BufferSize) }
     buf[0] = if value { 1 } else { 0 };

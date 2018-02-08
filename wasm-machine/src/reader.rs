@@ -202,6 +202,13 @@ impl<'a> Reader<'a> {
         self.pos += n;
         Ok(v)
     }
+
+    #[inline]
+    pub fn read_var_i64(&mut self) -> ReaderResult<i64> { 
+        let (v, n) = read_i64(&self.buf[self.pos..])?;
+        self.pos += n;
+        Ok(v)
+    }
 }
 
 impl<'a> Index<usize> for Reader<'a> {

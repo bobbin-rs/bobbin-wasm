@@ -535,7 +535,7 @@ impl<'a> Iterator for DataIter<'a> {
         if self.buf.len() > 0 {
             let index = self.index;
             let memory_index = self.buf.read_u32();
-            let offset_opcode = self.buf.read_u8();
+            let offset_opcode = self.buf.read_u8();            
             let offset_parameter = self.buf.read_u32();
             let data_len = self.buf.read_u32();
             let data = self.buf.slice(data_len as usize);

@@ -74,6 +74,11 @@ pub fn run(path: &str) -> Result<(), Error> {
                 for c in s.codes() {
                     println!("  len: {:04x}", c.body.len());
                 }
+            },
+            SectionType::Data => {
+                for d in s.data() {
+                    println!("   {:04x} {:?}", d.offset_parameter, d.data);
+                }
             }
             _ => {},
         }

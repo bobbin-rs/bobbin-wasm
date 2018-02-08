@@ -294,8 +294,10 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
         Ok({
             // opcode
             self.copy_u8()?;
-            // id
-            self.copy_var_u32()?;
+            // immediate
+            self.copy_var_i32()?;
+            // end - verify
+            self.read_u8()?;
         })
     }   
 
@@ -503,16 +505,17 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
     pub fn load_data(&mut self) -> ModuleResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#data-section
         Ok({
-           for _ in 0..self.copy_count()? {
-               // index
-               self.copy_memory_index()?;
-               // offset
-               self.copy_initializer()?;
-               // data
-               for _ in 0..self.copy_count()? {
-                   self.copy_u8()?;
-               }
-           }
+            for i in 0..self.copy_count()? {
+                // index
+                self.copy_memory_index()?;
+                // offset
+                self.copy_initializer()?;
+                // data
+                let num = self.copy_var_u32()?;
+                for _ in 0..num {
+                    self.copy_u8()?;                   
+                }
+            }
         })
     }
 
@@ -548,62 +551,66 @@ impl<'r, 'w> ModuleLoader<'r, 'w> {
                     self.trace(|| println!("{:04x}: {}", offset, op.text))?;
                 },
                 BlockSignature => {
-                    let _block_signature = TypeValue::from(self.copy_type()?);
+                    let _block_signature = TypeValue::from(self.r.read_var_i7()?);
                     self.trace(|| println!("{:04x}: {}", offset, op.text))?;
                 },
                 BranchDepth => {
-                    let depth = self.read_var_u32()?;
+                    let depth = self.r.read_var_u32()?;
                     self.trace(|| println!("{:04x}: {} {}", offset, op.text, depth))?;
                 },
                 BranchTable => {
                     self.trace(|| print!("{:04x}: {}", offset, op.text))?;
-                    for _ in 0..self.copy_count()? {
-                        let depth = self.read_var_u32()?;
+                    for _ in 0..self.r.read_var_u32()? {
+                        let depth = self.r.read_var_u32()?;
                         self.trace(|| print!(" {}", depth))?;
                     }
-                    let default = self.read_var_u32()?;
+                    let default = self.r.read_var_u32()?;
                     self.trace(|| println!(" {}", default))?;
                     
                 },
                 Local => {
-                    let value = self.copy_index()?;
+                    let value = self.r.read_var_u32()?;
                     self.trace(|| println!("{:04x}: {} ${}", offset, op.text, value))?;
                 },
                 Global => {
-                    let value = self.copy_index()?;
+                    let value = self.r.read_var_u32()?;
                     self.trace(|| println!("{:04x}: {} ${}", offset, op.text, value))?;
                 },
                 Call => {
-                    let value = self.copy_index()?;
+                    let value = self.r.read_var_u32()?;
                     self.trace(|| println!("{:04x}: {} ${}", offset, op.text, value))?;
                 },
                 CallIndirect => {
                     self.trace(|| print!("{:04x}: {}", offset, op.text))?;
-                    for _ in 0..self.copy_count()? {
-                        let depth = self.copy_var_u32()?;
+                    for _ in 0..self.r.read_var_u32()? {
+                        let depth = self.r.read_var_u32()?;
                         self.trace(|| print!(" {}", depth))?
                     }
-                    let default = self.copy_var_u32()?;
+                    let default = self.r.read_var_u32()?;
                     self.trace(|| println!(" {}", default))?;
                 },
 
                 I32 => {
-                    let value = self.copy_var_i32()?;
+                    let value = self.r.read_var_i32()?;
                     self.trace(|| println!("{:04x}: {} ${}", offset, op.text, value))?;
                 },
-                F32 => unimplemented!(),
-                I64 => unimplemented!(),
-                F64 => unimplemented!(),      
-
-                I32LoadStore => {
-                    let flags = self.copy_var_u32()?;
-                    let offset = self.copy_var_u32()?;
-                    self.trace(|| println!("{:04x}: {} {} @{:04x}", offset, op.text, flags, offset))?;
+                F32 => {
+                    let value = self.r.read_f32()?;
+                    self.trace(|| println!("{:04x}: {} ${}", offset, op.text, value))?;
                 },
-                F32LoadStore => unimplemented!(),
-                I64LoadStore => unimplemented!(),
-                F64LoadStore => unimplemented!(),
-
+                I64 => {
+                    let value = self.r.read_var_i64()?;
+                    self.trace(|| println!("{:04x}: {} ${}", offset, op.text, value))?;                    
+                },
+                F64 => {
+                    let value = self.r.read_f32()?;
+                    self.trace(|| println!("{:04x}: {} ${}", offset, op.text, value))?;                    
+                },
+                I32LoadStore | F32LoadStore | I64LoadStore | F64LoadStore => {
+                    let flags = self.copy_var_u32()?;
+                    let off = self.copy_var_u32()?;
+                    self.trace(|| println!("{:04x}: {} {} @{:04x}", offset, op.text, flags, off))?;
+                },
                 Memory => {
                     let _reserved = self.copy_var_u1()?;
                     self.trace(|| println!("{:04x}: {}", offset, op.text))?;
