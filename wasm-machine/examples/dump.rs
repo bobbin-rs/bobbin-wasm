@@ -8,7 +8,7 @@ use std::path::Path;
 
 use clap::{App, Arg, ArgMatches};
 
-use wasm::{Reader, Writer, ModuleLoader};
+use wasm::{Reader, ModuleLoader};
 
 #[derive(Debug)]
 pub enum Error {
@@ -52,68 +52,25 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     let mut data: Vec<u8> = Vec::new();
     file.read_to_end(&mut data)?;
 
-    let mut buf = [0u8; 64 * 1024];
-    
     let path = path.file_name().unwrap().to_str().unwrap();
 
     if matches.is_present("headers") {
         let r = Reader::new(&mut data[..]);
-        let w = Writer::new(&mut buf);
         let mut d = wasm::dumper::HeaderDumper{};
-        let _m = ModuleLoader::new(&mut d, r, w).load(path)?;        
+        ModuleLoader::new(&mut d, r).load(path)?;        
     } 
     
     if matches.is_present("details") {
         let r = Reader::new(&mut data[..]);
-        let w = Writer::new(&mut buf);
         let mut d = wasm::dumper::DetailsDumper{};
-        let _m = ModuleLoader::new(&mut d, r, w).load(path)?;                
+        ModuleLoader::new(&mut d, r).load(path)?;                
     }
 
     if matches.is_present("disassemble") {
         let r = Reader::new(&mut data[..]);
-        let w = Writer::new(&mut buf);
         let mut d = wasm::dumper::Disassembler::new();
-        let _m = ModuleLoader::new(&mut d, r, w).load(path)?;                
+        ModuleLoader::new(&mut d, r).load(path)?;                
     }
-
-
-
-
-
-    // println!("----");
-    // for s in m.iter() {
-    //     println!("{:?}: {:04x}", s.section_type, s.buf.len());
-    //     match s.section_type {
-    //         SectionType::Type => {
-    //             for t in s.types() {
-    //                 println!("  p: {:?} r: {:?}", t.parameters, t.returns);
-    //             }
-    //         },
-    //         SectionType::Function => {
-    //             for f in s.functions() {
-    //                 let t = m.function_signature_type(f.index).unwrap();
-    //                 println!("  s: ({:?}) -> {:?}", t.parameters, t.returns);
-    //             }
-    //         }
-    //         SectionType::Export => {
-    //             for e in s.exports() {
-    //                 println!("  identifier: {:?} index: {:?}", str::from_utf8(e.identifier).unwrap(), e.export_index);
-    //             }
-    //         },
-    //         SectionType::Code => {
-    //             for c in s.codes() {
-    //                 println!("  len: {:04x}", c.body.len());
-    //             }
-    //         },
-    //         SectionType::Data => {
-    //             for d in s.data() {
-    //                 println!("   {:04x} {:?}", d.offset_parameter, d.data);
-    //             }
-    //         }
-    //         _ => {},
-    //     }
-    // }
 
     Ok(())
 }
