@@ -1,9 +1,11 @@
 #![allow(unused_variables)]
 use {Error, SectionType, TypeValue, ExternalKind};
+use event::Event;
 
 pub type DelegateResult = Result<(), Error>;
 
 pub trait Delegate {
+    fn handle(&mut self, evt: Event) -> DelegateResult { Ok(())}
     fn start(&mut self) -> DelegateResult { Ok(()) }
     fn end(&mut self, pos: u32) -> DelegateResult { Ok(()) }
 

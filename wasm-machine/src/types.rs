@@ -1,5 +1,5 @@
 
-pub struct Identifier<'a>(&'a [u8]);
+pub struct Identifier(&'a [u8]);
 
 pub struct TypeIndex(u32);
 pub struct FuncIndex(u32);

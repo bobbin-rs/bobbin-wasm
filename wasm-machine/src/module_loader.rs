@@ -2,6 +2,7 @@ use {Error, Reader, Writer, TypeValue, SectionType, ExternalKind, Module, Delega
 // use loader::{Label, Loader};
 // use stack::Stack;
 use opcode::*;
+use event::Event;
 use core::convert::TryFrom;
 
 pub const MAGIC_COOKIE: u32 = 0x6d736100;
@@ -22,6 +23,10 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
     pub fn new(d: &'d mut D, r: Reader<'r>, mut w: Writer<'w>) -> Self {
         let m = Module::new(w.split());
         ModuleLoader { d, r, w, m }
+    }
+
+    fn dispatch(&mut self, evt: Event) -> ModuleResult<()> {
+        self.d.handle(evt)
     }
 
     fn done(&self) -> bool {
