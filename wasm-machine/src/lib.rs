@@ -8,7 +8,6 @@ extern crate wasm_leb128;
 
 pub mod opcode;
 pub mod types;
-pub mod instructions;
 pub mod cursor;
 pub mod reader;
 pub mod writer;

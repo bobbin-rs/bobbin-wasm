@@ -1,10 +1,5 @@
 use ::core::convert::TryFrom;
-use TypeValue;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Error {
-    InvalidOpCode(u8),
-}
+use {TypeValue, FuncIndex, LocalIndex, GlobalIndex, TypeIndex};
 
 macro_rules! opcodes {
     ( $( ($tr:ident, $t1:ident, $t2:ident, $m:expr, $code:expr, $name:ident, $text:expr), )*) => {
@@ -25,6 +20,15 @@ macro_rules! opcodes {
         )*
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Error {
+    InvalidOpCode(u8),
+}
+
+pub type Depth = u32;
+pub type BranchCount = u32;
+pub struct MemArg { offset: u32, align: u32 }
 
 pub const ___: TypeValue = TypeValue::None;
 pub const I32: TypeValue = TypeValue::I32;
@@ -113,6 +117,27 @@ impl From<u8> for ImmediateType {
     }
 }
 
+pub enum Immediate {
+    None,
+    Block { op: Opcode, sig: TypeValue },
+    Branch { op: Opcode, depth: Depth },
+    BranchTableCount { op: Opcode, count: BranchCount },
+    BranchTableDepth { op: Opcode, depth: Depth },
+    BranchTableDefault { op: Opcode, depth: Depth },
+    Local { op: Opcode, index: LocalIndex },
+    Global { op: Opcode, index: GlobalIndex },
+    Call { op: Opcode, index: FuncIndex },
+    CallIndirect { op: Opcode, index: TypeIndex },
+    I32Const { op: Opcode, value: i32 },
+    F32Const { op: Opcode, value: f32 },
+    I64Const { op: Opcode, value: i64 },
+    F64Const { op: Opcode, value: f64 },
+    I32LoadStore { op: Opcode, memarg: MemArg },
+    F32LoadStore { op: Opcode, memarg: MemArg },
+    I64LoadStore { op: Opcode, memarg: MemArg },
+    F64LoadStore { op: Opcode, memarg: MemArg },
+    Memory { op: Opcode, reserved: u8 },
+}
 
 /*
  *   tr: result type

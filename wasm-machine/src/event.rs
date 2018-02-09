@@ -1,4 +1,5 @@
 use types::*;
+use opcode::{Opcode, Immediate};
 use {SectionType, TypeValue};
 
 pub enum Event<'a> {
@@ -42,7 +43,9 @@ pub enum Event<'a> {
     StartFunction { index: FuncIndex },
 
     CodeStart { c: u32 },
-        Code { c: u32 },
+        Body { i: u32 , size: u32, locals: u32},
+            Local { i: u32, n: u32, t: TypeValue },
+            Instruction{ i: u32, op: Opcode, imm: Immediate },
     CodeEnd,
 
     DataSegmentsStart { c: u32 },
