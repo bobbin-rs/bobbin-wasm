@@ -53,24 +53,26 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     file.read_to_end(&mut data)?;
 
     let path = path.file_name().unwrap().to_str().unwrap();
+    let mut out = String::new();
 
     if matches.is_present("headers") {
         let r = Reader::new(&mut data[..]);
-        let mut d = wasm::dumper::HeaderDumper{};
-        BinaryReader::new(&mut d, r).load(path)?;        
+        let mut d = wasm::dumper::HeaderDumper{ w: &mut out};
+        BinaryReader::new(&mut d, r).read(path)?;        
     } 
     
     if matches.is_present("details") {
         let r = Reader::new(&mut data[..]);
-        let mut d = wasm::dumper::DetailsDumper{};
-        BinaryReader::new(&mut d, r).load(path)?;                
+        let mut d = wasm::dumper::DetailsDumper{ w: &mut out};
+        BinaryReader::new(&mut d, r).read(path)?;                
     }
 
     if matches.is_present("disassemble") {
         let r = Reader::new(&mut data[..]);
-        let mut d = wasm::dumper::Disassembler::new();
-        BinaryReader::new(&mut d, r).load(path)?;                
+        let mut d = wasm::dumper::Disassembler::new(&mut out);
+        BinaryReader::new(&mut d, r).read(path)?;                
     }
+    print!("{}", out);
 
     Ok(())
 }

@@ -41,8 +41,8 @@ impl<'a> Writer<'a> {
     }
 
     pub fn write_u32_at(&mut self, value: u32, offset: usize) -> WriteResult<()> {
-        if offset + 4 > self.buf.len() { println!("past buf.len {}", self.buf.len()); return Err(Error::End) }
-        if offset + 4 > self.pos { println!("past pos {}", self.pos); return Err(Error::End) }
+        if offset + 4 > self.buf.len() { return Err(Error::End) }
+        if offset + 4 > self.pos { return Err(Error::End) }
         LittleEndian::write_u32(&mut self.buf[offset..], value);
         Ok(())
     }

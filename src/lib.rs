@@ -1,8 +1,8 @@
 #![allow(dead_code)]
-//#![no_std]
+#![no_std]
 #![feature(try_from, offset_to)]
 
-extern crate core;
+// extern crate core;
 extern crate byteorder;
 extern crate wasm_leb128;
 
@@ -12,9 +12,8 @@ pub mod cursor;
 pub mod reader;
 pub mod writer;
 pub mod stack;
-pub mod scanner;
-pub mod loader;
-pub mod machine;
+// pub mod loader;
+// pub mod machine;
 pub mod module;
 pub mod binary_reader;
 pub mod event;
@@ -34,8 +33,7 @@ pub use dumper::*;
 use core::fmt;
 use core::str;
 
-// use byteorder::{ByteOrder, LittleEndian};
-// use wasm_leb128::{read_i32, read_u32};
+pub type WasmResult<T> = Result<T, Error>;
 
 #[derive(Debug, PartialEq)]
 pub enum Error {
@@ -67,11 +65,18 @@ pub enum Error {
     UnexpectedType { wanted: TypeValue, got: TypeValue },
     UnexpectedReturnValue { wanted: TypeValue, got: TypeValue},
     UnexpectedReturnLength { got: u32 },
+    FmtError(fmt::Error),
     Utf8Error(str::Utf8Error),
     OpcodeError(opcode::Error),
     StackError(stack::Error),
     Leb128Error(wasm_leb128::Error),
 
+}
+
+impl From<fmt::Error> for Error {
+    fn from(other: fmt::Error) -> Error {
+        Error::FmtError(other)
+    }
 }
 
 impl From<opcode::Error> for Error {

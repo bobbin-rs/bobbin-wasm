@@ -1,7 +1,5 @@
-use {Error, Reader, TypeValue, SectionType, ExternalKind, Delegate};
+use {Error, WasmResult, Reader, TypeValue, SectionType, ExternalKind, Delegate};
 use types::*;
-// use loader::{Label, Loader};
-// use stack::Stack;
 use opcode::*;
 use event::Event;
 
@@ -9,17 +7,10 @@ use core::mem;
 use core::convert::TryFrom;
 use core::ops::Range;
 
-// macro_rules! event {
-//     ($evt:expr) => (
-//         self.dispatch($evt)?;
-//     )
-// }
 
 pub const MAGIC_COOKIE: u32 = 0x6d736100;
 pub const VERSION: u32 = 0x1;
 pub const FIXUP: u32 = 0xffff_ffff;
-
-pub type WasmResult<T> = Result<T, Error>;
 
 pub struct BinaryReader<'d, 'r, D: 'd + Delegate> {
     d: &'d mut D,
@@ -183,22 +174,22 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         Identifier(self.slice(range))
     }
 
-    pub fn load(mut self, name: &str) -> WasmResult<()> {
-        let version = self.load_header()?;        
+    pub fn read(mut self, name: &str) -> WasmResult<()> {
+        let version = self.read_header()?;        
         self.dispatch(Event::Start { name, version })?;
         while !self.done() {
-            let _s = self.load_section()?;
+            let _s = self.read_section()?;
         }
         self.dispatch(Event::End)?;
         Ok(())
     }
 
-    pub fn load_header(&mut self) -> WasmResult<u32> {        
+    pub fn read_header(&mut self) -> WasmResult<u32> {        
         self.read_u32_expecting(MAGIC_COOKIE, Error::InvalidHeader)?;
         self.read_u32()
     }
     
-    pub fn load_section(&mut self) -> WasmResult<SectionType> {
+    pub fn read_section(&mut self) -> WasmResult<SectionType> {
         // ID(u8) LEN(u32) [LEN]
         Ok({
             let s_type = SectionType::try_from(self.read_var_u7()?)?;
@@ -215,17 +206,17 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
             // let w_beg = self.w.pos();
 
             match s_type {
-                SectionType::Type => self.load_types()?,
-                SectionType::Import => self.load_imports()?,
-                SectionType::Function => self.load_functions()?,
-                SectionType::Table => self.load_tables()?,
-                SectionType::Memory => self.load_linear_memory()?,
-                SectionType::Global => self.load_globals()?,
-                SectionType::Export => self.load_exports()?,
-                SectionType::Start => self.load_start()?,
-                SectionType::Element => self.load_elements()?,
-                SectionType::Code => self.load_code()?,
-                SectionType::Data => self.load_data()?,
+                SectionType::Type => self.read_types()?,
+                SectionType::Import => self.read_imports()?,
+                SectionType::Function => self.read_functions()?,
+                SectionType::Table => self.read_tables()?,
+                SectionType::Memory => self.read_linear_memory()?,
+                SectionType::Global => self.read_globals()?,
+                SectionType::Export => self.read_exports()?,
+                SectionType::Start => self.read_start()?,
+                SectionType::Element => self.read_elements()?,
+                SectionType::Code => self.read_code()?,
+                SectionType::Data => self.read_data()?,
                 _ => self.r.advance(s_len as usize)
             }
             let r_pos = self.r.pos() as u32;
@@ -242,7 +233,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         })
     }
 
-    pub fn load_types(&mut self) -> WasmResult<()> {
+    pub fn read_types(&mut self) -> WasmResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#type-section
         Ok({
             let c = self.read_count()?;
@@ -280,7 +271,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         })
     }
 
-    pub fn load_imports(&mut self) -> WasmResult<()> {
+    pub fn read_imports(&mut self) -> WasmResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#import-section
         Ok({
             let c = self.read_count()?;
@@ -298,7 +289,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         })
     }
 
-    pub fn load_functions(&mut self) -> WasmResult<()> {
+    pub fn read_functions(&mut self) -> WasmResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#function-section
         Ok({
             let c = self.read_count()?;
@@ -311,7 +302,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         })
     }
 
-    pub fn load_tables(&mut self) -> WasmResult<()> {
+    pub fn read_tables(&mut self) -> WasmResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#table-section
         Ok({
             let c = self.read_count()?;
@@ -325,7 +316,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         })
     }
 
-    pub fn load_linear_memory(&mut self) -> WasmResult<()> {
+    pub fn read_linear_memory(&mut self) -> WasmResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#linear-memory-section
         Ok({
             let c = self.read_count()?;
@@ -338,7 +329,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         })
     }
 
-    pub fn load_globals(&mut self) -> WasmResult<()> {
+    pub fn read_globals(&mut self) -> WasmResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#global-section
         Ok({
             let c = self.read_count()?;
@@ -353,7 +344,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         })
     }
 
-    pub fn load_exports(&mut self) -> WasmResult<()> {
+    pub fn read_exports(&mut self) -> WasmResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#export-section
         Ok({
             let c = self.read_count()?;
@@ -369,7 +360,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         })
     }
 
-    pub fn load_start(&mut self) -> WasmResult<()> {
+    pub fn read_start(&mut self) -> WasmResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#start-section
         Ok({
             // start index
@@ -378,11 +369,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         })
     }
 
-    pub fn table_type(&self, _index: u32) -> WasmResult<TypeValue> {
-        Err(Error::Unimplemented)
-    }
-
-    pub fn load_elements(&mut self) -> WasmResult<()> {
+    pub fn read_elements(&mut self) -> WasmResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#element-section
         Ok({
             let c = self.read_count()?;
@@ -402,7 +389,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         })
     }
 
-    pub fn load_data(&mut self) -> WasmResult<()> {
+    pub fn read_data(&mut self) -> WasmResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#data-section
         Ok({
             let c = self.read_count()?;
@@ -418,7 +405,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         })
     }
 
-    pub fn load_code(&mut self) -> WasmResult<()> {
+    pub fn read_code(&mut self) -> WasmResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#code-section
         Ok({
             let c = self.read_count()?;
@@ -438,7 +425,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
                 }
                 let mut i = 0;                
                 while self.r.pos() < body_end {
-                    self.load_instruction(i)?;
+                    self.read_instruction(i)?;
                     i += 1;
                 }
             }
@@ -446,7 +433,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         })
     }
 
-    pub fn load_instruction(&mut self, n: u32) -> WasmResult<()> {
+    pub fn read_instruction(&mut self, n: u32) -> WasmResult<()> {
         use self::ImmediateType::*;
         let offset = self.r.pos() as u32;
         let op = Opcode::try_from(self.read_u8()?)?;
@@ -530,11 +517,6 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         let end = self.r.pos();
         let data = self.r.slice(offset as usize..end);
         self.d.dispatch(Event::Instruction { n, offset, data, op: &op, imm })?;
-        Ok(())
-    }
-
-    pub fn trace<F: FnOnce()->()>(&self, _f: F) -> WasmResult<()> {
-        // Ok(f())
         Ok(())
     }
 }

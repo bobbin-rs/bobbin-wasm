@@ -2,71 +2,75 @@ use {SectionType, Delegate, DelegateResult, ExternalIndex, Event};
 use opcode::*;
 
 use core::str;
+use core::fmt::Write;
 
-fn print_start(name: &str, version: u32) {
-    println!("\n{}:\tfile format wasm 0x{:x}\n", name, version);
-}
 
-pub struct HeaderDumper {}
+pub struct HeaderDumper<W: Write> { pub w: W }
 
-impl Delegate for HeaderDumper {
+impl<W: Write> Delegate for HeaderDumper<W> {
     fn dispatch(&mut self, evt: Event) -> DelegateResult {
         use ::event::Event::*;
         match evt {
-            Start { name, version } => print_start(name, version),
-            SectionStart { s_type, s_beg, s_end, s_len } => {
-                println!("{:>9} start={:#010x} end={:#010x} (size={:#010x}) count: 1", s_type.as_str(), s_beg, s_end, s_len);
+            Start { name, version } => {
+                writeln!(self.w, "\n{}:\tfile format wasm 0x{:x}\n", name, version).unwrap();
             },
-            End => println!(""),
+            SectionStart { s_type, s_beg, s_end, s_len } => {
+                writeln!(self.w,"{:>9} start={:#010x} end={:#010x} (size={:#010x}) count: 1", s_type.as_str(), s_beg, s_end, s_len)?;
+            },
+            End => {
+                writeln!(self.w,"")?;
+            },
             _ => {},
         }
         Ok(())
     }
 }
 
-pub struct DetailsDumper {}
+pub struct DetailsDumper<W: Write> { pub w: W }
 
-impl Delegate for DetailsDumper {
+impl<W: Write> Delegate for DetailsDumper<W> {
     fn dispatch(&mut self, evt: Event) -> DelegateResult {
         use ::event::Event::*;
         match evt {
-            Start { name, version } => print_start(name, version),
+            Start { name, version } => {
+                writeln!(self.w, "\n{}:\tfile format wasm 0x{:x}\n", name, version).unwrap();
+            },
             SectionStart { s_type, s_beg: _, s_end: _, s_len: _ } => {
                 if s_type != SectionType::Code {
-                    println!("{}:", s_type.as_str());            
+                    writeln!(self.w,"{}:", s_type.as_str())?;
                 }
             },
             TypeStart { n, form: _ } => {
-                print!(" - type[{}] (", n);
+                write!(self.w," - type[{}] (", n)?;
             },
             TypeParameter { n, t } => {
-                if n > 1 { print!(", ") }
-                print!("{}", t);                
+                if n > 1 { write!(self.w,", ")? }
+                write!(self.w,"{}", t)?;
             },
             TypeParametersEnd => {
-                print!(") ->");
+                write!(self.w,") ->")?;
             }
             TypeReturn { n: _, t } => {
-                print!(" {}", t);
+                write!(self.w," {}", t)?;
             },
             TypeReturnsEnd => {
-                println!("");
+                writeln!(self.w,"")?;
             },
             Function { n, index } => {
-                println!(" - func[{}] sig={}", n, index.0);
+                writeln!(self.w," - func[{}] sig={}", n, index.0)?;
             },
             Table { n, element_type, limits } => {
-                println!(" - table[{}] type={:?} initial={}", n, element_type, limits.min);
+                writeln!(self.w," - table[{}] type={:?} initial={}", n, element_type, limits.min)?;
             },
             Mem { n, limits }=> {
-                print!(" - memory[{}] pages: initial={}", n, limits.min);
+                write!(self.w," - memory[{}] pages: initial={}", n, limits.min)?;
                 if let Some(maximum) = limits.max {
-                    print!(" maximum={}", maximum);
+                    write!(self.w," maximum={}", maximum)?;
                 }
-                println!("");
+                writeln!(self.w,"")?;
             },
             Global { n, t, mutability, init } => {
-                println!(" - global[{}] {} mutable={} init 0x{:02x}={} ", n, t, mutability, init.opcode, init.immediate);
+                writeln!(self.w," - global[{}] {} mutable={} init 0x{:02x}={} ", n, t, mutability, init.opcode, init.immediate)?;
             },
             Export { n, id, index } => {
                 let kind = match index {
@@ -75,49 +79,52 @@ impl Delegate for DetailsDumper {
                     ExternalIndex::Mem(_) => "memory",
                     ExternalIndex::Global(_) => "global",
                 };
-                println!(" - {}[{}] -> {:?}", kind, n, str::from_utf8(id.0)?)            
+                writeln!(self.w," - {}[{}] -> {:?}", kind, n, str::from_utf8(id.0)?)?;            
             },
             StartFunction { index } => {
-                println!(" - start function: {}", index.0);
+                writeln!(self.w," - start function: {}", index.0)?;
             },
             DataSegment {n, index: _, offset, data } => {
-                println!(" - segment[{}] size={} - init {}={} ", n, data.len(), "i32", offset.immediate);
-                print!(" - {:07x}:", offset.immediate);
+                writeln!(self.w," - segment[{}] size={} - init {}={} ", n, data.len(), "i32", offset.immediate)?;;
+                write!(self.w," - {:07x}:", offset.immediate)?;
                 for (i, d) in data.iter().enumerate() {
                     if i % 2 == 0 {
-                        print!(" ");
+                        write!(self.w," ")?;
                     }
-                    print!("{:02x}", d);
+                    write!(self.w,"{:02x}", d)?;
                 }
-                println!("");                
+                writeln!(self.w,"")?;
             },
-            End => println!(""),
+            End => writeln!(self.w,"")?,
             _ => {},
         }
         Ok(())
     }
 }
 
-pub struct Disassembler {
+pub struct Disassembler<W: Write> { 
+    w: W,
     depth: usize,
 }
 
-impl Disassembler {
-    pub fn new() -> Self {
-        Disassembler { depth: 0 }
+impl<W: Write> Disassembler<W> {
+    pub fn new(w: W) -> Self {
+        Disassembler { w, depth: 0 }
     }
 }
 
-impl Delegate for Disassembler {
+impl<W: Write> Delegate for Disassembler<W> {
     fn dispatch(&mut self, evt: Event) -> DelegateResult {
         use ::event::Event::*;
         match evt {
-            Start { name, version } => print_start(name, version),
+            Start { name, version } => {
+                writeln!(self.w, "\n{}:\tfile format wasm 0x{:x}\n", name, version)?;
+            },
             CodeStart { c: _ } => {
-                println!("Code Disassembly:\n")
+                writeln!(self.w,"Code Disassembly:\n")?;
             },
             Body { n, offset, size: _, locals: _ } => {
-                println!("{:06x} func[{}]:", offset, n);
+                writeln!(self.w,"{:06x} func[{}]:", offset, n)?;
             },
             Instruction { n: _, offset, data, op, imm } => {
                 match op.code {
@@ -128,19 +135,19 @@ impl Delegate for Disassembler {
                     },
                     _ => {},
                 }
-                print!(" {:06x}:", offset);
+                write!(self.w," {:06x}:", offset)?;
                 let mut w = 0;
                 for b in data.iter() {
-                    print!(" {:02x}", b);
+                    write!(self.w," {:02x}", b)?;
                     w += 3;
                 }
                 while w < 28 {
-                    print!(" ");
+                    write!(self.w," ")?;
                     w += 1;
                 }
-                print!("| ");
-                for _ in 0..self.depth { print!("  ") }
-                println!("{}{:?}", op.text, imm);
+                write!(self.w,"| ")?;
+                for _ in 0..self.depth { write!(self.w,"  ")?; }
+                writeln!(self.w,"{}{:?}", op.text, imm)?;
 
                 match op.code {
                     BLOCK | LOOP | IF | ELSE => {
