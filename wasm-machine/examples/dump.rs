@@ -4,6 +4,7 @@ extern crate clap;
 use std::process;
 use std::io::{self, Read};
 use std::fs::File;
+use std::path::Path;
 
 use clap::{App, Arg, ArgMatches};
 
@@ -46,34 +47,34 @@ pub fn main() {
 }
 
 pub fn run(matches: ArgMatches) -> Result<(), Error> {
-    let path = matches.value_of("path").unwrap();    
+    let path = Path::new(matches.value_of("path").unwrap());
     let mut file = File::open(&path)?;
     let mut data: Vec<u8> = Vec::new();
     file.read_to_end(&mut data)?;
 
     let mut buf = [0u8; 64 * 1024];
     
-    
+    let path = path.file_name().unwrap().to_str().unwrap();
 
     if matches.is_present("headers") {
         let r = Reader::new(&mut data[..]);
         let w = Writer::new(&mut buf);
         let mut d = wasm::dumper::HeaderDumper{};
-        let _m = ModuleLoader::new(&mut d, r, w).load()?;        
+        let _m = ModuleLoader::new(&mut d, r, w).load(path)?;        
     } 
     
     if matches.is_present("details") {
         let r = Reader::new(&mut data[..]);
         let w = Writer::new(&mut buf);
         let mut d = wasm::dumper::DetailsDumper{};
-        let _m = ModuleLoader::new(&mut d, r, w).load()?;                
+        let _m = ModuleLoader::new(&mut d, r, w).load(path)?;                
     }
 
     if matches.is_present("disassemble") {
         let r = Reader::new(&mut data[..]);
         let w = Writer::new(&mut buf);
         let mut d = wasm::dumper::Disassembler::new();
-        let _m = ModuleLoader::new(&mut d, r, w).load()?;                
+        let _m = ModuleLoader::new(&mut d, r, w).load(path)?;                
     }
 
 

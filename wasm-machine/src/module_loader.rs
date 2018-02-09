@@ -307,9 +307,9 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
         Ok(())
     }
 
-    pub fn load(mut self) -> ModuleResult<Module<'w>> {
-        self.dispatch(Event::Start)?;
-        self.load_header()?;        
+    pub fn load(mut self, name: &str) -> ModuleResult<Module<'w>> {
+        let version = self.load_header()?;        
+        self.dispatch(Event::Start { name, version })?;
         while !self.done() {
             let _s = self.load_section()?;
             self.m.extend(self.w.split())
@@ -318,11 +318,9 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
         Ok(self.m)
     }
 
-    pub fn load_header(&mut self) -> ModuleResult<()> {        
-        Ok({
-            self.read_u32_expecting(MAGIC_COOKIE, Error::InvalidHeader)?;
-            self.read_u32_expecting(VERSION, Error::InvalidHeader)?;
-        })
+    pub fn load_header(&mut self) -> ModuleResult<u32> {        
+        self.read_u32_expecting(MAGIC_COOKIE, Error::InvalidHeader)?;
+        self.read_u32()
     }
     
     pub fn load_section(&mut self) -> ModuleResult<SectionType> {

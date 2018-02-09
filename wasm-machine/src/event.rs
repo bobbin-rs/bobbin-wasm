@@ -3,7 +3,7 @@ use opcode::{Opcode, Immediate};
 use {SectionType, TypeValue};
 
 pub enum Event<'a> {
-    Start,
+    Start { name: &'a str, version: u32 },
     End,
 
     SectionStart { s_type: SectionType, s_beg: u32, s_end: u32, s_len: u32},

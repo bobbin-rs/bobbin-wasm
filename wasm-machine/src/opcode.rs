@@ -153,18 +153,18 @@ impl fmt::Debug for Immediate {
             } else {
                 Ok(())
             },
-            BranchTable { count } => write!(f, "[{}]", count),
+            BranchTable { count } => write!(f, " [{}]", count),
             BranchTableDepth { n: _, depth } => write!(f, " {}", depth),
             BranchTableDefault { depth } => write!(f, " {}", depth),
-            Local { ref index } => write!(f, "{}", index.0),
-            Global { ref index } => write!(f, "{}", index.0),
-            Call { ref index } => write!(f, "{}", index.0),
-            CallIndirect { ref index } => write!(f, "{}", index.0),
-            I32Const { value } => write!(f, "{}", value),
-            F32Const { value } => write!(f, "{}", value),
-            I64Const { value } => write!(f, "{}", value),
-            F64Const { value } => write!(f, "{}", value),
-            LoadStore { align, offset } => write!(f, "@ {:07x} align={}", offset, align),
+            Local { ref index } => write!(f, " {}", index.0),
+            Global { ref index } => write!(f, " {}", index.0),
+            Call { ref index } => write!(f, " {}", index.0),
+            CallIndirect { ref index } => write!(f, " {}", index.0),
+            I32Const { value } => write!(f, " {}", value),
+            F32Const { value } => write!(f, " {}", value),
+            I64Const { value } => write!(f, " {}", value),
+            F64Const { value } => write!(f, " {}", value),
+            LoadStore { align, offset } => write!(f, " {} {}", align, offset),
             Memory { reserved: _ } => Ok(()),
         }
 

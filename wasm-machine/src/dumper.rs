@@ -3,13 +3,17 @@ use opcode::*;
 
 use core::str;
 
+fn print_start(name: &str, version: u32) {
+    println!("\n{}:\tfile format wasm 0x{:x}\n", name, version);
+}
+
 pub struct HeaderDumper {}
 
 impl Delegate for HeaderDumper {
     fn dispatch(&mut self, evt: Event) -> DelegateResult {
         use ::event::Event::*;
         match evt {
-            Start => println!("Sections:\n"),
+            Start { name, version } => print_start(name, version),
             SectionStart { s_type, s_beg, s_end, s_len } => {
                 println!("{:>9} start={:#010x} end={:#010x} (size={:#010x}) count: 1", s_type.as_str(), s_beg, s_end, s_len);
             },
@@ -26,7 +30,7 @@ impl Delegate for DetailsDumper {
     fn dispatch(&mut self, evt: Event) -> DelegateResult {
         use ::event::Event::*;
         match evt {
-            Start => println!("Section Details:\n"),
+            Start { name, version } => print_start(name, version),
             SectionStart { s_type, s_beg: _, s_end: _, s_len: _ } => {
                 if s_type != SectionType::Code {
                     println!("{}:", s_type.as_str());            
@@ -108,6 +112,7 @@ impl Delegate for Disassembler {
     fn dispatch(&mut self, evt: Event) -> DelegateResult {
         use ::event::Event::*;
         match evt {
+            Start { name, version } => print_start(name, version),
             CodeStart { c: _ } => {
                 println!("Code Disassembly:\n")
             },
@@ -135,7 +140,7 @@ impl Delegate for Disassembler {
                 }
                 print!("| ");
                 for _ in 0..self.depth { print!("  ") }
-                println!("{} {:?}", op.text, imm);
+                println!("{}{:?}", op.text, imm);
 
                 match op.code {
                     BLOCK | LOOP | IF | ELSE => {
