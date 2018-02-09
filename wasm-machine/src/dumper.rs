@@ -1,4 +1,6 @@
 use {SectionType, Delegate, DelegateResult, ExternalIndex, Event};
+use opcode::*;
+
 use core::str;
 
 pub struct HeaderDumper {}
@@ -92,7 +94,15 @@ impl Delegate for DetailsDumper {
     }
 }
 
-pub struct Disassembler {}
+pub struct Disassembler {
+    depth: usize,
+}
+
+impl Disassembler {
+    pub fn new() -> Self {
+        Disassembler { depth: 0 }
+    }
+}
 
 impl Delegate for Disassembler {
     fn dispatch(&mut self, evt: Event) -> DelegateResult {
@@ -105,6 +115,14 @@ impl Delegate for Disassembler {
                 println!("{:07x} func[{}]:", offset, n);
             },
             Instruction { n: _, offset, data, op, imm } => {
+                match op.code {
+                    ELSE | END => {
+                        if self.depth > 0 {
+                            self.depth -= 1;
+                        }
+                    },
+                    _ => {},
+                }
                 print!(" {:07x}:", offset);
                 let mut w = 0;
                 for b in data.iter() {
@@ -115,7 +133,16 @@ impl Delegate for Disassembler {
                     print!(" ");
                     w += 1;
                 }
-                println!("| {} {:?}", op.text, imm);
+                print!("| ");
+                for _ in 0..self.depth { print!(" ") }
+                println!("{} {:?}", op.text, imm);
+
+                match op.code {
+                    BLOCK | LOOP | IF | ELSE => {
+                        self.depth += 1;
+                    },
+                    _ => {},
+                }
             }
             _ => {},
         }

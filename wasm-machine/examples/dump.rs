@@ -72,7 +72,7 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     if matches.is_present("disassemble") {
         let r = Reader::new(&mut data[..]);
         let w = Writer::new(&mut buf);
-        let mut d = wasm::dumper::Disassembler{};
+        let mut d = wasm::dumper::Disassembler::new();
         let _m = ModuleLoader::new(&mut d, r, w).load()?;                
     }
 
