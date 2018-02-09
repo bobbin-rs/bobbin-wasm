@@ -1,11 +1,13 @@
 [package]
-name = "wasm-machine"
+name = "wasm"
 version = "0.1.0"
 authors = ["Jonathan Soo <jcsoo@agora.com>"]
 
 [dependencies]
 wasm-leb128 = {path = "./wasm-leb128" }
 byteorder = { version = "1", default-features = false }
+log = "0.4"
 
 [dev-dependencies]
 clap = "2.29.4"
+env_logger = "0.5.3"

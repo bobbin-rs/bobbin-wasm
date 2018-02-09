@@ -2,6 +2,7 @@ use types::*;
 use opcode::{Opcode, Immediate};
 use {SectionType, TypeValue};
 
+#[derive(Debug)]
 pub enum Event<'a> {
     Start { name: &'a str, version: u32 },
     End,

@@ -5,6 +5,7 @@
 // extern crate core;
 extern crate byteorder;
 extern crate wasm_leb128;
+#[macro_use] extern crate log;
 
 pub mod opcode;
 pub mod types;
@@ -12,7 +13,7 @@ pub mod cursor;
 pub mod reader;
 pub mod writer;
 pub mod stack;
-// pub mod loader;
+pub mod loader;
 // pub mod machine;
 pub mod module;
 pub mod binary_reader;

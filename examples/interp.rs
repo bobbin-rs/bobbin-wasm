@@ -1,11 +1,14 @@
 extern crate wasm;
 extern crate clap;
+#[macro_use] extern crate log;
+extern crate env_logger;
 
 use std::process;
 use std::io::{self, Read};
 use std::fs::File;
 use std::path::Path;
 
+// use log::Level;
 use clap::{App, Arg, ArgMatches};
 
 use wasm::{Reader, BinaryReader};
@@ -29,15 +32,10 @@ impl From<wasm::Error> for Error {
 }
 
 pub fn main() {
-    let matches = App::new("dump")
+    env_logger::init();
+    let matches = App::new("interp")
         .arg(Arg::with_name("path")
             .required(true))
-        .arg(Arg::with_name("headers")
-            .short("h"))
-        .arg(Arg::with_name("details")
-            .short("x"))
-        .arg(Arg::with_name("disassemble")
-            .short("d"))
         .get_matches();
     
     if let Err(e) = run(matches) {
@@ -53,26 +51,28 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     file.read_to_end(&mut data)?;
 
     let path = path.file_name().unwrap().to_str().unwrap();
-    let mut out = String::new();
 
-    if matches.is_present("headers") {
-        let r = Reader::new(&mut data[..]);
-        let mut d = wasm::dumper::HeaderDumper{ w: &mut out};
-        BinaryReader::new(&mut d, r).read(path)?;        
-    } 
-    
-    if matches.is_present("details") {
-        let r = Reader::new(&mut data[..]);
-        let mut d = wasm::dumper::DetailsDumper{ w: &mut out};
-        BinaryReader::new(&mut d, r).read(path)?;                
-    }
+    info!("loading {}", path);
 
-    if matches.is_present("disassemble") {
-        let r = Reader::new(&mut data[..]);
-        let mut d = wasm::dumper::Disassembler::new(&mut out);
-        BinaryReader::new(&mut d, r).read(path)?;                
-    }
-    print!("{}", out);
+    let _out = String::new();
+
+    use wasm::TypeValue;
+    use wasm::loader::Label;
+
+    let mut module_buf = [0u8; 1024];
+    let mut label_buf = [Label::default(); 256];
+    let mut type_buf = [TypeValue::default(); 256];
+
+    let r = Reader::new(&mut data[..]);
+    let mut loader = wasm::loader::Loader::new(
+        &mut module_buf[..],
+        &mut label_buf[..],
+        &mut type_buf[..],
+    );
+    println!("run");
+    BinaryReader::new(&mut loader, r).read(path)?;        
+    println!("done");
+    print!("{}", _out);
 
     Ok(())
 }
