@@ -8,7 +8,7 @@ use std::path::Path;
 
 use clap::{App, Arg, ArgMatches};
 
-use wasm::{Reader, ModuleLoader};
+use wasm::{Reader, BinaryReader};
 
 #[derive(Debug)]
 pub enum Error {
@@ -57,19 +57,19 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     if matches.is_present("headers") {
         let r = Reader::new(&mut data[..]);
         let mut d = wasm::dumper::HeaderDumper{};
-        ModuleLoader::new(&mut d, r).load(path)?;        
+        BinaryReader::new(&mut d, r).load(path)?;        
     } 
     
     if matches.is_present("details") {
         let r = Reader::new(&mut data[..]);
         let mut d = wasm::dumper::DetailsDumper{};
-        ModuleLoader::new(&mut d, r).load(path)?;                
+        BinaryReader::new(&mut d, r).load(path)?;                
     }
 
     if matches.is_present("disassemble") {
         let r = Reader::new(&mut data[..]);
         let mut d = wasm::dumper::Disassembler::new();
-        ModuleLoader::new(&mut d, r).load(path)?;                
+        BinaryReader::new(&mut d, r).load(path)?;                
     }
 
     Ok(())

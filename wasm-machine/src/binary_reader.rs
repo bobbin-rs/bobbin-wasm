@@ -19,19 +19,19 @@ pub const MAGIC_COOKIE: u32 = 0x6d736100;
 pub const VERSION: u32 = 0x1;
 pub const FIXUP: u32 = 0xffff_ffff;
 
-pub type ModuleResult<T> = Result<T, Error>;
+pub type WasmResult<T> = Result<T, Error>;
 
-pub struct ModuleLoader<'d, 'r, D: 'd + Delegate> {
+pub struct BinaryReader<'d, 'r, D: 'd + Delegate> {
     d: &'d mut D,
     r: Reader<'r>,
 }
 
-impl<'d, 'r, D: 'd + Delegate> ModuleLoader<'d, 'r, D> {
+impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
     pub fn new(d: &'d mut D, r: Reader<'r>) -> Self {
-        ModuleLoader { d, r }
+        BinaryReader { d, r }
     }
 
-    fn dispatch(&mut self, evt: Event) -> ModuleResult<()> {
+    fn dispatch(&mut self, evt: Event) -> WasmResult<()> {
         self.d.dispatch(evt)
     }
 
@@ -43,47 +43,47 @@ impl<'d, 'r, D: 'd + Delegate> ModuleLoader<'d, 'r, D> {
         self.r.slice(range)
     }
 
-    fn read_u8(&mut self) -> ModuleResult<u8> {
+    fn read_u8(&mut self) -> WasmResult<u8> {
         self.r.read_u8()
     }
 
-    fn read_u32(&mut self) -> ModuleResult<u32> {
+    fn read_u32(&mut self) -> WasmResult<u32> {
         self.r.read_u32()
     }
 
-    fn read_var_u1(&mut self) -> ModuleResult<u8> {
+    fn read_var_u1(&mut self) -> WasmResult<u8> {
         self.r.read_var_u1()
     }        
 
-    fn read_var_i7(&mut self) -> ModuleResult<i8> {
+    fn read_var_i7(&mut self) -> WasmResult<i8> {
         self.r.read_var_i7()
     }    
 
-    fn read_var_u7(&mut self) -> ModuleResult<u8> {
+    fn read_var_u7(&mut self) -> WasmResult<u8> {
         self.r.read_var_u7()
     }    
 
-    fn read_var_u32(&mut self) -> ModuleResult<u32> {
+    fn read_var_u32(&mut self) -> WasmResult<u32> {
         self.r.read_var_u32()
     }
 
-    fn read_var_i32(&mut self) -> ModuleResult<i32> {
+    fn read_var_i32(&mut self) -> WasmResult<i32> {
         self.r.read_var_i32()
     }
 
-    fn read_var_i64(&mut self) -> ModuleResult<i64> {
+    fn read_var_i64(&mut self) -> WasmResult<i64> {
         self.r.read_var_i64()
     }
 
-    fn read_f32(&mut self) -> ModuleResult<f32> {
+    fn read_f32(&mut self) -> WasmResult<f32> {
         self.r.read_f32()
     }
 
-    fn read_f64(&mut self) -> ModuleResult<f64> {
+    fn read_f64(&mut self) -> WasmResult<f64> {
         self.r.read_f64()
     }
 
-    fn read_u32_expecting(&mut self, want: u32, err: Error) -> ModuleResult<u32> {
+    fn read_u32_expecting(&mut self, want: u32, err: Error) -> WasmResult<u32> {
         if let Ok(got) = self.read_u32() {
             if got == want {
                 return Ok(got)
@@ -92,47 +92,47 @@ impl<'d, 'r, D: 'd + Delegate> ModuleLoader<'d, 'r, D> {
         Err(err)
     }
 
-    fn read_count(&mut self) -> ModuleResult<u32> {
+    fn read_count(&mut self) -> WasmResult<u32> {
         self.read_var_u32()
     }
 
-    fn read_type(&mut self) -> ModuleResult<TypeValue> {
+    fn read_type(&mut self) -> WasmResult<TypeValue> {
         Ok(TypeValue::from(self.r.read_var_i7()?))
     }
 
-    fn read_depth(&mut self) -> ModuleResult<Depth> {
+    fn read_depth(&mut self) -> WasmResult<Depth> {
         self.read_var_u32()
     }
 
-    fn read_index(&mut self) -> ModuleResult<u32> {
+    fn read_index(&mut self) -> WasmResult<u32> {
         self.read_var_u32()
     }
 
-    fn read_type_index(&mut self) -> ModuleResult<TypeIndex> {
+    fn read_type_index(&mut self) -> WasmResult<TypeIndex> {
         self.read_index().map(TypeIndex)
     }
 
-    fn read_func_index(&mut self) -> ModuleResult<FuncIndex> {
+    fn read_func_index(&mut self) -> WasmResult<FuncIndex> {
         self.read_index().map(FuncIndex)
     }
 
-    fn read_table_index(&mut self) -> ModuleResult<TableIndex> {
+    fn read_table_index(&mut self) -> WasmResult<TableIndex> {
         self.read_index().map(TableIndex)
     }    
 
-    fn read_mem_index(&mut self) -> ModuleResult<MemIndex> {
+    fn read_mem_index(&mut self) -> WasmResult<MemIndex> {
         self.read_index().map(MemIndex)
     }
 
-    fn read_global_index(&mut self) -> ModuleResult<GlobalIndex> {
+    fn read_global_index(&mut self) -> WasmResult<GlobalIndex> {
         self.read_index().map(GlobalIndex)
     }
 
-    fn read_local_index(&mut self) -> ModuleResult<LocalIndex> {
+    fn read_local_index(&mut self) -> WasmResult<LocalIndex> {
         self.read_index().map(LocalIndex)
     }
 
-    fn read_external_kind(&mut self) -> ModuleResult<ExternalKind> {
+    fn read_external_kind(&mut self) -> WasmResult<ExternalKind> {
         Ok(match self.read_var_u7()? {
             0x00 => ExternalKind::Function,
             0x01 => ExternalKind::Table,
@@ -142,7 +142,7 @@ impl<'d, 'r, D: 'd + Delegate> ModuleLoader<'d, 'r, D> {
         })
     }
 
-    fn read_external_index(&mut self) -> ModuleResult<ExternalIndex> {
+    fn read_external_index(&mut self) -> WasmResult<ExternalIndex> {
         use ExternalKind::*;
         match self.read_external_kind()? {
             Function => self.read_func_index().map(ExternalIndex::Func),
@@ -152,16 +152,16 @@ impl<'d, 'r, D: 'd + Delegate> ModuleLoader<'d, 'r, D> {
         }
     }
     
-    fn read_bytes_range(&mut self) -> ModuleResult<Range<usize>> {
+    fn read_bytes_range(&mut self) -> WasmResult<Range<usize>> {
         let len = self.r.read_var_u32()? as usize;
         self.r.read_range(len)
     }
 
-    fn read_identifier_range(&mut self) -> ModuleResult<Range<usize>> {
+    fn read_identifier_range(&mut self) -> WasmResult<Range<usize>> {
         self.read_bytes_range()
     }
 
-    fn read_resizable_limits(&mut self) -> ModuleResult<ResizableLimits> {
+    fn read_resizable_limits(&mut self) -> WasmResult<ResizableLimits> {
         let flags = self.read_var_u32()?;
         let min = self.read_var_u32()?;
         let max = if flags & 0x1 != 0 {
@@ -172,7 +172,7 @@ impl<'d, 'r, D: 'd + Delegate> ModuleLoader<'d, 'r, D> {
         Ok(ResizableLimits { flags, min, max })
     }
 
-    fn read_initializer(&mut self) -> ModuleResult<Initializer> {
+    fn read_initializer(&mut self) -> WasmResult<Initializer> {
         let opcode = self.read_u8()?;
         let immediate = self.read_var_u32()?;
         let end = self.read_u8()?;
@@ -183,7 +183,7 @@ impl<'d, 'r, D: 'd + Delegate> ModuleLoader<'d, 'r, D> {
         Identifier(self.slice(range))
     }
 
-    pub fn load(mut self, name: &str) -> ModuleResult<()> {
+    pub fn load(mut self, name: &str) -> WasmResult<()> {
         let version = self.load_header()?;        
         self.dispatch(Event::Start { name, version })?;
         while !self.done() {
@@ -193,12 +193,12 @@ impl<'d, 'r, D: 'd + Delegate> ModuleLoader<'d, 'r, D> {
         Ok(())
     }
 
-    pub fn load_header(&mut self) -> ModuleResult<u32> {        
+    pub fn load_header(&mut self) -> WasmResult<u32> {        
         self.read_u32_expecting(MAGIC_COOKIE, Error::InvalidHeader)?;
         self.read_u32()
     }
     
-    pub fn load_section(&mut self) -> ModuleResult<SectionType> {
+    pub fn load_section(&mut self) -> WasmResult<SectionType> {
         // ID(u8) LEN(u32) [LEN]
         Ok({
             let s_type = SectionType::try_from(self.read_var_u7()?)?;
@@ -242,7 +242,7 @@ impl<'d, 'r, D: 'd + Delegate> ModuleLoader<'d, 'r, D> {
         })
     }
 
-    pub fn load_types(&mut self) -> ModuleResult<()> {
+    pub fn load_types(&mut self) -> WasmResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#type-section
         Ok({
             let c = self.read_count()?;
@@ -280,7 +280,7 @@ impl<'d, 'r, D: 'd + Delegate> ModuleLoader<'d, 'r, D> {
         })
     }
 
-    pub fn load_imports(&mut self) -> ModuleResult<()> {
+    pub fn load_imports(&mut self) -> WasmResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#import-section
         Ok({
             let c = self.read_count()?;
@@ -298,7 +298,7 @@ impl<'d, 'r, D: 'd + Delegate> ModuleLoader<'d, 'r, D> {
         })
     }
 
-    pub fn load_functions(&mut self) -> ModuleResult<()> {
+    pub fn load_functions(&mut self) -> WasmResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#function-section
         Ok({
             let c = self.read_count()?;
@@ -311,7 +311,7 @@ impl<'d, 'r, D: 'd + Delegate> ModuleLoader<'d, 'r, D> {
         })
     }
 
-    pub fn load_tables(&mut self) -> ModuleResult<()> {
+    pub fn load_tables(&mut self) -> WasmResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#table-section
         Ok({
             let c = self.read_count()?;
@@ -325,7 +325,7 @@ impl<'d, 'r, D: 'd + Delegate> ModuleLoader<'d, 'r, D> {
         })
     }
 
-    pub fn load_linear_memory(&mut self) -> ModuleResult<()> {
+    pub fn load_linear_memory(&mut self) -> WasmResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#linear-memory-section
         Ok({
             let c = self.read_count()?;
@@ -338,7 +338,7 @@ impl<'d, 'r, D: 'd + Delegate> ModuleLoader<'d, 'r, D> {
         })
     }
 
-    pub fn load_globals(&mut self) -> ModuleResult<()> {
+    pub fn load_globals(&mut self) -> WasmResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#global-section
         Ok({
             let c = self.read_count()?;
@@ -353,7 +353,7 @@ impl<'d, 'r, D: 'd + Delegate> ModuleLoader<'d, 'r, D> {
         })
     }
 
-    pub fn load_exports(&mut self) -> ModuleResult<()> {
+    pub fn load_exports(&mut self) -> WasmResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#export-section
         Ok({
             let c = self.read_count()?;
@@ -369,7 +369,7 @@ impl<'d, 'r, D: 'd + Delegate> ModuleLoader<'d, 'r, D> {
         })
     }
 
-    pub fn load_start(&mut self) -> ModuleResult<()> {
+    pub fn load_start(&mut self) -> WasmResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#start-section
         Ok({
             // start index
@@ -378,11 +378,11 @@ impl<'d, 'r, D: 'd + Delegate> ModuleLoader<'d, 'r, D> {
         })
     }
 
-    pub fn table_type(&self, _index: u32) -> ModuleResult<TypeValue> {
+    pub fn table_type(&self, _index: u32) -> WasmResult<TypeValue> {
         Err(Error::Unimplemented)
     }
 
-    pub fn load_elements(&mut self) -> ModuleResult<()> {
+    pub fn load_elements(&mut self) -> WasmResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#element-section
         Ok({
             let c = self.read_count()?;
@@ -402,7 +402,7 @@ impl<'d, 'r, D: 'd + Delegate> ModuleLoader<'d, 'r, D> {
         })
     }
 
-    pub fn load_data(&mut self) -> ModuleResult<()> {
+    pub fn load_data(&mut self) -> WasmResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#data-section
         Ok({
             let c = self.read_count()?;
@@ -418,7 +418,7 @@ impl<'d, 'r, D: 'd + Delegate> ModuleLoader<'d, 'r, D> {
         })
     }
 
-    pub fn load_code(&mut self) -> ModuleResult<()> {
+    pub fn load_code(&mut self) -> WasmResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#code-section
         Ok({
             let c = self.read_count()?;
@@ -446,7 +446,7 @@ impl<'d, 'r, D: 'd + Delegate> ModuleLoader<'d, 'r, D> {
         })
     }
 
-    pub fn load_instruction(&mut self, n: u32) -> ModuleResult<()> {
+    pub fn load_instruction(&mut self, n: u32) -> WasmResult<()> {
         use self::ImmediateType::*;
         let offset = self.r.pos() as u32;
         let op = Opcode::try_from(self.read_u8()?)?;
@@ -533,7 +533,7 @@ impl<'d, 'r, D: 'd + Delegate> ModuleLoader<'d, 'r, D> {
         Ok(())
     }
 
-    pub fn trace<F: FnOnce()->()>(&self, _f: F) -> ModuleResult<()> {
+    pub fn trace<F: FnOnce()->()>(&self, _f: F) -> WasmResult<()> {
         // Ok(f())
         Ok(())
     }

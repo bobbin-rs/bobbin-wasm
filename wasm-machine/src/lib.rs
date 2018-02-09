@@ -16,7 +16,7 @@ pub mod scanner;
 pub mod loader;
 pub mod machine;
 pub mod module;
-pub mod module_loader;
+pub mod binary_reader;
 pub mod event;
 pub mod delegate;
 pub mod dumper;
@@ -27,7 +27,7 @@ pub use cursor::*;
 pub use reader::*;
 pub use writer::*;
 pub use module::*;
-pub use module_loader::*;
+pub use binary_reader::*;
 pub use delegate::*;
 pub use dumper::*;
 
@@ -228,7 +228,7 @@ pub enum SectionType {
 }
 
 impl SectionType {
-    fn try_from_u32(other: u32) -> ModuleResult<Self> {
+    fn try_from_u32(other: u32) -> WasmResult<Self> {
         use SectionType::*;
         Ok(
             match other {
@@ -248,7 +248,7 @@ impl SectionType {
             }
         )
     }
-    fn try_from(other: u8) -> ModuleResult<Self> {
+    fn try_from(other: u8) -> WasmResult<Self> {
         SectionType::try_from_u32(other as u32)
     }
 
