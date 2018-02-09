@@ -402,6 +402,7 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
                 self.w.write_u8(n as u8)?;
                 self.w.write_i8(t as i8)?;
             },
+            Instruction(i) => self.dispatch_instruction(i)?,
             BodyEnd => {
                 let fixup = self.body_fixup;
                 self.apply_fixup_u32(fixup)?;                                
@@ -410,6 +411,11 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
         }
         Ok(())
     }
-
 }
 
+impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
+    pub fn dispatch_instruction(&mut self, i: Instruction) -> DelegateResult {
+        info!("{:08x}, {:?} {:?}", i.offset, i.op, i.imm);
+        Ok(())
+    }
+}

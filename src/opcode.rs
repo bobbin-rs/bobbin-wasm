@@ -171,6 +171,19 @@ impl fmt::Debug for Immediate {
     }
 }
 
+pub struct Instruction<'a> { 
+    pub offset: u32, 
+    pub data: &'a [u8], 
+    pub op: &'a Opcode, 
+    pub imm: Immediate 
+}
+
+
+impl<'a> fmt::Debug for Instruction<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:08x}: {:?} {:?}", self.offset, self.op.text, self.imm)
+    }
+}
 
 /*
  *   tr: result type

@@ -1,5 +1,6 @@
 use {SectionType, Delegate, DelegateResult, ExternalIndex, Event};
 use opcode::*;
+use opcode;
 
 use core::str;
 use core::fmt::Write;
@@ -126,7 +127,7 @@ impl<W: Write> Delegate for Disassembler<W> {
             Body { n, offset, size: _, locals: _ } => {
                 writeln!(self.w,"{:06x} func[{}]:", offset, n)?;
             },
-            Instruction { n: _, offset, data, op, imm } => {
+            Instruction(opcode::Instruction { offset, data, op, imm }) => {
                 match op.code {
                     ELSE | END => {
                         if self.depth > 0 {

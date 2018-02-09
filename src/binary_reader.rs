@@ -452,7 +452,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
                 {
                     let end = self.r.pos();
                     let data = self.r.slice(offset as usize..end);
-                    self.d.dispatch(Event::Instruction { n, offset, data, op: &op, imm})?;
+                    self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }))?;
                 }
                 for i in 0..count {
                     let depth = self.read_depth()?;
@@ -460,14 +460,14 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
                     {
                         let end = self.r.pos();
                         let data = self.r.slice(offset as usize..end);
-                        self.d.dispatch(Event::Instruction { n, offset, data, op: &op, imm})?;
+                        self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }))?;
                     }                }
                 let depth = self.read_depth()?;
                 let imm = Immediate::BranchTableDefault { depth };
                 {
                     let end = self.r.pos();
                     let data = self.r.slice(offset as usize..end);
-                    self.d.dispatch(Event::Instruction { n, offset, data, op: &op, imm})?;
+                    self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }))?;
                 }
                 return Ok(())                
             },
@@ -515,7 +515,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         };
         let end = self.r.pos();
         let data = self.r.slice(offset as usize..end);
-        self.d.dispatch(Event::Instruction { n, offset, data, op: &op, imm })?;
+        self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }))?;
         Ok(())
     }
 }
