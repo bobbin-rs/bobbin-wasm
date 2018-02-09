@@ -22,8 +22,6 @@ impl Delegate for HeaderDumper {
 
 pub struct DetailsDumper {}
 
-impl DetailsDumper {}
-
 impl Delegate for DetailsDumper {
     fn dispatch(&mut self, evt: Event) -> DelegateResult {
         use ::event::Event::*;
