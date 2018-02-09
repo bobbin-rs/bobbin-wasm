@@ -7,6 +7,7 @@ extern crate byteorder;
 extern crate wasm_leb128;
 
 pub mod opcode;
+pub mod types;
 pub mod cursor;
 pub mod reader;
 pub mod writer;
@@ -16,9 +17,11 @@ pub mod loader;
 pub mod machine;
 pub mod module;
 pub mod module_loader;
+pub mod event;
 pub mod delegate;
 pub mod dumper;
 
+pub use types::*;
 pub use cursor::*;
 pub use reader::*;
 pub use writer::*;
