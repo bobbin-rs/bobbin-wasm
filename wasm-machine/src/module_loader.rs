@@ -54,6 +54,10 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
         self.r.read_u32()
     }
 
+    fn read_var_u1(&mut self) -> ModuleResult<u8> {
+        self.r.read_var_u1()
+    }        
+
     fn read_var_i7(&mut self) -> ModuleResult<i8> {
         self.r.read_var_i7()
     }    
@@ -65,6 +69,23 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
     fn read_var_u32(&mut self) -> ModuleResult<u32> {
         self.r.read_var_u32()
     }
+
+    fn read_var_i32(&mut self) -> ModuleResult<i32> {
+        self.r.read_var_i32()
+    }
+
+    fn read_var_i64(&mut self) -> ModuleResult<i64> {
+        self.r.read_var_i64()
+    }
+
+    fn read_f32(&mut self) -> ModuleResult<f32> {
+        self.r.read_f32()
+    }
+
+    fn read_f64(&mut self) -> ModuleResult<f64> {
+        self.r.read_f64()
+    }
+
 
     fn read_var_i7_expecting(&mut self, want: i8, err: Error) -> ModuleResult<i8> {
         if let Ok(got) = self.read_var_i7() {
@@ -92,6 +113,10 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
         Ok(TypeValue::from(self.r.read_var_i7()?))
     }
 
+    fn read_depth(&mut self) -> ModuleResult<Depth> {
+        self.read_var_u32()
+    }
+
     fn read_index(&mut self) -> ModuleResult<u32> {
         self.read_var_u32()
     }
@@ -114,6 +139,10 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
 
     fn read_global_index(&mut self) -> ModuleResult<GlobalIndex> {
         self.read_index().map(GlobalIndex)
+    }
+
+    fn read_local_index(&mut self) -> ModuleResult<LocalIndex> {
+        self.read_index().map(LocalIndex)
     }
 
     fn read_external_kind(&mut self) -> ModuleResult<ExternalKind> {
@@ -591,169 +620,103 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
             self.dispatch(Event::DataSegmentsEnd)?;
         })
     }
-    
+
     pub fn load_code(&mut self) -> ModuleResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#code-section
         Ok({
             let c = self.read_count()?;
             self.dispatch(Event::CodeStart { c })?;
-            for _ in 0..c { 
-                self.load_function_body()?;
-                // continue;
-
-                // println!("---\nFunction {}\n---", i);
-                // // body size
-                // let body_len = self.read_var_u32()?;
-                // let body_len_fixup = self.write_u32_fixup()?;
-
-                // let body_w_beg = self.w.pos();
-
-                // let body_beg = self.r.pos();
-                // let body_end = body_beg + body_len as usize;
-
-                // println!("body len: {}", body_len);
-                // // locals
-
-                // let mut locals = [TypeValue::default(); 16];
-                // let mut locals_count = 0;
-
-                // println!("Locals:");
-
-                // for _ in 0..self.copy_var_u32()? {
-                //     let n = self.copy_var_u32()?;
-                //     let t = TypeValue::from(self.copy_var_i7()?);                    
-                //     for _ in 0..n {
-                //         println!("  {:?}", t);
-                //         locals[locals_count] = t;
-                //         locals_count += 1;
-                //     }
-                // }
-                
-                // let mut labels_buf = [Label::default(); 256];
-                // let label_stack = Stack::new(&mut labels_buf);
-
-                // let mut type_buf = [TypeValue::default(); 256];
-                // let type_stack = Stack::new(&mut type_buf);
-               
-                // {
-                //     let mut loader = Loader::new(&self.m, label_stack, type_stack);
-
-                //     let locals = &locals[..locals_count];
-                //     let body = &self.r.as_ref()[self.r.pos()..body_end];
-                //     // for b in body.iter() {
-                //     //     println!("{:02x}", b);
-                //     // }
-                //     let mut r = Reader::new(body);
-                //     loader.load(i, &locals, &mut r, &mut self.w).unwrap();
-                // }
-                // self.r.set_pos(body_end);
-                // let body_w_end = self.w.pos();
-                // self.apply_u32_fixup((body_w_end - body_w_beg) as u32, body_len_fixup)?;
-                // println!("Done loading, body len was {}", body_w_end - body_w_beg);
+            for n in 0..c {
+                let size = self.read_var_u32()?;
+                let body_beg = self.r.pos();
+                let body_end = body_beg + size as usize;                
+                let locals = self.read_count()?;
+                self.dispatch(Event::Body { n, size, locals })?;
+                for i in 0..locals {
+                    let n = self.read_count()?;
+                    let t = self.read_type()?;
+                    self.dispatch(Event::Local { i, n, t })?;
+                }
+                while self.r.pos() < body_end {
+                    self.load_instruction()?;
+                }
             }
             self.dispatch(Event::CodeEnd)?;
-        })
-    }
-    
-
-    pub fn load_function_body(&mut self) -> ModuleResult<()> {
-        Ok({
-            // body_size
-            let body_size = self.read_var_u32()?;
-            let body_fixup = self.write_u32_fixup()?;
-            let w_beg = self.w.pos();
-            let r_end = self.r.pos() + body_size as usize;
-            // locals
-            for _ in 0..self.copy_count()? {
-                self.copy_local()?;
-            }
-            // body
-            while self.r.pos() < r_end {
-                self.load_instruction()?;
-            }
-            let w_end = self.w.pos();
-            let w_len = w_end - w_beg;
-
-            self.apply_u32_fixup(w_len as u32, body_fixup)?;
         })
     }
 
     pub fn load_instruction(&mut self) -> ModuleResult<()> {
         use self::ImmediateType::*;
-        Ok({
-            let offset = self.r.pos();
-            let op = Opcode::try_from(self.copy_u8()?)?;
-            match op.immediate_type() {
-                None => {
-                    self.trace(|| println!("{:04x}: {}", offset, op.text))?;
-                },
-                BlockSignature => {
-                    let _block_signature = TypeValue::from(self.r.read_var_i7()?);
-                    self.trace(|| println!("{:04x}: {}", offset, op.text))?;
-                },
-                BranchDepth => {
-                    let depth = self.r.read_var_u32()?;
-                    self.trace(|| println!("{:04x}: {} {}", offset, op.text, depth))?;
-                },
-                BranchTable => {
-                    self.trace(|| print!("{:04x}: {}", offset, op.text))?;
-                    for _ in 0..self.r.read_var_u32()? {
-                        let depth = self.r.read_var_u32()?;
-                        self.trace(|| print!(" {}", depth))?;
-                    }
-                    let default = self.r.read_var_u32()?;
-                    self.trace(|| println!(" {}", default))?;
-                    
-                },
-                Local => {
-                    let value = self.r.read_var_u32()?;
-                    self.trace(|| println!("{:04x}: {} ${}", offset, op.text, value))?;
-                },
-                Global => {
-                    let value = self.r.read_var_u32()?;
-                    self.trace(|| println!("{:04x}: {} ${}", offset, op.text, value))?;
-                },
-                Call => {
-                    let value = self.r.read_var_u32()?;
-                    self.trace(|| println!("{:04x}: {} ${}", offset, op.text, value))?;
-                },
-                CallIndirect => {
-                    self.trace(|| print!("{:04x}: {}", offset, op.text))?;
-                    for _ in 0..self.r.read_var_u32()? {
-                        let depth = self.r.read_var_u32()?;
-                        self.trace(|| print!(" {}", depth))?
-                    }
-                    let default = self.r.read_var_u32()?;
-                    self.trace(|| println!(" {}", default))?;
-                },
-
-                I32 => {
-                    let value = self.r.read_var_i32()?;
-                    self.trace(|| println!("{:04x}: {} ${}", offset, op.text, value))?;
-                },
-                F32 => {
-                    let value = self.r.read_f32()?;
-                    self.trace(|| println!("{:04x}: {} ${}", offset, op.text, value))?;
-                },
-                I64 => {
-                    let value = self.r.read_var_i64()?;
-                    self.trace(|| println!("{:04x}: {} ${}", offset, op.text, value))?;                    
-                },
-                F64 => {
-                    let value = self.r.read_f32()?;
-                    self.trace(|| println!("{:04x}: {} ${}", offset, op.text, value))?;                    
-                },
-                I32LoadStore | F32LoadStore | I64LoadStore | F64LoadStore => {
-                    let flags = self.copy_var_u32()?;
-                    let off = self.copy_var_u32()?;
-                    self.trace(|| println!("{:04x}: {} {} @{:04x}", offset, op.text, flags, off))?;
-                },
-                Memory => {
-                    let _reserved = self.copy_var_u1()?;
-                    self.trace(|| println!("{:04x}: {}", offset, op.text))?;
-                },                
-            }
-        })
+        let offset = self.r.pos() as u32;
+        let op = Opcode::try_from(self.read_u8()?)?;
+        let imm = match op.immediate_type() {
+            None => Immediate::None,
+            BlockSignature => {
+                let signature = self.read_type()?;
+                Immediate::Block { signature }
+            },
+            BranchDepth => {
+                let depth = self.read_depth()?;
+                Immediate::Branch { depth }
+            },
+            BranchTable => {
+                let count = self.read_count()?;
+                let imm = Immediate::BranchTable { count };
+                self.dispatch(Event::Instruction { offset, op: &op, imm})?;
+                for _ in 0..count {
+                    let depth = self.read_depth()?;
+                    let imm = Immediate::BranchTableDepth { depth };
+                    self.dispatch(Event::Instruction { offset, op: &op, imm})?;
+                }
+                let depth = self.read_depth()?;
+                let imm = Immediate::BranchTableDefault { depth };
+                self.dispatch(Event::Instruction { offset, op: &op, imm})?;
+                return Ok(())                
+            },
+            Local => {                
+                let index = self.read_local_index()?;
+                Immediate::Local { index }
+            },
+            Global => {
+                let index = self.read_global_index()?;
+                Immediate::Global { index }
+            },
+            Call => {
+                let index = self.read_func_index()?;
+                Immediate::Call { index }
+            },
+            CallIndirect => {
+                let index = self.read_type_index()?;
+                Immediate::CallIndirect { index }
+            },
+            I32 => {
+                let value = self.read_var_i32()?;
+                Immediate::I32Const { value }
+            },
+            F32 => {
+                let value = self.read_f32()?;
+                Immediate::F32Const { value }
+            },
+            I64 => {
+                let value = self.read_var_i64()?;
+                Immediate::I64Const { value }
+            },
+            F64 => {
+                let value = self.read_f64()?;
+                Immediate::F64Const { value }
+            },
+            LoadStore=> {
+                let align = self.read_var_u32()?;
+                let offset = self.read_var_u32()?;
+                Immediate::LoadStore { align, offset }
+            },
+            Memory => {
+                let reserved = self.read_var_u1()?;
+                Immediate::Memory { reserved }
+            },                
+        };
+        self.dispatch(Event::Instruction { offset, op: &op, imm })?;
+        Ok(())
     }
 
     pub fn trace<F: FnOnce()->()>(&self, _f: F) -> ModuleResult<()> {

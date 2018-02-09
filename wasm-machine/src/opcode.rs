@@ -28,7 +28,7 @@ pub enum Error {
 
 pub type Depth = u32;
 pub type BranchCount = u32;
-pub struct MemArg { offset: u32, align: u32 }
+pub type CallIndirectCount = u32;
 
 pub const ___: TypeValue = TypeValue::None;
 pub const I32: TypeValue = TypeValue::I32;
@@ -77,10 +77,7 @@ pub enum ImmediateType {
     Global,
     Call,
     CallIndirect,
-    I32LoadStore,
-    I64LoadStore,
-    F32LoadStore,
-    F64LoadStore,
+    LoadStore,
     Memory,
 }
 
@@ -103,13 +100,15 @@ impl From<u8> for ImmediateType {
 
             I32_LOAD | I32_STORE |
             I32_LOAD8_S ... I32_LOAD16_U |
-            I32_STORE8 ... I32_STORE16 => I32LoadStore,
-            F32_LOAD | F32_STORE => F32LoadStore,
+            I32_STORE8 ... I32_STORE16 => LoadStore,
+
+            F32_LOAD | F32_STORE => LoadStore,
 
             I64_LOAD | I64_STORE |
             I64_LOAD8_S ... I64_LOAD32_U |
-            I64_STORE8 ... I64_STORE32 => I64LoadStore,
-            F64_LOAD | F64_STORE => F64LoadStore,
+            I64_STORE8 ... I64_STORE32 => LoadStore,
+
+            F64_LOAD | F64_STORE => LoadStore,
             
             MEM_SIZE | MEM_GROW => Memory,
             _ => None,
@@ -119,24 +118,21 @@ impl From<u8> for ImmediateType {
 
 pub enum Immediate {
     None,
-    Block { op: Opcode, sig: TypeValue },
-    Branch { op: Opcode, depth: Depth },
-    BranchTableCount { op: Opcode, count: BranchCount },
-    BranchTableDepth { op: Opcode, depth: Depth },
-    BranchTableDefault { op: Opcode, depth: Depth },
-    Local { op: Opcode, index: LocalIndex },
-    Global { op: Opcode, index: GlobalIndex },
-    Call { op: Opcode, index: FuncIndex },
-    CallIndirect { op: Opcode, index: TypeIndex },
-    I32Const { op: Opcode, value: i32 },
-    F32Const { op: Opcode, value: f32 },
-    I64Const { op: Opcode, value: i64 },
-    F64Const { op: Opcode, value: f64 },
-    I32LoadStore { op: Opcode, memarg: MemArg },
-    F32LoadStore { op: Opcode, memarg: MemArg },
-    I64LoadStore { op: Opcode, memarg: MemArg },
-    F64LoadStore { op: Opcode, memarg: MemArg },
-    Memory { op: Opcode, reserved: u8 },
+    Block { signature: TypeValue },
+    Branch { depth: Depth },
+    BranchTable { count: BranchCount },
+    BranchTableDepth { depth: Depth },
+    BranchTableDefault { depth: Depth },
+    Local { index: LocalIndex },
+    Global { index: GlobalIndex },
+    Call { index: FuncIndex },
+    CallIndirect { index: TypeIndex },
+    I32Const { value: i32 },
+    F32Const { value: f32 },
+    I64Const { value: i64 },
+    F64Const { value: f64 },
+    LoadStore { align: u32, offset: u32 },
+    Memory { reserved: u8 },
 }
 
 /*

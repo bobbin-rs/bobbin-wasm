@@ -43,9 +43,9 @@ pub enum Event<'a> {
     StartFunction { index: FuncIndex },
 
     CodeStart { c: u32 },
-        Body { i: u32 , size: u32, locals: u32},
+        Body { n: u32 , size: u32, locals: u32},
             Local { i: u32, n: u32, t: TypeValue },
-            Instruction{ i: u32, op: Opcode, imm: Immediate },
+            Instruction{ offset: u32, op: &'a Opcode, imm: Immediate },
     CodeEnd,
 
     DataSegmentsStart { c: u32 },
