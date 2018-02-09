@@ -22,6 +22,7 @@ pub mod delegate;
 pub mod dumper;
 
 pub use types::*;
+pub use event::*;
 pub use cursor::*;
 pub use reader::*;
 pub use writer::*;
@@ -176,6 +177,23 @@ impl From<TypeValue> for i8 {
     }
 }
 
+impl fmt::Display for TypeValue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use TypeValue::*;
+        write!(f, "{}", match *self {
+            None => "none",
+            I32 => "i32",
+            I64 => "i64",
+            F32 => "f32",
+            F64 => "f64",
+            AnyFunc => "anyfunc",
+            Func => "func",
+            Void => "void",
+        })
+    }
+}
+
+
 #[derive(Debug, Clone, Copy)]
 pub struct Function {
     offset: u32,
@@ -260,8 +278,8 @@ impl From<u8> for SectionType {
     }
 }
 
-impl fmt::Display for SectionType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "abc")
-    }
+pub type DelegateResult = Result<(), Error>;
+
+pub trait Delegate {
+    fn dispatch(&mut self, evt: event::Event) -> DelegateResult;
 }
