@@ -47,6 +47,7 @@ pub enum Event<'a> {
         Body { n: u32 , offset: u32, size: u32, locals: u32},
             Local { i: u32, n: u32, t: TypeValue },
             Instruction{ n: u32, offset: u32, data: &'a [u8], op: &'a Opcode, imm: Immediate },
+        BodyEnd,
     CodeEnd,
 
     DataSegmentsStart { c: u32 },

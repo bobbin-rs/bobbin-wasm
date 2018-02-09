@@ -108,6 +108,7 @@ pub struct Loader<'w, 'ls, 'ts> {
     fixups: [Option<Fixup>; 256],
     fixups_pos: usize,
     section_fixup: usize,
+    body_fixup: usize,
 }
 
 impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
@@ -119,7 +120,8 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
         let fixups = [None; 256];
         let fixups_pos = 0;
         let section_fixup = 0;
-        Loader { w, module, label_stack, type_stack, fixups, fixups_pos, section_fixup }
+        let body_fixup = 0;
+        Loader { w, module, label_stack, type_stack, fixups, fixups_pos, section_fixup, body_fixup }
     }
 
     pub fn module(&self) -> &Module {
@@ -391,6 +393,18 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
             },
             CodeStart { c } => {
                 self.w.write_u32(c)?;
+            },
+            Body { n: _, offset: _, size: _, locals } => {
+                self.body_fixup = self.write_fixup_u32()?;
+                self.w.write_u8(locals as u8)?;
+            },
+            Local { i: _, n, t } => {
+                self.w.write_u8(n as u8)?;
+                self.w.write_i8(t as i8)?;
+            },
+            BodyEnd => {
+                let fixup = self.body_fixup;
+                self.apply_fixup_u32(fixup)?;                                
             },
             _ => {},    
         }

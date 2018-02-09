@@ -1,5 +1,4 @@
-use {SectionType, TypeValue, Value, Cursor, WriteTo, WasmResult};
-use writer::Writer;
+use {SectionType, TypeValue, Value, Cursor};
 use opcode::{I32_CONST, GET_GLOBAL};
 
 use core::{slice, str, fmt};
@@ -194,11 +193,11 @@ impl<'a> Section<'a> {
         }
     }
 
-    pub fn codes(&self) -> CodeIter<'a> {
+    pub fn bodies(&self) -> BodyIter<'a> {
         if let SectionType::Code = self.section_type {
-            CodeIter { module: self.module, index: 0, buf: Cursor::new(&self.buf[4..]) }
+            BodyIter { module: self.module, index: 0, buf: Cursor::new(&self.buf[4..]) }
         } else {
-            CodeIter { module: self.module, index: 0, buf: Cursor::new(&[]) }
+            BodyIter { module: self.module, index: 0, buf: Cursor::new(&[]) }
         }
     }
 
@@ -241,8 +240,8 @@ impl<'a> fmt::Debug for Section<'a> {
                     }
                 },
                 SectionType::Code => {
-                    for c in self.codes() {
-                        c.fmt(f)?;
+                    for b in self.bodies() {
+                        b.fmt(f)?;
                     }
                 }                
                 _ => {},
@@ -414,23 +413,23 @@ pub struct Element<'a> {
 impl<'a> Element<'a> {
 }
 
-pub struct Code<'a> {
+pub struct Body<'a> {
     pub module: &'a Module<'a>,
     pub index: u32,
-    pub body: &'a [u8],
+    pub buf: &'a [u8],
 }
 
-impl<'a> fmt::Debug for Code<'a> {
+impl<'a> fmt::Debug for Body<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Ok({
             let indent = "    ";
-            writeln!(f, "{}<Code>", indent, 
-            )?;
+            writeln!(f, "{}<Body size={}>", indent, self.buf.len())?;
+            writeln!(f, "{}</Body>", indent)?;
         })
     }
 }
 
-impl<'a> Code<'a> {
+impl<'a> Body<'a> {
 }
 
 pub struct Data<'a> {
@@ -650,22 +649,22 @@ impl<'a> Iterator for ElementIter<'a> {
     }
 }
 
-pub struct CodeIter<'a> {
+pub struct BodyIter<'a> {
     module: &'a Module<'a>,
     index: u32,
     buf: Cursor<'a>,
 }
 
-impl<'a> Iterator for CodeIter<'a> {
-    type Item = Code<'a>;
+impl<'a> Iterator for BodyIter<'a> {
+    type Item = Body<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
             let index = self.index;
-            let body_len = self.buf.read_u32();
-            let body = self.buf.slice(body_len as usize);
+            let buf_len = self.buf.read_u32();
+            let buf = self.buf.slice(buf_len as usize);
             self.index += 1;            
-            Some(Code { module: self.module, index, body })
+            Some(Body { module: self.module, index, buf })
         } else {
             None
         }

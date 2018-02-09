@@ -426,6 +426,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
                     self.read_instruction(i)?;
                     i += 1;
                 }
+                self.dispatch(Event::BodyEnd)?;
             }
             self.dispatch(Event::CodeEnd)?;
         })
