@@ -370,8 +370,28 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
             },
             TypeReturn { n: _, t } => {
                 self.w.write_u8(t as u8)?;
-            }
-
+            },
+            FunctionsStart { c } => {
+                self.w.write_u32(c)?;
+            },
+            Function { n: _, index } => {
+                self.w.write_u32(index.0)?;
+            },
+            ExportsStart { c } => {
+                self.w.write_u32(c)?;
+            },
+            Export { n: _, id, index } => {
+                let id = id.0;
+                self.w.write_u32(id.len() as u32)?;
+                for b in id {
+                    self.w.write_u8(*b)?;
+                }
+                self.w.write_u8(index.kind())?;
+                self.w.write_u32(index.index())?;
+            },
+            CodeStart { c } => {
+                self.w.write_u32(c)?;
+            },
             _ => {},    
         }
         Ok(())

@@ -24,6 +24,27 @@ pub enum ExternalIndex {
     Global(GlobalIndex),
 }
 
+impl ExternalIndex {
+    pub fn kind(&self) -> u8 {
+        use ExternalIndex::*;
+        match *self {
+            Func(_) => 0x00,
+            Table(_) => 0x01,
+            Mem(_) => 0x02,
+            Global(_) => 0x03,
+        }
+    }
+    pub fn index(&self) -> u32 {
+        use ExternalIndex::*;
+        match *self {
+            Func(FuncIndex(n)) => n,
+            Table(TableIndex(n)) => n,
+            Mem(MemIndex(n)) => n,
+            Global(GlobalIndex(n)) => n,
+        }        
+    }
+}
+
 #[derive(Debug)]
 pub struct ResizableLimits {
     pub flags: u32,

@@ -218,14 +218,34 @@ impl<'a> fmt::Debug for Section<'a> {
             writeln!(f, "{}<Section index={} type={:?} size={}>", indent, self.index, self.section_type, self.buf.len())?;
             if self.buf.len() > 0 {
                 let indent = "    ";
-                write!(f, "{}", indent);
+                write!(f, "{}", indent)?;
                 for (_i, b) in self.buf.iter().enumerate() {
                     write!(f, "{:02x} ", *b)?;
                 }
-                writeln!(f, "");
+                writeln!(f, "")?;
             }
-            for t in self.types() {
-                t.fmt(f)?;
+            match self.section_type {
+                SectionType::Type => {
+                    for t in self.types() {
+                        t.fmt(f)?;
+                    }
+                },
+                SectionType::Function => {
+                    for func in self.functions() {
+                        func.fmt(f)?;
+                    }
+                },
+                SectionType::Export => {
+                    for e in self.exports() {
+                        e.fmt(f)?;
+                    }
+                },
+                SectionType::Code => {
+                    for c in self.codes() {
+                        c.fmt(f)?;
+                    }
+                }                
+                _ => {},
             }
             writeln!(f, "{}</Section>", indent)?;
         })
@@ -280,6 +300,15 @@ pub struct Function<'a> {
     pub module: &'a Module<'a>,
     pub index: u32,
     pub signature_type_index: u32,
+}
+
+impl<'a> fmt::Debug for Function<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Ok({
+            let indent = "    ";
+            writeln!(f, "{}<Function index=\"{}\">", indent, self.signature_type_index)?;
+        })
+    }
 }
 
 impl<'a> Function<'a> {
@@ -340,6 +369,17 @@ pub struct Export<'a> {
     pub export_index: ExportIndex,
 }
 
+impl<'a> fmt::Debug for Export<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Ok({
+            let indent = "    ";
+            writeln!(f, "{}<Export id={:?} index={:?}>", indent, 
+                str::from_utf8(self.identifier).unwrap(),
+                self.export_index,
+            )?;
+        })
+    }
+}
 impl<'a> Export<'a> {
     pub fn export_item(&self) -> Option<ExportItem<'a>> {
         use ExportIndex::*;
@@ -378,6 +418,16 @@ pub struct Code<'a> {
     pub module: &'a Module<'a>,
     pub index: u32,
     pub body: &'a [u8],
+}
+
+impl<'a> fmt::Debug for Code<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Ok({
+            let indent = "    ";
+            writeln!(f, "{}<Code>", indent, 
+            )?;
+        })
+    }
 }
 
 impl<'a> Code<'a> {
