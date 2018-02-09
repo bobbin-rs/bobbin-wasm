@@ -69,10 +69,9 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
         &mut label_buf[..],
         &mut type_buf[..],
     );
-    println!("run");
     BinaryReader::new(&mut loader, r).read(path)?;        
-    println!("done");
-    print!("{}", _out);
+    let m = loader.module();
+    println!("{:?}", m);
 
     Ok(())
 }

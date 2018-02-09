@@ -163,7 +163,7 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
         Err(Error::FixupsFull)
     }
 
-    pub fn fixup(&mut self, w: &mut Writer) -> Result<(), Error> {
+    pub fn fixup(&mut self) -> Result<(), Error> {
         let depth = self.label_depth();        
         let offset = self.peek_label(0)?.offset;
         let offset = if offset == FIXUP_OFFSET { w.pos() } else { offset as usize};
@@ -172,7 +172,7 @@ impl<'m, 's, 't> Loader<'m, 's, 't> {
             let del = if let &mut Some(entry) = entry {
                 if entry.depth == depth {
                     // info!(" {:?}", entry);
-                    w.write_u32_at(offset as u32, entry.offset as usize)?;
+                    self.w.write_u32_at(offset as u32, entry.offset as usize)?;
                     true
                 } else {
                     // info!(" ! {} 0x{:04x}", entry.depth, entry.offset);                    

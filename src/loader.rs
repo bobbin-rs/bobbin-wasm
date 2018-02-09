@@ -107,6 +107,7 @@ pub struct Loader<'w, 'ls, 'ts> {
     type_stack: Stack<'ts, TypeValue>,
     fixups: [Option<Fixup>; 256],
     fixups_pos: usize,
+    section_fixup: usize,
 }
 
 impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
@@ -117,7 +118,12 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
         let type_stack = Stack::new(type_buf);
         let fixups = [None; 256];
         let fixups_pos = 0;
-        Loader { w, module, label_stack, type_stack, fixups, fixups_pos }
+        let section_fixup = 0;
+        Loader { w, module, label_stack, type_stack, fixups, fixups_pos, section_fixup }
+    }
+
+    pub fn module(&self) -> &Module {
+        &self.module
     }
 
     pub fn push_label<T: Into<TypeValue>>(&mut self, opcode: u8, signature: T, offset: u32) -> Result<(), Error> {
@@ -224,16 +230,16 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
         Err(Error::FixupsFull)
     }
 
-    pub fn fixup(&mut self, w: &mut Writer) -> Result<(), Error> {
+    pub fn fixup(&mut self) -> Result<(), Error> {
         let depth = self.label_depth();        
         let offset = self.peek_label(0)?.offset;
-        let offset = if offset == FIXUP_OFFSET { w.pos() } else { offset as usize};
+        let offset = if offset == FIXUP_OFFSET { self.w.pos() } else { offset as usize};
         // info!("fixup: {} -> 0x{:08x}", depth, offset);
         for entry in self.fixups.iter_mut() {
             let del = if let &mut Some(entry) = entry {
                 if entry.depth == depth {
                     // info!(" {:?}", entry);
-                    w.write_u32_at(offset as u32, entry.offset as usize)?;
+                    self.w.write_u32_at(offset as u32, entry.offset as usize)?;
                     true
                 } else {
                     // info!(" ! {} 0x{:04x}", entry.depth, entry.offset);                    
@@ -318,11 +324,56 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
         }
         Ok(())
     }
+
+    pub fn write_fixup_u32(&mut self) -> Result<usize, Error> {
+        let pos = self.w.pos();
+        self.w.write_u32(FIXUP_OFFSET)?;
+        Ok(pos)
+    }
+
+    pub fn apply_fixup_u32(&mut self, fixup: usize) -> Result<u32, Error> {
+        let len = self.w.pos() - (fixup + 4);
+        self.w.write_u32_at(len as u32, fixup)?;
+        Ok(len as u32)
+    }
 }
 
 impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
     fn dispatch(&mut self, evt: Event) -> DelegateResult {
-        info!("{:?}", evt);
+        use Event::*;
+        info!("{:08x}: {:?}", self.w.pos(), evt);
+        match evt {
+            Start { ref name, version } => {
+                self.module.set_name(name);
+                self.module.set_version(version);
+            },
+            SectionStart { s_type, s_beg: _, s_end:_ , s_len: _ } => {
+                self.w.write_u8(s_type as u8)?;                
+                self.section_fixup = self.write_fixup_u32()?;
+            },
+            SectionEnd => {
+                let fixup = self.section_fixup;
+                self.apply_fixup_u32(fixup)?;                
+                self.module.extend(self.w.split());
+            },
+            TypesStart { c } => {
+                self.w.write_u32(c)?;
+            },
+            TypeParametersStart { c } => {
+                self.w.write_u8(c as u8)?;
+            },
+            TypeParameter { n: _, t } => {
+                self.w.write_u8(t as u8)?;
+            },
+            TypeReturnsStart { c } => {
+                self.w.write_u8(c as u8)?;
+            },
+            TypeReturn { n: _, t } => {
+                self.w.write_u8(t as u8)?;
+            }
+
+            _ => {},    
+        }
         Ok(())
     }
 

@@ -86,6 +86,10 @@ impl<'a> Writer<'a> {
         Ok(())
     }
 
+    pub fn write_len(&mut self, len: usize) -> WriteResult<()> {
+        self.write_u32(len as u32)
+    }
+
     pub fn split(&mut self) -> &'a [u8] {
         unsafe {
             // First Half

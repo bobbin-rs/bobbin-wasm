@@ -1,4 +1,5 @@
 use {Error, WasmResult, Reader, TypeValue, SectionType, ExternalKind, Delegate};
+use MAGIC_COOKIE;
 use types::*;
 use opcode::*;
 use event::Event;
@@ -8,9 +9,6 @@ use core::convert::TryFrom;
 use core::ops::Range;
 
 
-pub const MAGIC_COOKIE: u32 = 0x6d736100;
-pub const VERSION: u32 = 0x1;
-pub const FIXUP: u32 = 0xffff_ffff;
 
 pub struct BinaryReader<'d, 'r, D: 'd + Delegate> {
     d: &'d mut D,
