@@ -576,10 +576,28 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
         })
     }
 
+    pub fn load_data(&mut self) -> ModuleResult<()> {
+        // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#data-section
+        Ok({
+            let c = self.read_count()?;
+            self.dispatch(Event::DataSegmentsStart { c })?;
+            for n in 0..c { 
+                let index = self.read_mem_index()?;
+                let offset = self.read_initializer()?;
+                let data_range = self.read_bytes_range()?;
+                let data = self.r.slice(data_range);
+                self.d.handle(Event::DataSegment { n, index, offset, data } )?;
+            }
+            self.dispatch(Event::DataSegmentsEnd)?;
+        })
+    }
+    
     pub fn load_code(&mut self) -> ModuleResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#code-section
         Ok({
-            for _ in 0..self.copy_count()? {
+            let c = self.read_count()?;
+            self.dispatch(Event::CodeStart { c })?;
+            for _ in 0..c { 
                 self.load_function_body()?;
                 // continue;
 
@@ -633,35 +651,10 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
                 // self.apply_u32_fixup((body_w_end - body_w_beg) as u32, body_len_fixup)?;
                 // println!("Done loading, body len was {}", body_w_end - body_w_beg);
             }
+            self.dispatch(Event::CodeEnd)?;
         })
     }
-
-    pub fn load_data(&mut self) -> ModuleResult<()> {
-        // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#data-section
-        Ok({
-            let num = self.read_var_u32()?;
-            self.d.data_segments_start(num)?;
-            for i in 0..num {
-                // index
-                let memory_index = self.read_var_u32()?;                
-
-                // offset
-                let offset_opcode = self.read_u8()?;
-                let offset_immediate = self.read_var_u32()?;                
-                let _offset_end = self.read_u8()?;
-
-                // data
-                let data_len = self.r.read_var_u32()?;
-                let data_beg = self.r.pos();
-                self.r.advance(data_len as usize);
-                let data_end = self.r.pos();
-                let data = &self.r.as_ref()[data_beg..data_end];
-                
-                self.d.data_segment(i, memory_index, offset_opcode, offset_immediate, data)?;
-            }
-            self.d.data_segments_end()?;
-        })
-    }
+    
 
     pub fn load_function_body(&mut self) -> ModuleResult<()> {
         Ok({
