@@ -91,3 +91,34 @@ impl Delegate for DetailsDumper {
         Ok(())
     }
 }
+
+pub struct Disassembler {}
+
+impl Delegate for Disassembler {
+    fn dispatch(&mut self, evt: Event) -> DelegateResult {
+        use ::event::Event::*;
+        match evt {
+            CodeStart { c: _ } => {
+                println!("Code Disassembly:\n")
+            },
+            Body { n, offset, size: _, locals: _ } => {
+                println!("{:07x} func[{}]:", offset, n);
+            },
+            Instruction { n: _, offset, data, op, imm } => {
+                print!(" {:07x}:", offset);
+                let mut w = 0;
+                for b in data.iter() {
+                    print!(" {:02x}", b);
+                    w += 3;
+                }
+                while w < 27 {
+                    print!(" ");
+                    w += 1;
+                }
+                println!("| {} {:?}", op.text, imm);
+            }
+            _ => {},
+        }
+        Ok(())
+    }
+}

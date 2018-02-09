@@ -1,5 +1,7 @@
-use ::core::convert::TryFrom;
 use {TypeValue, FuncIndex, LocalIndex, GlobalIndex, TypeIndex};
+
+use ::core::fmt;
+use ::core::convert::TryFrom;
 
 macro_rules! opcodes {
     ( $( ($tr:ident, $t1:ident, $t2:ident, $m:expr, $code:expr, $name:ident, $text:expr), )*) => {
@@ -121,7 +123,7 @@ pub enum Immediate {
     Block { signature: TypeValue },
     Branch { depth: Depth },
     BranchTable { count: BranchCount },
-    BranchTableDepth { depth: Depth },
+    BranchTableDepth { n: u32, depth: Depth },
     BranchTableDefault { depth: Depth },
     Local { index: LocalIndex },
     Global { index: GlobalIndex },
@@ -134,6 +136,41 @@ pub enum Immediate {
     LoadStore { align: u32, offset: u32 },
     Memory { reserved: u8 },
 }
+
+
+impl fmt::Debug for Immediate {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::Immediate::*;
+        match *self {
+            None => Ok(()),
+            Block { signature } => if signature != TypeValue::Void {
+                write!(f, "{:?}", signature)
+            } else {
+                Ok(())
+            },
+            Branch { depth } => if depth != 0 { 
+                write!(f, "{}", depth)
+            } else {
+                Ok(())
+            },
+            BranchTable { count } => write!(f, "[{}]", count),
+            BranchTableDepth { n: _, depth } => write!(f, " {}", depth),
+            BranchTableDefault { depth } => write!(f, " {}", depth),
+            Local { ref index } => write!(f, "{}", index.0),
+            Global { ref index } => write!(f, "{}", index.0),
+            Call { ref index } => write!(f, "{}", index.0),
+            CallIndirect { ref index } => write!(f, "{}", index.0),
+            I32Const { value } => write!(f, "{}", value),
+            F32Const { value } => write!(f, "{}", value),
+            I64Const { value } => write!(f, "{}", value),
+            F64Const { value } => write!(f, "{}", value),
+            LoadStore { align, offset } => write!(f, "@ {:07x} align={}", offset, align),
+            Memory { reserved: _ } => Ok(()),
+        }
+
+    }
+}
+
 
 /*
  *   tr: result type

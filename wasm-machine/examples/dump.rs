@@ -34,7 +34,9 @@ pub fn main() {
         .arg(Arg::with_name("headers")
             .short("h"))
         .arg(Arg::with_name("details")
-            .short("x"))            
+            .short("x"))
+        .arg(Arg::with_name("disassemble")
+            .short("d"))
         .get_matches();
     
     if let Err(e) = run(matches) {
@@ -66,6 +68,14 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
         let mut d = wasm::dumper::DetailsDumper{};
         let _m = ModuleLoader::new(&mut d, r, w).load()?;                
     }
+
+    if matches.is_present("disassemble") {
+        let r = Reader::new(&mut data[..]);
+        let w = Writer::new(&mut buf);
+        let mut d = wasm::dumper::Disassembler{};
+        let _m = ModuleLoader::new(&mut d, r, w).load()?;                
+    }
+
 
 
 

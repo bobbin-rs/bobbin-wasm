@@ -629,23 +629,27 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
             for n in 0..c {
                 let size = self.read_var_u32()?;
                 let body_beg = self.r.pos();
-                let body_end = body_beg + size as usize;                
+                let body_end = body_beg + size as usize;     
+
+                let offset = body_beg as u32;           
                 let locals = self.read_count()?;
-                self.dispatch(Event::Body { n, size, locals })?;
+                self.dispatch(Event::Body { n, offset, size, locals })?;
                 for i in 0..locals {
                     let n = self.read_count()?;
                     let t = self.read_type()?;
                     self.dispatch(Event::Local { i, n, t })?;
                 }
+                let mut i = 0;                
                 while self.r.pos() < body_end {
-                    self.load_instruction()?;
+                    self.load_instruction(i)?;
+                    i += 1;
                 }
             }
             self.dispatch(Event::CodeEnd)?;
         })
     }
 
-    pub fn load_instruction(&mut self) -> ModuleResult<()> {
+    pub fn load_instruction(&mut self, n: u32) -> ModuleResult<()> {
         use self::ImmediateType::*;
         let offset = self.r.pos() as u32;
         let op = Opcode::try_from(self.read_u8()?)?;
@@ -662,15 +666,26 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
             BranchTable => {
                 let count = self.read_count()?;
                 let imm = Immediate::BranchTable { count };
-                self.dispatch(Event::Instruction { offset, op: &op, imm})?;
-                for _ in 0..count {
-                    let depth = self.read_depth()?;
-                    let imm = Immediate::BranchTableDepth { depth };
-                    self.dispatch(Event::Instruction { offset, op: &op, imm})?;
+                {
+                    let end = self.r.pos();
+                    let data = self.r.slice(offset as usize..end);
+                    self.d.dispatch(Event::Instruction { n, offset, data, op: &op, imm})?;
                 }
+                for i in 0..count {
+                    let depth = self.read_depth()?;
+                    let imm = Immediate::BranchTableDepth { n: i, depth };
+                    {
+                        let end = self.r.pos();
+                        let data = self.r.slice(offset as usize..end);
+                        self.d.dispatch(Event::Instruction { n, offset, data, op: &op, imm})?;
+                    }                }
                 let depth = self.read_depth()?;
                 let imm = Immediate::BranchTableDefault { depth };
-                self.dispatch(Event::Instruction { offset, op: &op, imm})?;
+                {
+                    let end = self.r.pos();
+                    let data = self.r.slice(offset as usize..end);
+                    self.d.dispatch(Event::Instruction { n, offset, data, op: &op, imm})?;
+                }
                 return Ok(())                
             },
             Local => {                
@@ -715,7 +730,9 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
                 Immediate::Memory { reserved }
             },                
         };
-        self.dispatch(Event::Instruction { offset, op: &op, imm })?;
+        let end = self.r.pos();
+        let data = self.r.slice(offset as usize..end);
+        self.d.dispatch(Event::Instruction { n, offset, data, op: &op, imm })?;
         Ok(())
     }
 
