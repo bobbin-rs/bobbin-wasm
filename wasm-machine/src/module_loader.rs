@@ -5,9 +5,14 @@ use opcode::*;
 use event::Event;
 use core::convert::TryFrom;
 
+// macro_rules! event {
+//     ($evt:expr) => (
+//         self.dispatch($evt)?;
+//     )
+// }
+
 pub const MAGIC_COOKIE: u32 = 0x6d736100;
 pub const VERSION: u32 = 0x1;
-
 pub const FIXUP: u32 = 0xffff_ffff;
 
 pub type ModuleResult<T> = Result<T, Error>;
@@ -183,13 +188,13 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
     }
 
     pub fn load(mut self) -> ModuleResult<Module<'w>> {
-        self.d.start()?;
+        self.dispatch(Event::Start)?;
         self.load_header()?;        
         while !self.done() {
             let _s = self.load_section()?;
             self.m.extend(self.w.split())
         }
-        self.d.end(self.r.pos() as u32)?;
+        self.dispatch(Event::End)?;
         Ok(self.m)
     }
 
@@ -203,19 +208,20 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
     pub fn load_section(&mut self) -> ModuleResult<SectionType> {
         // ID(u8) LEN(u32) [LEN]
         Ok({
-            let s = SectionType::try_from(self.read_var_u7()?)?;
+            let s_type = SectionType::try_from(self.read_var_u7()?)?;
 
             let s_len = self.read_var_u32()?;
             let s_beg = self.r.pos() as u32;
             let s_end = s_beg + s_len;
 
-            self.d.section_start(s, s_beg, s_end, s_len)?;
+            self.dispatch(Event::SectionStart { s_type, s_beg, s_end, s_len })?;
+            // self.d.section_start(s, s_beg, s_end, s_len)?;
 
-            self.write_u8(s as u8)?;
-            let fixup_len = self.write_u32_fixup()?;
-            let w_beg = self.w.pos();
+            // self.write_u8(s as u8)?;
+            // let fixup_len = self.write_u32_fixup()?;
+            // let w_beg = self.w.pos();
 
-            match s {
+            match s_type {
                 SectionType::Type => self.load_types()?,
                 SectionType::Import => self.load_imports()?,
                 SectionType::Function => self.load_functions()?,
@@ -233,12 +239,13 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
             if r_pos != s_end {            
                 return Err(Error::UnexpectedData { wanted: s_len, got: (r_pos - s_beg) as u32 })
             }
-            self.d.section_end()?;
+            self.dispatch(Event::SectionEnd)?;
+            // self.d.section_end()?;
 
-            let w_end = self.w.pos();
-            let w_len = w_end - w_beg;            
-            self.apply_u32_fixup(w_len as u32, fixup_len)?;
-            s
+            // let w_end = self.w.pos();
+            // let w_len = w_end - w_beg;            
+            // self.apply_u32_fixup(w_len as u32, fixup_len)?;
+            s_type
         })
     }
 

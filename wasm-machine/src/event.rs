@@ -6,7 +6,7 @@ pub enum Event<'a> {
     Start,
     End,
 
-    SectionStart { s_type: SectionType, s_start: u32, s_end: u32, s_len: u32},
+    SectionStart { s_type: SectionType, s_beg: u32, s_end: u32, s_len: u32},
     SectionEnd,
 
     TypesStart { c: u32 },
