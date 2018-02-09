@@ -4,7 +4,7 @@ use TypeValue;
 
 pub type Depth = u32;
 pub type BranchCount = u32;
-pub struct MemArg { offset: u32, align: u32 };
+pub struct MemArg { offset: u32, align: u32 }
 
 
 pub enum Instruction {
@@ -25,5 +25,5 @@ pub enum Instruction {
     F32LoadStore { op: Opcode, memarg: MemArg },
     I64LoadStore { op: Opcode, memarg: MemArg },
     F64LoadStore { op: Opcode, memarg: MemArg },
-    Memory { op: Opcode, arg: reserved: u8 },
+    Memory { op: Opcode, reserved: u8 },
 }
