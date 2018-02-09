@@ -123,37 +123,3 @@ impl<'a> Deref for Writer<'a> {
         &self.buf[..self.pos]
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_split_join() {
-        let mut buf = [0u8; 256];
-
-        let mut w = Writer::new(&mut buf);
-
-        for i in 0..8 {
-            w.write_u8(i).unwrap();
-        }
-        assert_eq!(w.pos(), 8);
-        assert_eq!(w.cap(), 256);
-
-        let mut r = w.split_reader();
-
-        assert_eq!(w.pos(), 0);
-        assert_eq!(w.cap(), 248);
-
-        assert_eq!(r.pos(), 0);
-        assert_eq!(r.len(), 8);
-        
-        r.advance(8);
-
-        r.join_writer(w);
-
-        assert_eq!(r.pos(), 8);
-        assert_eq!(r.len(), 256);
-
-    }
-}
