@@ -35,7 +35,7 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
     }
 
     fn dispatch(&mut self, evt: Event) -> ModuleResult<()> {
-        self.d.handle(evt)
+        self.d.dispatch(evt)
     }
 
     fn done(&self) -> bool {
@@ -495,7 +495,7 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
 
                 let module = Identifier(self.r.slice(module_range));
                 let export = Identifier(self.r.slice(export_range));
-                self.d.handle(Event::Import { n, module, export, index })?;
+                self.d.dispatch(Event::Import { n, module, export, index })?;
             }
             self.dispatch(Event::ImportsEnd)?;
         })
@@ -566,7 +566,7 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
                 let index = self.read_external_index()?;
                 let id = Identifier(self.r.slice(id_range));
 
-                self.d.handle(Event::Export { n, id, index})?;
+                self.d.dispatch(Event::Export { n, id, index})?;
             }
             self.dispatch(Event::ExportsEnd)?;
         })
@@ -599,7 +599,7 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
                 let data_beg = self.r.pos() as usize;
                 let data_end = data_beg + data_len * mem::size_of::<FuncIndex>();
                 let data = Some(self.r.slice(data_beg..data_end));
-                self.d.handle(Event::Element { n, index, offset, data })?;
+                self.d.dispatch(Event::Element { n, index, offset, data })?;
             }
             self.dispatch(Event::ElementsEnd)?;
         })
@@ -615,7 +615,7 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
                 let offset = self.read_initializer()?;
                 let data_range = self.read_bytes_range()?;
                 let data = self.r.slice(data_range);
-                self.d.handle(Event::DataSegment { n, index, offset, data } )?;
+                self.d.dispatch(Event::DataSegment { n, index, offset, data } )?;
             }
             self.dispatch(Event::DataSegmentsEnd)?;
         })

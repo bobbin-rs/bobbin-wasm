@@ -60,6 +60,3 @@ pub enum Event<'a> {
         Element { n: u32, index: TableIndex, offset: Initializer, data: Option<&'a [u8]> },
     ElementsEnd,
 }
-
-pub enum CodeEvent {
-}

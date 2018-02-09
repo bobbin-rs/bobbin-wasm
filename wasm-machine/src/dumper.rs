@@ -1,28 +1,23 @@
-use {SectionType, TypeValue, ExternalKind};
+use {SectionType};
+use event::Event;
 use delegate::*;
 use core::str;
 
 pub struct HeaderDumper {}
 
 impl Delegate for HeaderDumper {
-    fn start(&mut self) -> DelegateResult {
-        Ok({
-            println!("Sections:\n");
-        })
-    }    
-
-    fn section_start(&mut self, s_type: SectionType, s_start: u32, s_end: u32, s_len: u32) -> DelegateResult {
-        Ok({
-            println!("{:>9} start={:#010x} end={:#010x} (size={:#010x}) count: 1", s_type.as_str(), s_start, s_end, s_len)
-        })
-    }    
-
-    fn end(&mut self, _pos: u32) -> DelegateResult {
-        Ok({ 
-            println!("");
-        })
+    fn dispatch(&mut self, evt: Event) -> DelegateResult {
+        use ::event::Event::*;
+        match evt {
+            Start => println!("Sections:\n"),
+            SectionStart { s_type, s_beg, s_end, s_len } => {
+                println!("{:>9} start={:#010x} end={:#010x} (size={:#010x}) count: 1", s_type.as_str(), s_beg, s_end, s_len);
+            },
+            End => println!(""),
+            _ => {},
+        }
+        Ok(())
     }
-    
 }
 
 pub struct DetailsDumper {}
@@ -30,112 +25,67 @@ pub struct DetailsDumper {}
 impl DetailsDumper {}
 
 impl Delegate for DetailsDumper {
-    fn start(&mut self) -> DelegateResult {
-        Ok({
-            println!("Section Details:\n");
-        })
-    }
-
-    fn section_start(&mut self, s_type: SectionType, _s_start: u32, _s_end: u32, _s_len: u32) -> DelegateResult {
-        Ok({
-            if s_type != SectionType::Code {
-                println!("{}:", s_type.as_str());            
-            }
-        })
-    }    
-    
-    fn type_start(&mut self, index: u32, _form: i8) -> DelegateResult {
-        Ok({
-            print!(" - type[{}] ", index);
-        })
-    }
-
-    fn type_parameters_start(&mut self, _count: u32) -> DelegateResult { 
-        Ok({
-            print!("(")
-        })
-    }
-    fn type_parameter(&mut self, index: u32, tv: TypeValue) -> DelegateResult { 
-        Ok({
-            if index > 1 { print!(", ") }
-            print!("{:?}", tv);
-        })
-    }     
-    fn type_parameters_end(&mut self) -> DelegateResult { 
-        Ok({
-            print!(")")
-        })
-    }      
-    
-    fn type_return(&mut self, _index: u32, tv: TypeValue) -> DelegateResult { 
-        Ok({
-            print!(" -> {:?}", tv);
-        })
-    }   
-
-    fn type_end(&mut self) -> DelegateResult {
-        Ok({
-            println!("");
-        })
-    }
-
-    fn function(&mut self, index: u32, sig: u32) -> DelegateResult { 
-        Ok({
-            println!(" - func[{}] sig={}", index, sig);
-        })
-    }
-
-    fn table(&mut self, index: u32, element_type: TypeValue, _flags: u32, minimum: u32, _maximum: Option<u32>) -> DelegateResult { 
-        Ok({
-            println!(" - table[{}] type={:?} initial={}", index, element_type, minimum);
-        })
-    }
-
-    fn memory(&mut self, index: u32, _flags: u32, minimum: u32, maximum: Option<u32>) -> DelegateResult {
-        Ok({
-            print!(" - memory[{}] pages: initial={}", index, minimum);
-            if let Some(maximum) = maximum {
-                print!(" maximum={}", maximum);
-            }
-            println!("");
-        })
-    }
-
-    fn global(&mut self, index: u32, tv: TypeValue, mutability: u8, init_opcode: u8, init_immediate: u32) -> DelegateResult {    
-        Ok({
-            println!(" - global[{}] {:?} mutable={} init 0x{:02x}={} ", index, tv, mutability, init_opcode, init_immediate);
-        })
-    }
-
-    fn export(&mut self, index: u32, id: &[u8], kind: ExternalKind, _external_index: u32) -> DelegateResult { 
-        Ok({
-            println!(" - {:?}[{}] -> {:?}", kind, index, str::from_utf8(id)?)
-        })
-    }   
-
-    fn start_function(&mut self, function_index: u32) -> DelegateResult {
-        Ok({
-            println!(" - start function: {}", function_index);
-        })
-    }
-
-    fn data_segment(&mut self, index: u32, _memory_index: u32, _offset_opcode: u8, offset_immediate: u32, data: &[u8]) -> DelegateResult { 
-        Ok({
-            println!(" - segment[{}] size={} - init {}={} ", index, data.len(), "i32", offset_immediate);
-            print!(" - {:07x}:", offset_immediate);
-            for (i, d) in data.iter().enumerate() {
-                if i % 2 == 0 {
-                    print!(" ");
+    fn dispatch(&mut self, evt: Event) -> DelegateResult {
+        use ::event::Event::*;
+        match evt {
+            Start => println!("Section Details:\n"),
+            SectionStart { s_type, s_beg: _, s_end: _, s_len: _ } => {
+                if s_type != SectionType::Code {
+                    println!("{}:", s_type.as_str());            
                 }
-                print!("{:02x}", d);
+            },
+            TypeStart { n, form: _ } => {
+                print!(" - type[{}] (", n);
+            },
+            TypeParameter { n, t } => {
+                if n > 1 { print!(", ") }
+                print!("{:?}", t);                
+            },
+            TypeParametersEnd => {
+                print!(") => (");
             }
-            println!("");
-        })
-    }
-
-    fn end(&mut self, _pos: u32) -> DelegateResult {
-        Ok({ 
-            println!("");
-        })
+            TypeReturn { n: _, t } => {
+                print!(") -> {:?}", t);
+            },
+            TypeReturnsEnd => {
+                println!(")");
+            },
+            Function { n, index } => {
+                println!(" - func[{}] sig={}", n, index.0);
+            },
+            Table { n, element_type, limits } => {
+                println!(" - table[{}] type={:?} initial={}", n, element_type, limits.min);
+            },
+            Mem { n, limits }=> {
+                print!(" - memory[{}] pages: initial={}", n, limits.min);
+                if let Some(maximum) = limits.max {
+                    print!(" maximum={}", maximum);
+                }
+                println!("");
+            },
+            Global { n, t, mutability, init } => {
+                println!(" - global[{}] {:?} mutable={} init 0x{:02x}={} ", n, t, mutability, init.opcode, init.immediate);
+            },
+            Export { n, id, index: _ } => {
+                println!(" - {:?}[{}] -> {:?}", "kind", n, str::from_utf8(id.0)?)            
+            },
+            StartFunction { index } => {
+                println!(" - start function: {}", index.0);
+            },
+            DataSegment {n, index: _, offset, data } => {
+                println!(" - segment[{}] size={} - init {}={} ", n, data.len(), "i32", offset.immediate);
+                print!(" - {:07x}:", offset.immediate);
+                for (i, d) in data.iter().enumerate() {
+                    if i % 2 == 0 {
+                        print!(" ");
+                    }
+                    print!("{:02x}", d);
+                }
+                println!("");                
+            },
+            End => println!(""),
+            _ => {},
+        }
+        Ok(())
     }
 }
