@@ -1,4 +1,6 @@
+
 pub struct Identifier<'a>(&'a [u8]);
+
 pub struct TypeIndex(u32);
 pub struct FuncIndex(u32);
 pub struct TableIndex(u32);
