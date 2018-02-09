@@ -10,7 +10,7 @@ pub enum Event<'a> {
     SectionEnd,
 
     TypesStart { c: u32 },
-        TypeStart { n: u32, form: i8 },
+        TypeStart { n: u32, form: TypeValue },
             TypeParametersStart { c: u32 },
                 TypeParameter { n: u32, t: TypeValue},
             TypeParametersEnd,
@@ -37,7 +37,7 @@ pub enum Event<'a> {
     GlobalsEnd,
 
     ExportsStart { c: u32 },
-        Export { n: u32, t: u32, id: Identifier<'a>, index: ExternalIndex },
+        Export { n: u32, id: Identifier<'a>, index: ExternalIndex },
     ExportsEnd,
 
     StartFunction { index: FuncIndex },
@@ -55,6 +55,10 @@ pub enum Event<'a> {
     ImportsStart { c: u32 },
         Import { n: u32, module: Identifier<'a>, export: Identifier<'a>, index: ExternalIndex },
     ImportsEnd,
+    
+    ElementsStart { c: u32 },
+        Element { n: u32, index: TableIndex, offset: Initializer, data: Option<&'a [u8]> },
+    ElementsEnd,
 }
 
 pub enum CodeEvent {

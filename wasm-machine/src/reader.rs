@@ -2,7 +2,7 @@ use Error;
 use wasm_leb128::*;
 
 use byteorder::{ByteOrder, LittleEndian};
-use core::ops::Index;
+use core::ops::{Index, Range};
 
 pub type ReaderResult<T> = Result<T, Error>;
 
@@ -211,11 +211,14 @@ impl<'a> Reader<'a> {
     }
 
     #[inline]
-    pub fn read_identifier(&mut self) -> ReaderResult<&[u8]> {
-        let n = self.read_var_u32()? as usize;
-        let id = &self.buf[self.pos..self.pos+n];
-        self.pos += n;
-        Ok(id)
+    pub fn read_range(&mut self, len: usize) -> ReaderResult<Range<usize>> {
+        let r = self.pos..self.pos+len;
+        self.pos += len;
+        Ok(r)
+    }    
+    #[inline]
+    pub fn slice(&self, range: Range<usize>) -> &[u8] {
+        &self.buf[range]
     }
 }
 

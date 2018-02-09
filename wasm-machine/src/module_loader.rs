@@ -1,9 +1,13 @@
 use {Error, Reader, Writer, TypeValue, SectionType, ExternalKind, Module, Delegate};
+use types::*;
 // use loader::{Label, Loader};
 // use stack::Stack;
 use opcode::*;
 use event::Event;
+
+use core::mem;
 use core::convert::TryFrom;
+use core::ops::Range;
 
 // macro_rules! event {
 //     ($evt:expr) => (
@@ -36,6 +40,10 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
 
     fn done(&self) -> bool {
         self.r.done()
+    }
+
+    fn slice(&self, range: Range<usize>) -> &[u8] {
+        self.r.slice(range)
     }
 
     fn read_u8(&mut self) -> ModuleResult<u8> {
@@ -74,6 +82,89 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
             }
         }
         Err(err)
+    }
+
+    fn read_count(&mut self) -> ModuleResult<u32> {
+        self.read_var_u32()
+    }
+
+    fn read_type(&mut self) -> ModuleResult<TypeValue> {
+        Ok(TypeValue::from(self.r.read_var_i7()?))
+    }
+
+    fn read_index(&mut self) -> ModuleResult<u32> {
+        self.read_var_u32()
+    }
+
+    fn read_type_index(&mut self) -> ModuleResult<TypeIndex> {
+        self.read_index().map(TypeIndex)
+    }
+
+    fn read_func_index(&mut self) -> ModuleResult<FuncIndex> {
+        self.read_index().map(FuncIndex)
+    }
+
+    fn read_table_index(&mut self) -> ModuleResult<TableIndex> {
+        self.read_index().map(TableIndex)
+    }    
+
+    fn read_mem_index(&mut self) -> ModuleResult<MemIndex> {
+        self.read_index().map(MemIndex)
+    }
+
+    fn read_global_index(&mut self) -> ModuleResult<GlobalIndex> {
+        self.read_index().map(GlobalIndex)
+    }
+
+    fn read_external_kind(&mut self) -> ModuleResult<ExternalKind> {
+        Ok(match self.read_var_u7()? {
+            0x00 => ExternalKind::Function,
+            0x01 => ExternalKind::Table,
+            0x02 => ExternalKind::Memory,
+            0x03 => ExternalKind::Global,
+            id @ _ => return Err(Error::InvalidGlobalKind{ id }),
+        })
+    }
+
+    fn read_external_index(&mut self) -> ModuleResult<ExternalIndex> {
+        use ExternalKind::*;
+        match self.read_external_kind()? {
+            Function => self.read_func_index().map(ExternalIndex::Func),
+            Table => self.read_table_index().map(ExternalIndex::Table),
+            Memory => self.read_mem_index().map(ExternalIndex::Mem),
+            Global => self.read_global_index().map(ExternalIndex::Global),
+        }
+    }
+    
+    fn read_bytes_range(&mut self) -> ModuleResult<Range<usize>> {
+        let len = self.r.read_var_u32()? as usize;
+        self.r.read_range(len)
+    }
+
+    fn read_identifier_range(&mut self) -> ModuleResult<Range<usize>> {
+        self.read_bytes_range()
+    }
+
+    fn read_resizable_limits(&mut self) -> ModuleResult<ResizableLimits> {
+        let flags = self.read_var_u32()?;
+        let min = self.read_var_u32()?;
+        let max = if flags & 0x1 != 0 {
+            Some(self.read_var_u32()?)
+        } else {
+            None
+        };
+        Ok(ResizableLimits { flags, min, max })
+    }
+
+    fn read_initializer(&mut self) -> ModuleResult<Initializer> {
+        let opcode = self.read_u8()?;
+        let immediate = self.read_var_u32()?;
+        let end = self.read_u8()?;
+        Ok(Initializer { opcode, immediate, end })
+    }
+
+    fn slice_identifier(&self, range: Range<usize>) -> Identifier {
+        Identifier(self.slice(range))
     }
 
     fn write_u8(&mut self, value: u8) -> ModuleResult<()> {
@@ -328,160 +419,127 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
     pub fn load_types(&mut self) -> ModuleResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#type-section
         Ok({
-            let count = self.copy_count()?;
-            self.d.types_start(count)?;
+            let c = self.read_count()?;
+            // self.d.types_start(count)?;
+            self.dispatch(Event::TypesStart { c })?;
 
-            for i in 0..count {
-                let form = self.read_var_i7_expecting(FUNC as i8, Error::UnknownSignatureType)?;
-                self.d.type_start(i, form)?;
+            for n in 0..c {
+                let form = self.read_type()?;
+                self.dispatch(Event::TypeStart { n, form })?;
 
-                // parameters 
-                let p_count = self.copy_count()?;
-                self.d.type_parameters_start(p_count)?;
-                for i in 0..p_count {
-                    let t = self.copy_type()?;
-                    self.d.type_parameter(i, TypeValue::from(t))?;
+                {
+                    let c = self.read_count()?;
+                    self.dispatch(Event::TypeParametersStart { c })?;
+                    for n in 0..c {
+                        let t = self.read_type()?;
+                        self.dispatch(Event::TypeParameter { n, t })?;
+                    }
+                    self.dispatch(Event::TypeParametersEnd)?;
                 }
-                self.d.type_parameters_end()?;
 
-                // returns
-                let r_count = self.copy_count()?;
-                self.d.type_returns_start(r_count)?;
-                for i in 0..r_count {
-                    let t = self.copy_type()?;
-                    self.d.type_return(i, TypeValue::from(t))?;
+                {
+                    let c = self.read_count()?;
+                    self.dispatch(Event::TypeReturnsStart { c })?;
+                    for n in 0..c {
+                        let t = self.read_type()?;
+                        self.dispatch(Event::TypeReturn { n, t })?;
+                    }
+                    self.dispatch(Event::TypeReturnsEnd)?;
                 }
-                self.d.type_returns_end()?;
-                self.d.type_end()?;
+    
+                self.dispatch(Event::TypeEnd)?;
             }
-            self.d.types_end()?;
+
+            self.dispatch(Event::TypesEnd)?;            
         })
     }
 
     pub fn load_imports(&mut self) -> ModuleResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#import-section
-        use ExternalKind::*;
         Ok({
-            for _ in 0..self.copy_count()? {
-                // module_name
-                self.copy_identifier()?;
-                // export_name
-                self.copy_identifier()?;
-                // external_kind
-                match self.copy_external_kind()? {
-                    Function => { self.copy_type_index()?; },
-                    Table => self.copy_table_description()?,
-                    Memory => self.copy_linear_memory_description()?,                        
-                    Global => self.copy_global_description()?,
-                }
+            let c = self.read_count()?;
+            self.dispatch(Event::ImportsStart { c })?;
+            for n in 0..c {
+                let module_range = self.read_identifier_range()?;
+                let export_range = self.read_identifier_range()?;
+                let index = self.read_external_index()?;
+
+                let module = Identifier(self.r.slice(module_range));
+                let export = Identifier(self.r.slice(export_range));
+                self.d.handle(Event::Import { n, module, export, index })?;
             }
+            self.dispatch(Event::ImportsEnd)?;
         })
     }
 
     pub fn load_functions(&mut self) -> ModuleResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#function-section
         Ok({
-            let count = self.copy_count()?;
-            self.d.functions_start(count)?;
-            for i in 0..count {
-                let sig = self.copy_type_index()?;
-                self.d.function(i, sig)?;
+            let c = self.read_count()?;
+            self.dispatch(Event::FunctionsStart { c })?;
+            for n in 0..c {
+                let index = self.read_type_index()?;
+                self.dispatch(Event::Function { n, index })?;
             }
+            self.dispatch(Event::FunctionsEnd)?;
         })
     }
 
     pub fn load_tables(&mut self) -> ModuleResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#table-section
         Ok({
-            let num = self.r.read_var_u32()?;
-            self.d.tables_start(num)?;
-            for i in 0..num {
-                let element_type = self.r.read_var_i7()?;
-                let flags = self.r.read_var_u32()?;
-                let minimum = self.r.read_var_u32()?;
-                let maximum = if flags & 1 != 0 { 
-                    Some(self.r.read_var_u32()?)
-                } else {
-                    None
-                };               
-                self.d.table(i, TypeValue::from(element_type), flags, minimum, maximum)?;
+            let c = self.read_count()?;
+            self.dispatch(Event::TablesStart { c })?;
+            for n in 0..c {
+                let element_type = self.read_type()?;
+                let limits = self.read_resizable_limits()?;
+                self.dispatch(Event::Table { n, element_type, limits })?;
             }
-            self.d.tables_end()?;
+            self.dispatch(Event::TablesEnd)?;
         })
     }
 
     pub fn load_linear_memory(&mut self) -> ModuleResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#linear-memory-section
         Ok({
-            let len = self.copy_len()?;
-            self.d.memories_start(len)?;
-            for i in 0..len {
-                let flags = self.r.read_var_u32()?;
-                let minimum = self.r.read_var_u32()?;
-                let maximum = if flags & 1 != 0 { 
-                    Some(self.r.read_var_u32()?)
-                } else {
-                    None
-                };
-                self.d.memory(i, flags, minimum, maximum)?;
-                // self.copy_linear_memory_description()?;
+            let c = self.read_count()?;
+            self.dispatch(Event::MemsStart { c })?;
+            for n in 0..c {
+                let limits = self.read_resizable_limits()?;
+                self.dispatch(Event::Mem { n, limits })?;
             }
-            self.d.memories_end()?;
+            self.dispatch(Event::MemsEnd)?;
         })
     }
 
     pub fn load_globals(&mut self) -> ModuleResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#global-section
         Ok({
-            let num = self.r.read_var_u32()?;
-            self.d.globals_start(num)?;
-            for i in 0..num {
-                // value type
-                let vt = TypeValue::from(self.r.read_var_i7()?);
-                // mutability
+            let c = self.read_count()?;
+            self.dispatch(Event::GlobalsStart { c })?;
+            for n in 0..c {
+                let t = self.read_type()?;
                 let mutability = self.r.read_var_u1()?;
-                // initializer
-                let init_opcode = self.r.read_u8()?;
-                let init_immediate = self.r.read_var_u32()?;
-                let _end_opcode = self.r.read_u8()?;
-                self.d.global(i, vt, mutability, init_opcode, init_immediate)?;
+                let init = self.read_initializer()?;
+                self.dispatch(Event::Global { n, t, mutability, init })?;
             }
-            self.d.globals_end()?;
+            self.dispatch(Event::GlobalsEnd)?;
         })
     }
 
     pub fn load_exports(&mut self) -> ModuleResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#export-section
-        use ExternalKind::*;
         Ok({
-            let count = self.copy_count()?;
-            self.d.exports_start(count)?;
-            for i in 0..count { 
-                // identifier
-                let id_len = self.read_var_u32()?;
-                let id_beg = self.r.pos();
-                self.r.advance(id_len as usize);
-                let id_end = self.r.pos();
-                
-                // kind                
-                let kind = match self.read_var_u7()? {
-                    0x00 => Function,
-                    0x01 => Table,
-                    0x02 => Memory,
-                    0x03 => Global,
-                    id @ _ => return Err(Error::InvalidGlobalKind{ id }),
-                };
-                // index
-                let index = self.r.read_var_u32()?;
-                // let kind = match self.copy_external_kind()? {
-                //     Function => self.copy_function_index()?,
-                //     Table => self.copy_table_index()?,
-                //     Memory => self.copy_memory_index()?,
-                //     Global => self.copy_global_index()?,
-                // };
-                self.d.export(i, &self.r.as_ref()[id_beg..id_end], kind, index)?;
+            let c = self.read_count()?;
+            self.dispatch(Event::ExportsStart { c })?;
+            for n in 0..c { 
+                let id_range = self.read_identifier_range()?;
+                let index = self.read_external_index()?;
+                let id = Identifier(self.r.slice(id_range));
+
+                self.d.handle(Event::Export { n, id, index})?;
             }
-            self.d.exports_end()?;
+            self.dispatch(Event::ExportsEnd)?;
         })
     }
 
@@ -489,8 +547,8 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#start-section
         Ok({
             // start index
-            let function_index = self.r.read_var_u32()?;
-            self.d.start_function(function_index)?;
+            let index = self.read_func_index()?;
+            self.dispatch(Event::StartFunction { index })?;
         })
     }
 
@@ -501,19 +559,20 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
     pub fn load_elements(&mut self) -> ModuleResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#element-section
         Ok({
-            for _ in 0..self.copy_count()? {
-                // index
-                let id = self.copy_index()?;
-                // offset initializer
-                self.copy_initializer()?;
-                // if the table's element type is anyfunc:
-                if self.table_type(id)? == TypeValue::AnyFunc {
-                    // elems: array of varuint32
-                    for _ in 0..self.copy_var_u32()? {
-                        self.copy_var_u32()?;
-                    }
-                }
+            let c = self.read_count()?;
+            self.dispatch(Event::ElementsStart { c })?;
+            for n in 0..c { 
+                let index = self.read_table_index()?;
+                let offset = self.read_initializer()?;
+
+                // TODO: check table index type
+                let data_len = self.read_var_u32()? as usize;
+                let data_beg = self.r.pos() as usize;
+                let data_end = data_beg + data_len * mem::size_of::<FuncIndex>();
+                let data = Some(self.r.slice(data_beg..data_end));
+                self.d.handle(Event::Element { n, index, offset, data })?;
             }
+            self.dispatch(Event::ElementsEnd)?;
         })
     }
 
