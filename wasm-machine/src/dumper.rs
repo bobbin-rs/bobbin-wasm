@@ -1,4 +1,4 @@
-use {SectionType, Delegate, DelegateResult, Event};
+use {SectionType, Delegate, DelegateResult, ExternalIndex, Event};
 use core::str;
 
 pub struct HeaderDumper {}
@@ -38,10 +38,10 @@ impl Delegate for DetailsDumper {
                 print!("{}", t);                
             },
             TypeParametersEnd => {
-                print!(") => (");
+                print!(") ->");
             }
             TypeReturn { n: _, t } => {
-                print!(") -> {}", t);
+                print!(" {}", t);
             },
             TypeReturnsEnd => {
                 println!("");
@@ -62,8 +62,14 @@ impl Delegate for DetailsDumper {
             Global { n, t, mutability, init } => {
                 println!(" - global[{}] {} mutable={} init 0x{:02x}={} ", n, t, mutability, init.opcode, init.immediate);
             },
-            Export { n, id, index: _ } => {
-                println!(" - {:?}[{}] -> {:?}", "kind", n, str::from_utf8(id.0)?)            
+            Export { n, id, index } => {
+                let kind = match index {
+                    ExternalIndex::Func(_) => "func",
+                    ExternalIndex::Table(_) => "table",
+                    ExternalIndex::Mem(_) => "memory",
+                    ExternalIndex::Global(_) => "global",
+                };
+                println!(" - {}[{}] -> {:?}", kind, n, str::from_utf8(id.0)?)            
             },
             StartFunction { index } => {
                 println!(" - start function: {}", index.0);
