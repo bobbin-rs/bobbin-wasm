@@ -627,11 +627,11 @@ impl<'d, 'r, 'w, D: 'd + Delegate> ModuleLoader<'d, 'r, 'w, D> {
             let c = self.read_count()?;
             self.dispatch(Event::CodeStart { c })?;
             for n in 0..c {
+                let offset = self.r.pos() as u32;
                 let size = self.read_var_u32()?;
                 let body_beg = self.r.pos();
                 let body_end = body_beg + size as usize;     
 
-                let offset = body_beg as u32;           
                 let locals = self.read_count()?;
                 self.dispatch(Event::Body { n, offset, size, locals })?;
                 for i in 0..locals {

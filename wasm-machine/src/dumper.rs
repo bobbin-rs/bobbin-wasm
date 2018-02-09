@@ -112,7 +112,7 @@ impl Delegate for Disassembler {
                 println!("Code Disassembly:\n")
             },
             Body { n, offset, size: _, locals: _ } => {
-                println!("{:07x} func[{}]:", offset, n);
+                println!("{:06x} func[{}]:", offset, n);
             },
             Instruction { n: _, offset, data, op, imm } => {
                 match op.code {
@@ -123,18 +123,18 @@ impl Delegate for Disassembler {
                     },
                     _ => {},
                 }
-                print!(" {:07x}:", offset);
+                print!(" {:06x}:", offset);
                 let mut w = 0;
                 for b in data.iter() {
                     print!(" {:02x}", b);
                     w += 3;
                 }
-                while w < 27 {
+                while w < 28 {
                     print!(" ");
                     w += 1;
                 }
                 print!("| ");
-                for _ in 0..self.depth { print!(" ") }
+                for _ in 0..self.depth { print!("  ") }
                 println!("{} {:?}", op.text, imm);
 
                 match op.code {
