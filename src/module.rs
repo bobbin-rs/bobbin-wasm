@@ -212,6 +212,11 @@ impl<'a> Section<'a> {
             DataIter { module: self.module, index: 0, buf: Cursor::new(&[]) }
         }
     }
+
+    pub fn start(&self) -> Start {
+        let function_index = Cursor::new(self.buf).read_u32();
+        Start { module: self.module, function_index }
+    }
 }
 
 impl<'a> fmt::Debug for Section<'a> {
@@ -247,7 +252,10 @@ impl<'a> fmt::Debug for Section<'a> {
                     for b in self.bodies() {
                         b.fmt(f)?;
                     }
-                }                
+                },
+                SectionType::Start => {
+                    self.start().fmt(f)?;
+                }
                 _ => {},
             }
             writeln!(f, "{}</Section>", indent)?;
@@ -383,6 +391,7 @@ impl<'a> fmt::Debug for Export<'a> {
         })
     }
 }
+
 impl<'a> Export<'a> {
     pub fn export_item(&self) -> Option<ExportItem<'a>> {
         use ExportIndex::*;
@@ -403,6 +412,15 @@ pub struct Start<'a> {
 impl<'a> Start<'a> {
     pub fn function(&self) -> Option<Function<'a>> {
         self.module.function(self.function_index)
+    }
+}
+
+impl<'a> fmt::Debug for Start<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Ok({
+            let indent = "    ";
+            writeln!(f, "{}<Start index={:?}>", indent, self.function_index)?;
+        })
     }
 }
 

@@ -446,6 +446,9 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
                 self.write_u8(index.kind())?;
                 self.w.write_u32(index.index())?;
             },
+            StartFunction { index } => {
+                self.w.write_u32(index.0)?;                
+            },
             CodeStart { c } => {
                 self.w.write_u32(c)?;
             },
