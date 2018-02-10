@@ -3,6 +3,7 @@ use {TypeValue, FuncIndex, LocalIndex, GlobalIndex, TypeIndex};
 use ::core::fmt;
 use ::core::convert::TryFrom;
 
+
 macro_rules! opcodes {
     ( $( ($tr:ident, $t1:ident, $t2:ident, $m:expr, $code:expr, $name:ident, $text:expr), )*) => {
         impl TryFrom<u8> for Opcode {
@@ -178,6 +179,12 @@ pub struct Instruction<'a> {
     pub imm: Immediate 
 }
 
+// impl<'a> WriteTo for Instruction<'a> {
+//     fn write_to(&self, w: &mut Writer) -> WasmResult<()> {
+
+//         Ok(())
+//     }
+// }
 
 impl<'a> fmt::Debug for Instruction<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

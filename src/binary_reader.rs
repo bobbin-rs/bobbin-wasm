@@ -421,10 +421,9 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
                     let t = self.read_type()?;
                     self.dispatch(Event::Local { i, n, t })?;
                 }
-                let mut i = 0;                
+                self.dispatch(Event::InstructionsStart { locals })?;                
                 while self.r.pos() < body_end {
-                    self.read_instruction(i)?;
-                    i += 1;
+                    self.read_instruction()?;
                 }
                 self.dispatch(Event::BodyEnd)?;
             }
@@ -432,7 +431,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         })
     }
 
-    pub fn read_instruction(&mut self, n: u32) -> WasmResult<()> {
+    pub fn read_instruction(&mut self) -> WasmResult<()> {
         use self::ImmediateType::*;
         let offset = self.r.pos() as u32;
         let op = Opcode::try_from(self.read_u8()?)?;

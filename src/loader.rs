@@ -22,67 +22,6 @@ impl fmt::Debug for Fixup {
     }
 }
 
-pub trait WriteLoader {
-    fn write_opcode(&mut self, op: u8) -> Result<(), Error>;
-    fn write_type(&mut self, tv: TypeValue) -> Result<(), Error>;
-    fn write_block(&mut self, signature: TypeValue) -> Result<(), Error>;
-    fn write_br(&mut self, depth: usize) -> Result<(), Error>;
-    fn write_br_if(&mut self, depth: usize) -> Result<(), Error>;
-    fn write_end(&mut self) -> Result<(), Error>;
-    fn write_drop_keep(&mut self, drop_count: u32, keep_size: u32) -> Result<(), Error>;
-    fn write_alloca(&mut self, count: usize) -> Result<(), Error>;
-    fn write_i32_const(&mut self, value: i32)-> Result<(), Error>;
-}
-
-impl<'w> WriteLoader for Writer<'w> {
-    fn write_opcode(&mut self, op: u8) -> Result<(), Error> {
-        self.write_u8(op)
-    }    
-    fn write_type(&mut self, tv: TypeValue) -> Result<(), Error> {
-        self.write_var_i7(tv.into())
-    }
-    fn write_block(&mut self, signature: TypeValue) -> Result<(), Error> {
-        self.write_opcode(BLOCK)?;
-        self.write_type(signature)?;
-        Ok(())
-    }        
-    fn write_br(&mut self, depth: usize) -> Result<(), Error> {
-        self.write_opcode(BR)?;
-        self.write_var_u32(depth as u32)?;
-        Ok(())
-    }
-    fn write_br_if(&mut self, depth: usize) -> Result<(), Error> {
-        self.write_opcode(BR_IF)?;
-        self.write_var_u32(depth as u32)?;
-        Ok(())
-    }
-    fn write_drop_keep(&mut self, drop_count: u32, keep_count: u32) -> Result<(), Error> {
-        info!("drop_keep {}, {}", drop_count, keep_count);
-        if drop_count == 1 && keep_count == 0 {
-            self.write_opcode(DROP)?;            
-        } else if drop_count > 0 {
-            self.write_opcode(INTERP_DROP_KEEP)?;
-            self.write_u32(drop_count as u32)?;
-            self.write_u32(keep_count as u32)?;
-        }
-        Ok(())
-    }
-    fn write_alloca(&mut self, count: usize) -> Result<(), Error> {
-        Ok(
-            if count > 0 {
-                self.write_opcode(INTERP_ALLOCA)?;
-                self.write_u32(count as u32)?;
-            }
-        )
-    }
-    fn write_end(&mut self) -> Result<(), Error> { self.write_opcode(END) }
-    fn write_i32_const(&mut self, value: i32)-> Result<(), Error> {
-        self.write_opcode(I32_CONST)?;
-        self.write_var_i32(value)?;
-        Ok(())
-    }
-}
-
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
 pub struct Label {
     opcode: u8,
@@ -127,6 +66,55 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
     pub fn module(&self) -> &Module {
         &self.module
     }
+
+    fn write_opcode(&mut self, op: u8) -> Result<(), Error> {
+        self.w.write_u8(op)
+    }    
+    fn write_type(&mut self, tv: TypeValue) -> Result<(), Error> {
+        self.w.write_var_i7(tv.into())
+    }
+    fn write_block(&mut self, signature: TypeValue) -> Result<(), Error> {
+        self.write_opcode(BLOCK)?;
+        self.write_type(signature)?;
+        Ok(())
+    }        
+    fn write_br(&mut self, depth: usize) -> Result<(), Error> {
+        self.write_opcode(BR)?;
+        self.w.write_var_u32(depth as u32)?;
+        Ok(())
+    }
+    fn write_br_if(&mut self, depth: usize) -> Result<(), Error> {
+        self.write_opcode(BR_IF)?;
+        self.w.write_var_u32(depth as u32)?;
+        Ok(())
+    }
+    fn write_drop_keep(&mut self, drop_count: u32, keep_count: u32) -> Result<(), Error> {
+        info!("drop_keep {}, {}", drop_count, keep_count);
+        if drop_count == 1 && keep_count == 0 {
+            self.write_opcode(DROP)?;            
+        } else if drop_count > 0 {
+            self.write_opcode(INTERP_DROP_KEEP)?;
+            self.w.write_u32(drop_count as u32)?;
+            self.w.write_u32(keep_count as u32)?;
+        }
+        Ok(())
+    }
+
+    fn write_end(&mut self) -> Result<(), Error> { self.write_opcode(END) }
+    fn write_i32_const(&mut self, value: i32)-> Result<(), Error> {
+        self.write_opcode(I32_CONST)?;
+        self.w.write_var_i32(value)?;
+        Ok(())
+    }
+
+    fn write_alloca(&mut self, count: u32) -> Result<(), Error> {
+        Ok(
+            if count > 0 {
+                self.write_opcode(INTERP_ALLOCA)?;
+                self.w.write_u32(count as u32)?;
+            }
+        )
+    }    
 
     pub fn push_label<T: Into<TypeValue>>(&mut self, opcode: u8, signature: T, offset: u32) -> Result<(), Error> {
         let stack_limit = self.type_stack.len() as u32;
@@ -402,6 +390,9 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
                 self.w.write_u8(n as u8)?;
                 self.w.write_i8(t as i8)?;
             },
+            InstructionsStart { locals } => {
+                self.write_alloca(locals)?;
+            }
             Instruction(i) => self.dispatch_instruction(i)?,
             BodyEnd => {
                 let fixup = self.body_fixup;

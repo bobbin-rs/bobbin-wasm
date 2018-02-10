@@ -1,5 +1,5 @@
 use types::*;
-use opcode::{Opcode, Immediate, Instruction};
+use opcode::{Instruction};
 use {SectionType, TypeValue};
 
 #[derive(Debug)]
@@ -46,7 +46,7 @@ pub enum Event<'a> {
     CodeStart { c: u32 },
         Body { n: u32 , offset: u32, size: u32, locals: u32},
             Local { i: u32, n: u32, t: TypeValue },
-            // Instruction{ n: u32, offset: u32, data: &'a [u8], op: &'a Opcode, imm: Immediate },
+            InstructionsStart { locals: u32 },
             Instruction(Instruction<'a>),
         BodyEnd,
     CodeEnd,
