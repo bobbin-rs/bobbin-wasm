@@ -489,9 +489,10 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
             Instruction(i) => self.dispatch_instruction(i)?,
             InstructionsEnd => {
                 // info!("{:04x}: V:{} | {} ", self.w.pos(), self.type_stack.len(), "EXIT");
+                let return_type = self.context.return_type;
 
                 let drop = self.context.len() as u32;
-                let keep = 0;
+                let keep = if return_type == VOID { 0 } else { 1 };
                 self.type_stack.drop_keep(drop as usize, keep as usize)?;
                 self.write_drop_keep(drop as u32, keep as u32)?;
         
@@ -502,7 +503,6 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
                     }
                 }
 
-                let return_type = self.context.return_type;
                 self.type_stack.pop_type_expecting(return_type)?;
             },
             BodyEnd => {
