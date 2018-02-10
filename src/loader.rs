@@ -69,6 +69,14 @@ impl Context {
         self.parameters_count + self.locals_count
     }
 
+    fn locals(&self) -> &[TypeValue] {
+        &self.locals[..self.locals_count]
+    }
+
+    fn parameters(&self) -> &[TypeValue] {
+        &self.parameters[..self.parameters_count]
+    }
+
     fn set_parameters(&mut self, parameters: &[u8]) {
         for (i, p) in parameters.iter().enumerate() {
             self.parameters[i] = TypeValue::from(*p as i8);
@@ -569,35 +577,32 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
             BranchTableDepth { n, depth } => {},
             BranchTableDefault { depth } => {},
             Local { index } => {
-                // Cache and/or pass locals, parameters and return_type
+                // Emits OP DEPTH_TO_LOCAL
+                let id = index.0;
 
-                // // Emits OP DEPTH_TO_LOCAL
-                // let id = index.0;
-                // let len = locals;
-                // let f_type = self.module.function_signature_type(n).unwrap();
-                // let parameters = f_type.parameters;
+                if id >= self.context.len() as u32 {
+                    return Err(Error::InvalidLocal { id: id })
+                }
 
-                // if id >= len {
-                //     return Err(Error::InvalidLocal { id: id })
-                // }
+                let ty = self.context[id as usize];
 
-                // let ty = if id < parameters.len() as u32 {
-                //     TypeValue::from(parameters[id as usize] as i8)
+                // let ty = if id < self.context.parameters.len() as u32 {
+                //     TypeValue::from(self.context.parameters()[id as usize] as i8)
                 // } else {
                 //     locals[(id as usize) - parameters.len()]
                 // };
-                // match op {
-                //     GET_LOCAL => self.push_type(ty)?,
-                //     SET_LOCAL => self.pop_type_expecting(ty)?,
-                //     TEE_LOCAL => {
-                //         self.pop_type_expecting(ty)?;
-                //         self.push_type(ty)?;
-                //     }
-                //     _ => unreachable!()
-                // }
-                // let depth = (self.type_stack.len() as u32) - id;
-                // self.write_opcode(op)?;
-                // self.write_u32(depth)?;                
+                match op {
+                    GET_LOCAL => self.push_type(ty)?,
+                    SET_LOCAL => self.pop_type_expecting(ty)?,
+                    TEE_LOCAL => {
+                        self.pop_type_expecting(ty)?;
+                        self.push_type(ty)?;
+                    }
+                    _ => unreachable!()
+                }
+                let depth = (self.type_stack.len() as u32) - id;
+                self.write_opcode(op)?;
+                self.write_u32(depth)?;                
             }
             Global { index } => {},
             Call { index } => {},
