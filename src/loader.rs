@@ -367,6 +367,7 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
     }
 
     fn get_drop_keep(&mut self, label: &Label) -> Result<(u32, u32), Error> {
+        // info!("get_drop_keep: type_stack: {} stack_limit: {}", self.type_stack.len(), label.stack_limit);
         let drop = self.type_stack.len() as u32 - label.stack_limit;
         let drop = if self.is_unreachable()? { 0 } else { drop };
         Ok(
@@ -581,9 +582,9 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                 _ => unreachable!(),
             },
             Branch { depth } => {
-                let label = self.label_stack.peek(depth as usize)?;
-                let (drop, keep) = self.get_drop_keep(&label)?;
-                self.write_drop_keep(drop, keep)?;
+                // let label = self.label_stack.peek(depth as usize)?;
+                // let (drop, keep) = self.get_drop_keep(&label)?;
+                // self.write_drop_keep(drop, keep)?;
 
                 self.w.write_opcode(op)?;
                 let pos = self.pos();
@@ -767,7 +768,7 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                 } else {
                     self.type_stack.expect_type_stack_depth(label.stack_limit + 1)?;                    
                 }
-                
+
                 // Reset Stack to Label
                 while self.type_stack.len() > label.stack_limit as usize {
                     self.type_stack.pop()?;
