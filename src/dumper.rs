@@ -82,6 +82,18 @@ impl<W: Write> Delegate for DetailsDumper<W> {
                 };
                 writeln!(self.w," - {}[{}] -> {:?}", kind, n, str::from_utf8(id.0)?)?;            
             },
+            Import { n, module, export, index } => {
+                let (kind, i_type, index) = match index {
+                    ExternalIndex::Func(i) => ("func", "sig", i.0),
+                    ExternalIndex::Table(i) => ("table", "table", i.0),
+                    ExternalIndex::Mem(i) => ("memory", "memory", i.0),
+                    ExternalIndex::Global(i) => ("global", "global", i.0),
+                };
+                let module = str::from_utf8(module.0)?;
+                let export = str::from_utf8(export.0)?;
+                writeln!(self.w, " - {}[{}] {}[{}] <- {}.{}", kind, n, i_type, index, module, export)?;
+            }
+            
             StartFunction { index } => {
                 writeln!(self.w," - start function: {}", index.0)?;
             },
