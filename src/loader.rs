@@ -194,35 +194,35 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
         self.w.write_var_i7(tv.into())
     }
     fn write_block(&mut self, signature: TypeValue) -> Result<(), Error> {
-        self.write_opcode(BLOCK)?;
+        self.w.write_opcode(BLOCK)?;
         self.write_type(signature)?;
         Ok(())
     }        
     fn write_br(&mut self, depth: usize) -> Result<(), Error> {
-        self.write_opcode(BR)?;
+        self.w.write_opcode(BR)?;
         self.w.write_var_u32(depth as u32)?;
         Ok(())
     }
     fn write_br_if(&mut self, depth: usize) -> Result<(), Error> {
-        self.write_opcode(BR_IF)?;
+        self.w.write_opcode(BR_IF)?;
         self.w.write_var_u32(depth as u32)?;
         Ok(())
     }
     fn write_drop_keep(&mut self, drop_count: u32, keep_count: u32) -> Result<(), Error> {
         info!("drop_keep {}, {}", drop_count, keep_count);
         if drop_count == 1 && keep_count == 0 {
-            self.write_opcode(DROP)?;            
+            self.w.write_opcode(DROP)?;            
         } else if drop_count > 0 {
-            self.write_opcode(INTERP_DROP_KEEP)?;
-            self.write_u32(drop_count as u32)?;
-            self.write_u32(keep_count as u32)?;
+            self.w.write_opcode(INTERP_DROP_KEEP)?;
+            self.w.write_u32(drop_count as u32)?;
+            self.w.write_u32(keep_count as u32)?;
         }
         Ok(())
     }
 
-    fn write_end(&mut self) -> Result<(), Error> { self.write_opcode(END) }
+    fn write_end(&mut self) -> Result<(), Error> { self.w.write_opcode(END) }
     fn write_i32_const(&mut self, value: i32)-> Result<(), Error> {
-        self.write_opcode(I32_CONST)?;
+        self.w.write_opcode(I32_CONST)?;
         self.w.write_var_i32(value)?;
         Ok(())
     }
@@ -230,8 +230,8 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
     fn write_alloca(&mut self, count: u32) -> Result<(), Error> {
         Ok(
             if count > 0 {
-                self.write_opcode(INTERP_ALLOCA)?;
-                self.write_u32(count as u32)?;
+                self.w.write_opcode(INTERP_ALLOCA)?;
+                self.w.write_u32(count as u32)?;
             }
         )
     }    
@@ -273,59 +273,59 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
         Ok(self.label_stack.peek(0)?.unreachable)
     }
 
-    pub fn push_type<T: Into<TypeValue>>(&mut self, type_value: T) -> Result<(), Error> {
-        let tv = type_value.into();
-        info!("-- type: {} <= {:?}", self.type_stack.len(), tv);
-        Ok(self.type_stack.push(tv)?)
-    }
+    // pub fn push_type<T: Into<TypeValue>>(&mut self, type_value: T) -> Result<(), Error> {
+    //     let tv = type_value.into();
+    //     info!("-- type: {} <= {:?}", self.type_stack.len(), tv);
+    //     Ok(self.type_stack.push(tv)?)
+    // }
 
-    pub fn pop_type(&mut self) -> Result<TypeValue, Error> {
-        let depth = self.type_stack.len();
-        let tv = self.type_stack.pop()?;
-        info!("-- type: {} => {:?}", depth, tv);
-        Ok(tv)
-    }
+    // pub fn pop_type(&mut self) -> Result<TypeValue, Error> {
+    //     let depth = self.type_stack.len();
+    //     let tv = self.type_stack.pop()?;
+    //     info!("-- type: {} => {:?}", depth, tv);
+    //     Ok(tv)
+    // }
 
-    pub fn pop_type_expecting(&mut self, tv: TypeValue) -> Result<(), Error> {
-        if tv == TypeValue::Void || tv == TypeValue::None {
-           Ok(()) 
-        } else {
-            let t = self.pop_type()?;
-            if t == tv {
-                Ok(())
-            } else {
-                Err(Error::UnexpectedType { wanted: tv, got: t })
-            }
-        }
-    }
+    // pub fn pop_type_expecting(&mut self, tv: TypeValue) -> Result<(), Error> {
+    //     if tv == TypeValue::Void || tv == TypeValue::None {
+    //        Ok(()) 
+    //     } else {
+    //         let t = self.pop_type()?;
+    //         if t == tv {
+    //             Ok(())
+    //         } else {
+    //             Err(Error::UnexpectedType { wanted: tv, got: t })
+    //         }
+    //     }
+    // }
 
-    pub fn expect_type(&self, wanted: TypeValue) -> Result<(), Error> {
-        if wanted == TypeValue::Void || wanted == TypeValue::None {
-            Ok(())
-        } else {
-            let got = self.type_stack.top()?;
-            if wanted != got {
-                Err(Error::UnexpectedType { wanted, got })
-            } else {
-                Ok(())
-            }
-        }
-    }
+    // pub fn expect_type(&self, wanted: TypeValue) -> Result<(), Error> {
+    //     if wanted == TypeValue::Void || wanted == TypeValue::None {
+    //         Ok(())
+    //     } else {
+    //         let got = self.type_stack.top()?;
+    //         if wanted != got {
+    //             Err(Error::UnexpectedType { wanted, got })
+    //         } else {
+    //             Ok(())
+    //         }
+    //     }
+    // }
 
-    pub fn expect_type_stack_depth(&self, wanted: u32) -> Result<(), Error> {
-        let got = self.type_stack.len() as u32;
-        if wanted != got {
-            Err(Error::UnexpectedTypeStackDepth { wanted, got })
-        } else {
-            Ok(())
-        }
-    }
+    // pub fn expect_type_stack_depth(&self, wanted: u32) -> Result<(), Error> {
+    //     let got = self.type_stack.len() as u32;
+    //     if wanted != got {
+    //         Err(Error::UnexpectedTypeStackDepth { wanted, got })
+    //     } else {
+    //         Ok(())
+    //     }
+    // }
 
-    pub fn type_drop_keep(&mut self, drop: u32, keep: u32) -> Result<(), Error> {
-        info!("drop_keep {}, {}", drop,keep);
-        self.type_stack.drop_keep(drop as usize, keep as usize)?;
-        Ok(())
-    }
+    // pub fn type_drop_keep(&mut self, drop: u32, keep: u32) -> Result<(), Error> {
+    //     info!("drop_keep {}, {}", drop,keep);
+    //     self.type_stack.drop_keep(drop as usize, keep as usize)?;
+    //     Ok(())
+    // }
 
     pub fn add_fixup(&mut self, rel_depth: u32, offset: u32) -> Result<(), Error> {
         let depth = self.label_depth() - rel_depth;
@@ -384,7 +384,7 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
         let opc = i.op;
         match opc.code {
             IF => {
-                self.pop_type_expecting(I32)?;
+                self.type_stack.pop_type_expecting(I32)?;
             },
             ELSE | END => {
                 let label = self.label_stack.top()?;
@@ -394,11 +394,11 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                 if label.opcode == IF && label.signature != VOID {
                     return Err(Error::InvalidIfSignature)
                 }
-                self.expect_type(label.signature)?;
+                self.type_stack.expect_type(label.signature)?;
                 if label.signature == TypeValue::Void {
-                    self.expect_type_stack_depth(label.stack_limit)?;
+                    self.type_stack.expect_type_stack_depth(label.stack_limit)?;
                 } else {
-                    self.expect_type_stack_depth(label.stack_limit + 1)?;                    
+                    self.type_stack.expect_type_stack_depth(label.stack_limit + 1)?;                    
                 }                
             },
             BR => {
@@ -408,7 +408,7 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                 self.set_unreachable(true)?;
             },
             BR_IF => {
-                self.pop_type_expecting(I32)?;
+                self.type_stack.pop_type_expecting(I32)?;
                 let label = self.label_stack.top()?;
                 let (drop, keep) = self.get_drop_keep(&label)?;
                 self.type_stack.drop_keep(drop as usize, keep as usize)?;
@@ -416,7 +416,7 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
             },            
             RETURN => {
                 let return_type = self.context.return_type();
-                self.expect_type(return_type)?;                
+                self.type_stack.expect_type(return_type)?;                
                 let drop = self.type_stack.len() as u32;
                 let (drop, keep) = if return_type == TypeValue::Void {
                     (drop, 0)
@@ -424,14 +424,14 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                     (drop - 1, 1)
                 };
                 
-                self.type_drop_keep(drop, keep)?;
+                self.type_stack.type_drop_keep(drop, keep)?;
                 self.set_unreachable(true)?;                
             },
             _ => {
-                self.pop_type_expecting(opc.t1)?;
-                self.pop_type_expecting(opc.t2)?;
+                self.type_stack.pop_type_expecting(opc.t1)?;
+                self.type_stack.pop_type_expecting(opc.t2)?;
                 if opc.tr != TypeValue::None {
-                    self.push_type(opc.tr)?;
+                    self.type_stack.push_type(opc.tr)?;
                 }
             }
         }
@@ -440,7 +440,7 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
 
     pub fn write_fixup_u32(&mut self) -> Result<usize, Error> {
         let pos = self.w.pos();
-        self.write_u32(FIXUP_OFFSET)?;
+        self.w.write_u32(FIXUP_OFFSET)?;
         Ok(pos)
     }
 
@@ -470,7 +470,7 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
                 self.module.extend(self.w.split());
             },
             TypesStart { c } => {
-                self.write_u32(c)?;
+                self.w.write_u32(c)?;
             },
             TypeParametersStart { c } => {
                 self.write_u8(c as u8)?;
@@ -485,25 +485,25 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
                 self.write_u8(t as u8)?;
             },
             FunctionsStart { c } => {
-                self.write_u32(c)?;
+                self.w.write_u32(c)?;
             },
             Function { n: _, index } => {
-                self.write_u32(index.0)?;
+                self.w.write_u32(index.0)?;
             },
             ExportsStart { c } => {
-                self.write_u32(c)?;
+                self.w.write_u32(c)?;
             },
             Export { n: _, id, index } => {
                 let id = id.0;
-                self.write_u32(id.len() as u32)?;
+                self.w.write_u32(id.len() as u32)?;
                 for b in id {
                     self.write_u8(*b)?;
                 }
                 self.write_u8(index.kind())?;
-                self.write_u32(index.index())?;
+                self.w.write_u32(index.index())?;
             },
             CodeStart { c } => {
-                self.write_u32(c)?;
+                self.w.write_u32(c)?;
             },
             Body { n, offset: _, size: _, locals } => {
                 self.context = Context::from(self.module.function_signature_type(n).unwrap());
@@ -554,11 +554,11 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                 IF => {
                     self.push_label(op, signature, FIXUP_OFFSET)?;
                     info!("IF: DEPTH -> {}", self.label_depth());
-                    self.write_opcode(INTERP_BR_UNLESS)?;
+                    self.w.write_opcode(INTERP_BR_UNLESS)?;
                     let pos = self.w.pos();
                     info!("IF: ADD FIXUP {} 0x{:04x}", 0, pos);
                     self.add_fixup(0, pos as u32)?;
-                    self.write_u32(FIXUP_OFFSET)?;                    
+                    self.w.write_u32(FIXUP_OFFSET)?;                    
                 },
                 _ => unreachable!(),
             },
@@ -567,11 +567,11 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                 let (drop, keep) = self.get_drop_keep(&label)?;
                 info!("drop_keep: {}, {}", drop, keep);
                 self.write_drop_keep(drop, keep)?;
-                self.write_opcode(op)?;
+                self.w.write_opcode(op)?;
                 let pos = self.pos();
                 info!("BR / BR_IF ADD FIXUP {} 0x{:04x}", depth, self.pos());
                 self.add_fixup(depth, pos as u32)?;
-                self.write_u32(FIXUP_OFFSET)?;                
+                self.w.write_u32(FIXUP_OFFSET)?;                
             },
             BranchTable { count } => {},
             BranchTableDepth { n, depth } => {},
@@ -592,20 +592,57 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                 //     locals[(id as usize) - parameters.len()]
                 // };
                 match op {
-                    GET_LOCAL => self.push_type(ty)?,
-                    SET_LOCAL => self.pop_type_expecting(ty)?,
+                    GET_LOCAL => self.type_stack.push_type(ty)?,
+                    SET_LOCAL => self.type_stack.pop_type_expecting(ty)?,
                     TEE_LOCAL => {
-                        self.pop_type_expecting(ty)?;
-                        self.push_type(ty)?;
+                        self.type_stack.pop_type_expecting(ty)?;
+                        self.type_stack.push_type(ty)?;
                     }
                     _ => unreachable!()
                 }
                 let depth = (self.type_stack.len() as u32) - id;
-                self.write_opcode(op)?;
-                self.write_u32(depth)?;                
+                self.w.write_opcode(op)?;
+                self.w.write_u32(depth)?;                
             }
-            Global { index } => {},
-            Call { index } => {},
+            Global { index } => {
+                let id = index.0 as u32;
+                let ty = {
+                    let global = if let Some(global) = self.module.global(id) {
+                        global
+                    } else {
+                        return Err(Error::InvalidGlobal { id: id })
+                    };
+                    TypeValue::from(global.global_type)
+                };
+                match op {
+                    GET_GLOBAL => self.type_stack.push_type(ty)?,
+                    SET_GLOBAL => self.type_stack.pop_type_expecting(ty)?,
+                    _ => unreachable!()
+                }
+                self.w.write_opcode(op)?;
+                self.w.write_u32(id as u32)?;                
+            },
+            Call { index } => {
+                let id = index.0 as u32;
+                let signature = if let Some(signature) = self.module.function_signature_type(id) {
+                    signature
+                } else {
+                    return Err(Error::InvalidFunction { id: id })
+                };
+                let (parameters, returns) = (signature.parameters, signature.returns);
+                if returns.len() > 1 {
+                    return Err(Error::UnexpectedReturnLength { got: returns.len() as u32})
+                }
+                for p in parameters.iter() {
+                    self.type_stack.pop_type_expecting(TypeValue::from(*p as i8))?;
+                }
+                for r in returns.iter() {
+                    self.type_stack.push_type(TypeValue::from(*r as i8))?;
+                }
+
+                self.w.write_opcode(op)?;
+                self.w.write_u32(id as u32)?;
+            },
             CallIndirect { index } => {},
             I32Const { value } => {},
             F32Const { value } => {},
@@ -690,32 +727,6 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
         //             w.write_drop_keep(depth - 1, 1)?;
         //         }
         //         w.write_opcode(RETURN)?;
-        //     },
-        //     GET_LOCAL | SET_LOCAL | TEE_LOCAL => {
-        //         // Emits OP DEPTH_TO_LOCAL
-        //         let id = r.read_var_u32()?;
-        //         let len = locals_count;
-        //         if id >= len {
-        //             return Err(Error::InvalidLocal { id: id })
-        //         }
-
-        //         let ty = if id < parameters.len() as u32 {
-        //             TypeValue::from(parameters[id as usize] as i8)
-        //         } else {
-        //             locals[(id as usize) - parameters.len()]
-        //         };
-        //         match op {
-        //             GET_LOCAL => self.push_type(ty)?,
-        //             SET_LOCAL => self.pop_type_expecting(ty)?,
-        //             TEE_LOCAL => {
-        //                 self.pop_type_expecting(ty)?;
-        //                 self.push_type(ty)?;
-        //             }
-        //             _ => unreachable!()
-        //         }
-        //         let depth = (self.type_stack.len() as u32) - id;
-        //         w.write_opcode(op)?;
-        //         w.write_u32(depth as u32)?;
         //     },
         //     GET_GLOBAL | SET_GLOBAL => {
         //         let id = r.read_var_u32()?;
@@ -810,4 +821,79 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
         // }        
         Ok(())
     }
+}
+
+pub trait LoaderWrite {
+    fn write_opcode(&mut self, op: u8) -> Result<(), Error>;
+}
+
+impl<'a> LoaderWrite for Writer<'a> {
+    fn write_opcode(&mut self, op: u8) -> Result<(), Error> {
+        self.write_u8(op)
+    }    
+}
+
+pub trait TypeStack {
+    fn push_type<T: Into<TypeValue>>(&mut self, type_value: T) -> Result<(), Error>;
+    fn pop_type(&mut self) -> Result<TypeValue, Error>;
+    fn pop_type_expecting(&mut self, tv: TypeValue) -> Result<(), Error>;
+    fn expect_type(&self, wanted: TypeValue) -> Result<(), Error>;
+    fn expect_type_stack_depth(&self, wanted: u32) -> Result<(), Error>;
+    fn type_drop_keep(&mut self, drop: u32, keep: u32) -> Result<(), Error>;
+}
+
+impl<'a> TypeStack for Stack<'a, TypeValue> {
+    fn push_type<T: Into<TypeValue>>(&mut self, type_value: T) -> Result<(), Error> {
+        let tv = type_value.into();
+        info!("-- type: {} <= {:?}", self.len(), tv);
+        Ok(self.push(tv)?)
+    }
+
+    fn pop_type(&mut self) -> Result<TypeValue, Error> {
+        let depth = self.len();
+        let tv = self.pop()?;
+        info!("-- type: {} => {:?}", depth, tv);
+        Ok(tv)
+    }
+
+    fn pop_type_expecting(&mut self, tv: TypeValue) -> Result<(), Error> {
+        if tv == TypeValue::Void || tv == TypeValue::None {
+           Ok(()) 
+        } else {
+            let t = self.pop_type()?;
+            if t == tv {
+                Ok(())
+            } else {
+                Err(Error::UnexpectedType { wanted: tv, got: t })
+            }
+        }
+    }
+
+    fn expect_type(&self, wanted: TypeValue) -> Result<(), Error> {
+        if wanted == TypeValue::Void || wanted == TypeValue::None {
+            Ok(())
+        } else {
+            let got = self.top()?;
+            if wanted != got {
+                Err(Error::UnexpectedType { wanted, got })
+            } else {
+                Ok(())
+            }
+        }
+    }
+
+    fn expect_type_stack_depth(&self, wanted: u32) -> Result<(), Error> {
+        let got = self.len() as u32;
+        if wanted != got {
+            Err(Error::UnexpectedTypeStackDepth { wanted, got })
+        } else {
+            Ok(())
+        }
+    }
+
+    fn type_drop_keep(&mut self, drop: u32, keep: u32) -> Result<(), Error> {
+        info!("drop_keep {}, {}", drop,keep);
+        self.drop_keep(drop as usize, keep as usize)?;
+        Ok(())
+    }    
 }

@@ -87,6 +87,10 @@ impl<'a> Module<'a> {
         self.function(index).and_then(|f| self.signature_type(f.signature_type_index))
     }
 
+    pub fn with_function_signature_type<T, F: FnOnce(Option<Type>)->T>(&self, index: u32, f: F) -> T {
+        f(self.function_signature_type(index))
+    }
+
     pub fn signature_type(&self, index: u32) -> Option<Type> {
         self.section(SectionType::Type).unwrap().types().nth(index as usize)
     }
