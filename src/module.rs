@@ -10,12 +10,12 @@ pub enum ExportIndex {
     Global(u32),
 }
 
-pub enum ExportItem {
-    Function(Function),
-    Table(Table),
-    Memory(Memory),
-    Global(Global),
-}
+// pub enum ExportItem {
+//     Function(Function),
+//     Table(Table),
+//     Memory(Memory),
+//     Global(Global),
+// }
 
 impl From<(u8, u32)> for ExportIndex {
     fn from(other: (u8, u32)) -> Self {
