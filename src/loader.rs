@@ -6,6 +6,7 @@ use writer::Writer;
 use stack::Stack;
 
 use core::fmt;
+use core::ops::Index;
 use core::convert::TryFrom;
 
 pub const FIXUP_OFFSET: u32 = 0xffff_ffff;
@@ -38,6 +39,89 @@ impl fmt::Debug for Label {
     }
 }
 
+#[derive(Debug)]
+pub struct Context {
+    parameters: [TypeValue; 16],
+    parameters_count: usize,
+    locals: [TypeValue; 16],
+    locals_count: usize,
+    return_type: TypeValue,
+}
+
+impl Default for Context {
+    fn default() -> Self {
+        Context {
+            parameters: [VOID; 16],
+            parameters_count: 0,
+            locals: [VOID; 16],
+            locals_count: 0,
+            return_type: VOID,
+        }
+    }
+}
+
+impl Context {
+    fn reset(&mut self) {
+        *self = Context::default()
+    }
+
+    fn len(&self) -> usize {
+        self.parameters_count + self.locals_count
+    }
+
+    fn set_parameters(&mut self, parameters: &[u8]) {
+        for (i, p) in parameters.iter().enumerate() {
+            self.parameters[i] = TypeValue::from(*p as i8);
+        }
+        self.parameters_count = parameters.len();
+    }
+
+    fn add_local(&mut self, n: u32, t: TypeValue) {
+        for i in 0..n {
+            self.locals[self.locals_count] = t;
+            self.locals_count += 1;
+        }
+    }
+
+    fn set_return(&mut self, t: TypeValue) {
+        self.return_type = t;
+    }
+
+    fn return_type(&self) -> TypeValue {
+        self.return_type
+    }
+
+    fn keep(&self) -> u32 {
+        if self.return_type == VOID {
+            0
+        } else {
+            1
+        }
+    }
+}
+
+impl<'t> From<Type<'t>> for Context {
+    fn from(other: Type<'t>) -> Self {
+        let mut c = Context::default();
+        c.set_parameters(other.parameters);
+        if other.returns.len() > 0 {
+            c.set_return(TypeValue::from(other.returns[0] as i8));
+        }
+        c
+    }
+}
+
+impl Index<usize> for Context {
+    type Output = TypeValue;
+
+    fn index(&self, i: usize) -> &Self::Output {
+        if i < self.parameters_count {
+            &self.parameters[i]
+        } else {
+            &self.locals[i - self.parameters_count]
+        }
+    }
+}
 
 pub struct Loader<'m, 'ls, 'ts> {
     w: Writer<'m>,
@@ -48,6 +132,7 @@ pub struct Loader<'m, 'ls, 'ts> {
     fixups_pos: usize,
     section_fixup: usize,
     body_fixup: usize,
+    context: Context,
 }
 
 impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
@@ -60,6 +145,7 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
         let fixups_pos = 0;
         let section_fixup = 0;
         let body_fixup = 0;
+        let context = Context::default();
         Loader { 
             w, 
             module, 
@@ -69,6 +155,7 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
             fixups_pos, 
             section_fixup, 
             body_fixup,
+            context,
         }
     }
 
@@ -414,11 +501,15 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
             CodeStart { c } => {
                 self.write_u32(c)?;
             },
-            Body { n: _, offset: _, size: _, locals } => {
+            Body { n, offset: _, size: _, locals } => {
+                self.context = Context::from(self.module.function_signature_type(n).unwrap());
+
                 self.body_fixup = self.write_fixup_u32()?;
                 self.write_u8(locals as u8)?;
             },
             Local { i: _, n, t } => {
+                self.context.add_local(n, t);
+
                 self.write_u8(n as u8)?;
                 self.write_i8(t as i8)?;
             },
