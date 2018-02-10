@@ -372,7 +372,7 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
         )
     }
 
-    pub fn type_check(&mut self, func_index: u32, i: &Instruction) -> Result<(), Error> {
+    pub fn type_check(&mut self, i: &Instruction) -> Result<(), Error> {
         let opc = i.op;
         match opc.code {
             IF => {
@@ -407,11 +407,7 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                 self.set_unreachable(true)?;
             },            
             RETURN => {
-                let return_type = if let Some(t) = self.module.function_signature_type(func_index as u32).and_then(|t| t.return_type()) {
-                    t
-                } else {
-                    TypeValue::None
-                };
+                let return_type = self.context.return_type();
                 self.expect_type(return_type)?;                
                 let drop = self.type_stack.len() as u32;
                 let (drop, keep) = if return_type == TypeValue::Void {
@@ -513,10 +509,12 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
                 self.write_u8(n as u8)?;
                 self.write_i8(t as i8)?;
             },
-            InstructionsStart { n: _, locals } => {
-                self.write_alloca(locals)?;
+            InstructionsStart => {
+                let locals = self.context.locals.len();
+                self.write_alloca(locals as u32)?;
             }
-            Instruction(n, locals, i) => self.dispatch_instruction(n, locals, i)?,
+            Instruction(i) => self.dispatch_instruction(i)?,
+            InstructionsEnd => {},
             BodyEnd => {
                 let fixup = self.body_fixup;
                 self.apply_fixup_u32(fixup)?;                                
@@ -528,9 +526,12 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
 }
 
 impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
-    pub fn dispatch_instruction(&mut self, n: u32, locals: u32, i: Instruction) -> DelegateResult {
+    pub fn dispatch_instruction(&mut self, i: Instruction) -> DelegateResult {
         use opcode::Immediate::*;
         info!("{:08x}: V:{} | {}{:?}", i.offset, self.type_stack.len(), i.op.text, i.imm);
+
+        // self.type_check(&i)?;   
+        
         let op = i.op.code;
         match i.imm {
             None => {},
