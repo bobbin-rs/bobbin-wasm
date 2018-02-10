@@ -31,36 +31,30 @@ impl From<(u8, u32)> for ExportIndex {
 }
 
 pub struct Module<'a> {
-    name: [u8; 64],
-    name_len: usize,
+    name: &'a str,
     version: u32,
     buf: &'a [u8],
 }
 
 impl<'a> Module<'a> {
     pub fn new(buf: &'a [u8]) -> Self {
-        let name = [0u8; 64];
-        let name_len = 0;
+        let name = "";
         let version = 0;
-        Module { name, name_len, version, buf }
+        Module { name, version, buf }
     }
 
-    pub fn set_name(&mut self, name: &str) {
-        let mut n = 0;
-        for c in name.as_bytes() {
-            self.name[n] = *c;
-            n += 1;
-        }
-        self.name_len = n;
+    pub fn name(&self) -> &str {
+        self.name
+    }
+
+    pub fn set_name(&mut self, name: &'a str) {
+        self.name = name
     }
 
     pub fn set_version(&mut self, version: u32){
         self.version = version;
     }
 
-    pub fn name(&self) -> &str {
-        str::from_utf8(&self.name[..self.name_len]).unwrap()
-    }
 
     pub fn extend(&mut self, buf: &[u8]) {
         let a_ptr = self.buf.as_ptr();

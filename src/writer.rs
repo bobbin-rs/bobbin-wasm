@@ -1,8 +1,7 @@
 use wasm_leb128::{write_u1, write_u7, write_i7, write_u32, write_i32};
 use byteorder::{ByteOrder, LittleEndian};
 use core::ops::Deref;
-use core::slice;
-use core::mem;
+use core::{mem, slice, str};
 use reader::Reader;
 use small_vec::SmallVec;
 use Error;
@@ -96,10 +95,19 @@ impl<'a> Writer<'a> {
         self.write_u32(len as u32)
     }
 
-    pub fn split(&mut self) -> &'a [u8] {
+    pub fn copy_str(&mut self, s: &str) -> &'a str {
+        assert!(self.pos == 0, "Allocation can only happen with empty writer");
+        for b in s.bytes() {
+            self.buf[self.pos] = b;
+            self.pos += 1;
+        }
+        unsafe { str::from_utf8_unchecked(self.split()) }
+    }
+
+    pub fn split<T>(&mut self) -> &'a [T] {
         unsafe {
             // First Half
-            let a_ptr = self.buf.as_ptr();
+            let a_ptr = self.buf.as_ptr() as *const T;
             let a_len = self.pos;
 
             // Second Half
@@ -182,5 +190,13 @@ mod tests {
             v.push(i as u32);
         }
         assert_eq!(v.len(), 4);
+    }
+
+    #[test]
+    fn test_copy_str() {
+        let mut buf = [0u8; 256];
+        let mut w = Writer::new(&mut buf);
+        let s = w.copy_str("Hello There!");
+        assert_eq!(s, "Hello There!");
     }
 }

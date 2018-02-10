@@ -401,7 +401,7 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
         // info!("{:08x}: {:?}", self.w.pos(), evt);
         match evt {
             Start { ref name, version } => {
-                self.module.set_name(name);
+                self.module.set_name(self.w.copy_str(name));
                 self.module.set_version(version);
             },
             SectionStart { s_type, s_beg: _, s_end:_ , s_len: _ } => {
