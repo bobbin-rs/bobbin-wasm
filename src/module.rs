@@ -1,5 +1,4 @@
-use {SectionType, TypeValue, Value, Cursor};
-use opcode::{I32_CONST, GET_GLOBAL};
+use {SectionType, TypeValue, Cursor};
 
 use core::{slice, str, fmt};
 
@@ -11,11 +10,11 @@ pub enum ExportIndex {
     Global(u32),
 }
 
-pub enum ExportItem<'a> {
-    Function(Function<'a>),
-    Table(Table<'a>),
-    Memory(Memory<'a>),
-    Global(Global<'a>),
+pub enum ExportItem {
+    Function(Function),
+    Table(Table),
+    Memory(Memory),
+    Global(Global),
 }
 
 impl From<(u8, u32)> for ExportIndex {
@@ -76,7 +75,7 @@ impl<'a> Module<'a> {
     }
 
     pub fn iter(&self) -> SectionIter {
-        SectionIter { module: self, index: 0, buf: Cursor::new(self.buf) }
+        SectionIter { index: 0, buf: Cursor::new(self.buf) }
     }
 
     pub fn section(&self, st: SectionType) -> Option<Section> {
@@ -130,15 +129,14 @@ impl<'a> fmt::Debug for Module<'a> {
 
 
 pub struct Section<'a> {
-    pub module: &'a Module<'a>,
     pub index: u32,
     pub section_type: SectionType,
     pub buf: &'a [u8],
 }
 
 impl<'a> Section<'a> {
-    pub fn new(module: &'a Module<'a>, index: u32, section_type: SectionType, buf: &'a [u8]) -> Self {
-        Section { module, index, section_type, buf }
+    pub fn new(index: u32, section_type: SectionType, buf: &'a [u8]) -> Self {
+        Section { index, section_type, buf }
     }
 
     pub fn types(&self) -> TypeIter<'a> {
@@ -151,71 +149,71 @@ impl<'a> Section<'a> {
 
     pub fn functions(&self) -> FunctionIter<'a> {
         if let SectionType::Function = self.section_type {
-            FunctionIter { module: self.module, index: 0, buf: Cursor::new(&self.buf[4..]) }
+            FunctionIter { index: 0, buf: Cursor::new(&self.buf[4..]) }
         } else {
-            FunctionIter { module: self.module, index: 0, buf: Cursor::new(&[]) }
+            FunctionIter { index: 0, buf: Cursor::new(&[]) }
         }
     }
 
     pub fn tables(&self) -> TableIter<'a> {
         if let SectionType::Table = self.section_type {
-            TableIter { module: self.module, index: 0, buf: Cursor::new(&self.buf[4..]) }
+            TableIter { index: 0, buf: Cursor::new(&self.buf[4..]) }
         } else {
-            TableIter { module: self.module, index: 0, buf: Cursor::new(&[]) }
+            TableIter { index: 0, buf: Cursor::new(&[]) }
         }
     }
 
     pub fn linear_memories(&self) -> MemoryIter<'a> {
         if let SectionType::Memory = self.section_type {
-            MemoryIter { module: self.module, index: 0, buf: Cursor::new(&self.buf[4..]) }
+            MemoryIter { index: 0, buf: Cursor::new(&self.buf[4..]) }
         } else {
-            MemoryIter { module: self.module, index: 0, buf: Cursor::new(&[]) }
+            MemoryIter { index: 0, buf: Cursor::new(&[]) }
         }
     }        
 
     pub fn globals(&self) -> GlobalIter<'a> {
         if let SectionType::Global = self.section_type {
-            GlobalIter { module: self.module, index: 0, buf: Cursor::new(&self.buf[4..]) }
+            GlobalIter { index: 0, buf: Cursor::new(&self.buf[4..]) }
         } else {
-            GlobalIter { module: self.module, index: 0, buf: Cursor::new(&[]) }
+            GlobalIter { index: 0, buf: Cursor::new(&[]) }
         }
     }    
 
     pub fn exports(&self) -> ExportIter<'a> {
         if let SectionType::Export = self.section_type {
-            ExportIter { module: self.module, index: 0, buf: Cursor::new(&self.buf[4..]) }
+            ExportIter { index: 0, buf: Cursor::new(&self.buf[4..]) }
         } else {
-            ExportIter { module: self.module, index: 0, buf: Cursor::new(&[]) }
+            ExportIter { index: 0, buf: Cursor::new(&[]) }
         }
     }
 
     pub fn elements(&self) -> ElementIter<'a> {
         if let SectionType::Element = self.section_type {
-            ElementIter { module: self.module, index: 0, buf: Cursor::new(&self.buf[4..]) }
+            ElementIter { index: 0, buf: Cursor::new(&self.buf[4..]) }
         } else {
-            ElementIter { module: self.module, index: 0, buf: Cursor::new(&[]) }
+            ElementIter { index: 0, buf: Cursor::new(&[]) }
         }
     }
 
     pub fn bodies(&self) -> BodyIter<'a> {
         if let SectionType::Code = self.section_type {
-            BodyIter { module: self.module, index: 0, buf: Cursor::new(&self.buf[4..]) }
+            BodyIter { index: 0, buf: Cursor::new(&self.buf[4..]) }
         } else {
-            BodyIter { module: self.module, index: 0, buf: Cursor::new(&[]) }
+            BodyIter { index: 0, buf: Cursor::new(&[]) }
         }
     }
 
     pub fn data(&self) -> DataIter<'a> {
         if let SectionType::Data = self.section_type {
-            DataIter { module: self.module, index: 0, buf: Cursor::new(&self.buf[4..]) }
+            DataIter { index: 0, buf: Cursor::new(&self.buf[4..]) }
         } else {
-            DataIter { module: self.module, index: 0, buf: Cursor::new(&[]) }
+            DataIter { index: 0, buf: Cursor::new(&[]) }
         }
     }
 
     pub fn start(&self) -> Start {
         let function_index = Cursor::new(self.buf).read_u32();
-        Start { module: self.module, function_index }
+        Start { function_index }
     }
 }
 
@@ -307,13 +305,12 @@ impl<'a> Type<'a> {
     }
 }
 
-pub struct Function<'a> {
-    pub module: &'a Module<'a>,
+pub struct Function {
     pub index: u32,
     pub signature_type_index: u32,
 }
 
-impl<'a> fmt::Debug for Function<'a> {
+impl fmt::Debug for Function {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Ok({
             let indent = "    ";
@@ -322,39 +319,18 @@ impl<'a> fmt::Debug for Function<'a> {
     }
 }
 
-impl<'a> Function<'a> {
-    pub fn signature_type(&self) -> Option<Type<'a>> {
-        self.module.signature_type(self.signature_type_index)
-    }
-}
-
-pub struct Table<'a> {
-    pub module: &'a Module<'a>,
+pub struct Table {
     pub index: u32,
 }
 
-// impl<'a> WriteTo for Table<'a> {
-//     fn write_to(&self, w: &mut Writer) -> WasmResult<()> {
-//         unimplemented!()
-//     }
-// }
-// impl<'a> Table<'a> {
-// }
-
-pub struct Memory<'a> {
-    pub module: &'a Module<'a>,    
+pub struct Memory {
     pub index: u32,
     pub flags: u32,
     pub minimum: u32,
     pub maximum: Option<u32>,
 }
 
-impl<'a> Memory<'a> {
-    
-}
-
-pub struct Global<'a> {
-    pub module: &'a Module<'a>,    
+pub struct Global{
     pub index: u32,
     pub global_type: TypeValue,
     pub mutability: u8,
@@ -362,19 +338,18 @@ pub struct Global<'a> {
     pub init_parameter: u32,
 }
 
-impl<'a> Global<'a> {
-    pub fn init_value(&self) -> Value {
-        match self.init_opcode {
-            I32_CONST => Value::from(self.init_parameter),
-            // F32_CONST => Value::from(self.init_parameter as f32),
-            GET_GLOBAL => self.module.global(self.init_parameter).unwrap().init_value(),
-            _ => unimplemented!(),
-        }
-    }
-}
+// impl Global {
+//     pub fn init_value(&self) -> Value {
+//         match self.init_opcode {
+//             I32_CONST => Value::from(self.init_parameter),
+//             // F32_CONST => Value::from(self.init_parameter as f32),
+//             GET_GLOBAL => self.module.global(self.init_parameter).unwrap().init_value(),
+//             _ => unimplemented!(),
+//         }
+//     }
+// }
 
 pub struct Export<'a> {
-    pub module: &'a Module<'a>,
     pub index: u32,
     pub identifier: &'a [u8],
     pub export_index: ExportIndex,
@@ -392,30 +367,11 @@ impl<'a> fmt::Debug for Export<'a> {
     }
 }
 
-impl<'a> Export<'a> {
-    pub fn export_item(&self) -> Option<ExportItem<'a>> {
-        use ExportIndex::*;
-        match self.export_index {
-            Function(index) => self.module.function(index).map(ExportItem::Function),
-            Table(index) => self.module.table(index).map(ExportItem::Table),
-            Memory(index) => self.module.linear_memory(index).map(ExportItem::Memory),
-            Global(index) => self.module.global(index).map(ExportItem::Global),
-        }
-    }
-}
-
-pub struct Start<'a> {
-    pub module: &'a Module<'a>,
+pub struct Start {
     pub function_index: u32,
 }
 
-impl<'a> Start<'a> {
-    pub fn function(&self) -> Option<Function<'a>> {
-        self.module.function(self.function_index)
-    }
-}
-
-impl<'a> fmt::Debug for Start<'a> {
+impl fmt::Debug for Start {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Ok({
             let indent = "    ";
@@ -424,19 +380,14 @@ impl<'a> fmt::Debug for Start<'a> {
     }
 }
 
-pub struct Element<'a> {
-    pub module: &'a Module<'a>,
+pub struct Element {
     pub index: u32,
     // pub table_index: u32,
     // pub offset_opcode: u8,
     // pub offset_parameter: u32,a
 }
 
-impl<'a> Element<'a> {
-}
-
 pub struct Body<'a> {
-    pub module: &'a Module<'a>,
     pub index: u32,
     pub buf: &'a [u8],
 }
@@ -451,11 +402,7 @@ impl<'a> fmt::Debug for Body<'a> {
     }
 }
 
-impl<'a> Body<'a> {
-}
-
 pub struct Data<'a> {
-    pub module: &'a Module<'a>,
     pub index: u32,
     pub memory_index: u32,
     pub offset_opcode: u8,
@@ -463,14 +410,7 @@ pub struct Data<'a> {
     pub data: &'a [u8],
 }
 
-impl<'a> Data<'a> {
-}
-
-
-
-
 pub struct SectionIter<'a> {
-    module: &'a Module<'a>,
     index: u32,
     buf: Cursor<'a>,
 }
@@ -485,7 +425,7 @@ impl<'a> Iterator for SectionIter<'a> {
             let len = self.buf.read_u32() as usize;
             let buf = self.buf.slice(len);
             self.index += 1;
-            Some(Section { module: self.module, index, section_type, buf })
+            Some(Section { index, section_type, buf })
         } else {
             None
         }
@@ -536,19 +476,18 @@ impl<'a> Iterator for TypeValuesIter<'a> {
 }
 
 pub struct FunctionIter<'a> {
-    module: &'a Module<'a>,
     index: u32,
     buf: Cursor<'a>,
 }
 
 impl<'a> Iterator for FunctionIter<'a> {
-    type Item = Function<'a>;
+    type Item = Function;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
             let index = self.index;
             self.index += 1;
-            Some(Function { module: self.module, index, signature_type_index: self.buf.read_u32() })
+            Some(Function { index, signature_type_index: self.buf.read_u32() })
         } else {
             None
         }
@@ -556,19 +495,18 @@ impl<'a> Iterator for FunctionIter<'a> {
 }
 
 pub struct TableIter<'a> {
-    module: &'a Module<'a>,
     index: u32,
     buf: Cursor<'a>,
 }
 
 impl<'a> Iterator for TableIter<'a> {
-    type Item = Table<'a>;
+    type Item = Table;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
             let index = self.index;
             self.index += 1;
-            Some(Table { module: self.module, index })
+            Some(Table { index })
         } else {
             None
         }
@@ -577,13 +515,12 @@ impl<'a> Iterator for TableIter<'a> {
 
 
 pub struct MemoryIter<'a> {
-    module: &'a Module<'a>,
     index: u32,
     buf: Cursor<'a>,
 }
 
 impl<'a> Iterator for MemoryIter<'a> {
-    type Item = Memory<'a>;
+    type Item = Memory;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
@@ -596,7 +533,7 @@ impl<'a> Iterator for MemoryIter<'a> {
                 None
             };
             self.index += 1;
-            Some(Memory { module: self.module, index, flags, minimum, maximum })
+            Some(Memory { index, flags, minimum, maximum })
         } else {
             None
         }
@@ -604,13 +541,12 @@ impl<'a> Iterator for MemoryIter<'a> {
 }
 
 pub struct GlobalIter<'a> {
-    module: &'a Module<'a>,
     index: u32,
     buf: Cursor<'a>,
 }
 
 impl<'a> Iterator for GlobalIter<'a> {
-    type Item = Global<'a>;
+    type Item = Global;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
@@ -620,7 +556,7 @@ impl<'a> Iterator for GlobalIter<'a> {
             let init_opcode = self.buf.read_u8();
             let init_parameter = self.buf.read_u32();
             self.index += 1;
-            Some(Global { module: self.module, index, global_type, mutability, init_opcode, init_parameter })
+            Some(Global { index, global_type, mutability, init_opcode, init_parameter })
         } else {
             None
         }
@@ -629,7 +565,6 @@ impl<'a> Iterator for GlobalIter<'a> {
 
 
 pub struct ExportIter<'a> {
-    module: &'a Module<'a>,
     index: u32,
     buf: Cursor<'a>,
 }
@@ -644,7 +579,7 @@ impl<'a> Iterator for ExportIter<'a> {
             let kind = self.buf.read_u8();
             let export_index = ExportIndex::from((kind, self.buf.read_u32()));
             self.index += 1;
-            Some(Export { module: self.module, index, identifier, export_index })
+            Some(Export { index, identifier, export_index })
         } else {
             None
         }
@@ -652,19 +587,18 @@ impl<'a> Iterator for ExportIter<'a> {
 }
 
 pub struct ElementIter<'a> {
-    module: &'a Module<'a>,
     index: u32,
     buf: Cursor<'a>,
 }
 
 impl<'a> Iterator for ElementIter<'a> {
-    type Item = Element<'a>;
+    type Item = Element;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
             let index = self.index;
             self.index += 1;
-            Some(Element { module: self.module, index })
+            Some(Element { index })
         } else {
             None
         }
@@ -672,7 +606,6 @@ impl<'a> Iterator for ElementIter<'a> {
 }
 
 pub struct BodyIter<'a> {
-    module: &'a Module<'a>,
     index: u32,
     buf: Cursor<'a>,
 }
@@ -686,7 +619,7 @@ impl<'a> Iterator for BodyIter<'a> {
             let buf_len = self.buf.read_u32();
             let buf = self.buf.slice(buf_len as usize);
             self.index += 1;            
-            Some(Body { module: self.module, index, buf })
+            Some(Body { index, buf })
         } else {
             None
         }
@@ -694,7 +627,6 @@ impl<'a> Iterator for BodyIter<'a> {
 }
 
 pub struct DataIter<'a> {
-    module: &'a Module<'a>,
     index: u32,
     buf: Cursor<'a>,
 }
@@ -711,7 +643,7 @@ impl<'a> Iterator for DataIter<'a> {
             let data_len = self.buf.read_u32();
             let data = self.buf.slice(data_len as usize);
             self.index += 1;
-            Some(Data { module: self.module, index, memory_index, offset_opcode, offset_parameter, data })
+            Some(Data { index, memory_index, offset_opcode, offset_parameter, data })
         } else {
             None
         }
