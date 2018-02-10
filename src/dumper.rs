@@ -45,12 +45,15 @@ impl<W: Write> Delegate for DetailsDumper<W> {
                 write!(self.w," - type[{}] (", n)?;
             },
             TypeParameter { n, t } => {
-                if n > 1 { write!(self.w,", ")? }
+                if n > 0 { write!(self.w,", ")? }
                 write!(self.w,"{}", t)?;
             },
             TypeParametersEnd => {
                 write!(self.w,") ->")?;
             }
+            TypeReturnsStart { c } => {
+                if c == 0 { write!(self.w, " nil")? }
+            },
             TypeReturn { n: _, t } => {
                 write!(self.w," {}", t)?;
             },
