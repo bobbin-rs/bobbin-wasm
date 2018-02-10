@@ -490,10 +490,8 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
             InstructionsEnd => {
                 // info!("{:04x}: V:{} | {} ", self.w.pos(), self.type_stack.len(), "EXIT");
 
-                let return_type = self.context.return_type;                
                 let drop = self.context.len() as u32;
-                let keep = if return_type == VOID { 0 } else { 1 };
-
+                let keep = 0;
                 self.type_stack.drop_keep(drop as usize, keep as usize)?;
                 self.write_drop_keep(drop as u32, keep as u32)?;
         
@@ -503,7 +501,6 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
                         panic!("Orphan Fixup: {:?}", entry);
                     }
                 }
-                self.type_stack.pop_type_expecting(return_type)?;                
             },
             BodyEnd => {
                 assert!(self.type_stack.len() == 0);
@@ -776,11 +773,10 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                 }
 
                 self.type_stack.expect_type(label.signature)?;
-                if label.signature == TypeValue::Void {
-                    self.type_stack.expect_type_stack_depth(label.stack_limit)?;
-                } else {
-                    self.type_stack.expect_type_stack_depth(label.stack_limit + 1)?;                    
-                }                
+                // Reset Stack to Label
+                while self.type_stack.len() > label.stack_limit as usize {
+                    self.type_stack.pop()?;
+                }
             },
             BR => {
                 let label = self.label_stack.top()?;
@@ -798,6 +794,9 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
             RETURN => {
                 let return_type = self.context.return_type();
                 self.type_stack.expect_type(return_type)?;
+                // if return_type != VOID {
+                //     self.type_stack.pop_type_expecting(return_type)?;
+                // }
                 self.set_unreachable(true)?;                
             },
             _ => {
