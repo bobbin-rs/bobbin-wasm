@@ -394,12 +394,15 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                 if label.opcode == IF && label.signature != VOID {
                     return Err(Error::InvalidIfSignature)
                 }
-                self.type_stack.expect_type(label.signature)?;
-                if label.signature == TypeValue::Void {
-                    self.type_stack.expect_type_stack_depth(label.stack_limit)?;
-                } else {
-                    self.type_stack.expect_type_stack_depth(label.stack_limit + 1)?;                    
-                }                
+
+                if !self.is_unreachable()? {
+                    self.type_stack.expect_type(label.signature)?;
+                    if label.signature == TypeValue::Void {
+                        self.type_stack.expect_type_stack_depth(label.stack_limit)?;
+                    } else {
+                        self.type_stack.expect_type_stack_depth(label.stack_limit + 1)?;                    
+                    }                
+                }
             },
             BR => {
                 let label = self.label_stack.top()?;
@@ -423,6 +426,7 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                 } else {
                     (drop - 1, 1)
                 };
+                info!("RETURN drop {} keep {}", drop, keep);
                 
                 self.type_stack.type_drop_keep(drop, keep)?;
                 self.set_unreachable(true)?;                
@@ -507,20 +511,25 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
             },
             Body { n, offset: _, size: _, locals } => {
                 self.context = Context::from(self.module.function_signature_type(n).unwrap());
-                info!("{:?}", self.context);
                 self.body_fixup = self.write_fixup_u32()?;
                 self.write_u8(locals as u8)?;
             },
             Local { i: _, n, t } => {
                 self.context.add_local(n, t);
+                info!("add_local: {} {}", n, t); 
 
                 self.write_u8(n as u8)?;
                 self.write_i8(t as i8)?;
             },
             InstructionsStart => {
                 let mut locals_count = 0;
+                info!("{:?}", self.context);
 
                 let return_type = self.context.return_type;
+
+                for p in self.context.parameters() {
+                    self.type_stack.push_type(TypeValue::from(*p as i8))?;
+                }
 
                 self.push_label(0, return_type, FIXUP_OFFSET)?;
 
@@ -528,10 +537,6 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
                     self.type_stack.push_type(*local)?;
                     locals_count += 1;
                 }        
-
-                for p in self.context.parameters() {
-                    self.type_stack.push_type(TypeValue::from(*p as i8))?;
-                }
 
                 self.write_alloca(locals_count as u32)?;
             }
@@ -566,7 +571,7 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
         let depth = self.label_stack.len() - 1;
         info!("{:08x}: V:{} | {:0width$}{}{:?}", i.offset, self.type_stack.len(), "", i.op.text, i.imm, width=depth);
 
-        // self.type_check(&i)?;   
+        self.type_check(&i)?;   
         
         let op = i.op.code;
         match i.imm {
@@ -607,6 +612,8 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                 },
                 RETURN => {
                     let depth = self.type_stack.len() as u32;
+                    let depth = depth - self.context.len() as u32;
+
                     let return_type = self.context.return_type;
                     if return_type == VOID {
                         self.write_drop_keep(depth, 0)?;
@@ -676,7 +683,8 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                     }
                     _ => unreachable!()
                 }
-
+                let depth = self.type_stack.len();
+                info!("id: {} depth: {}", id, depth);
                 let depth = (self.type_stack.len() as u32) - id;
                 self.w.write_opcode(op)?;
                 self.w.write_u32(depth)?;                
@@ -957,14 +965,14 @@ pub trait TypeStack {
 impl<'a> TypeStack for Stack<'a, TypeValue> {
     fn push_type<T: Into<TypeValue>>(&mut self, type_value: T) -> Result<(), Error> {
         let tv = type_value.into();
-        // info!("-- type: {} <= {:?}", self.len(), tv);
+        info!("-- type: {} <= {:?}", self.len(), tv);
         Ok(self.push(tv)?)
     }
 
     fn pop_type(&mut self) -> Result<TypeValue, Error> {
         let depth = self.len();
         let tv = self.pop()?;
-        // info!("-- type: {} => {:?}", depth, tv);
+        info!("-- type: {} => {:?}", depth, tv);
         Ok(tv)
     }
 
