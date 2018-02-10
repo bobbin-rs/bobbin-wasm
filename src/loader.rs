@@ -39,15 +39,16 @@ impl fmt::Debug for Label {
 }
 
 
-pub struct Loader<'w, 'ls, 'ts> {
-    w: Writer<'w>,
-    module: Module<'w>,
+pub struct Loader<'m, 'ls, 'ts> {
+    w: Writer<'m>,
+    module: Module<'m>,
     label_stack: Stack<'ls, Label>,
     type_stack: Stack<'ts, TypeValue>,
     fixups: [Option<Fixup>; 256],
     fixups_pos: usize,
     section_fixup: usize,
     body_fixup: usize,
+    body_type: Option<Type<'m>>,
 }
 
 impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
@@ -60,11 +61,38 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
         let fixups_pos = 0;
         let section_fixup = 0;
         let body_fixup = 0;
-        Loader { w, module, label_stack, type_stack, fixups, fixups_pos, section_fixup, body_fixup }
+        let body_type = None;
+        Loader { 
+            w, 
+            module, 
+            label_stack, 
+            type_stack, 
+            fixups, 
+            fixups_pos, 
+            section_fixup, 
+            body_fixup,
+            body_type,
+        }
     }
 
     pub fn module(&self) -> &Module {
         &self.module
+    }
+
+    fn pos(&self) -> usize {
+        self.w.pos()
+    }
+
+    fn write_i8(&mut self, value: i8) -> Result<(), Error> {
+        self.w.write_i8(value)
+    }
+
+    fn write_u8(&mut self, value: u8) -> Result<(), Error> {
+        self.w.write_u8(value)
+    }
+
+    fn write_u32(&mut self, value: u32) -> Result<(), Error> {
+        self.w.write_u32(value)
     }
 
     fn write_opcode(&mut self, op: u8) -> Result<(), Error> {
@@ -94,8 +122,8 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
             self.write_opcode(DROP)?;            
         } else if drop_count > 0 {
             self.write_opcode(INTERP_DROP_KEEP)?;
-            self.w.write_u32(drop_count as u32)?;
-            self.w.write_u32(keep_count as u32)?;
+            self.write_u32(drop_count as u32)?;
+            self.write_u32(keep_count as u32)?;
         }
         Ok(())
     }
@@ -111,7 +139,7 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
         Ok(
             if count > 0 {
                 self.write_opcode(INTERP_ALLOCA)?;
-                self.w.write_u32(count as u32)?;
+                self.write_u32(count as u32)?;
             }
         )
     }    
@@ -260,7 +288,8 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
         )
     }
 
-    pub fn type_check(&mut self, opc: Opcode, return_type: TypeValue) -> Result<(), Error> {
+    pub fn type_check(&mut self, func_index: u32, i: &Instruction) -> Result<(), Error> {
+        let opc = i.op;
         match opc.code {
             IF => {
                 self.pop_type_expecting(I32)?;
@@ -294,6 +323,11 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                 self.set_unreachable(true)?;
             },            
             RETURN => {
+                let return_type = if let Some(t) = self.module.function_signature_type(func_index as u32).and_then(|t| t.return_type()) {
+                    t
+                } else {
+                    TypeValue::None
+                };
                 self.expect_type(return_type)?;                
                 let drop = self.type_stack.len() as u32;
                 let (drop, keep) = if return_type == TypeValue::Void {
@@ -301,6 +335,7 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                 } else {
                     (drop - 1, 1)
                 };
+                
                 self.type_drop_keep(drop, keep)?;
                 self.set_unreachable(true)?;                
             },
@@ -317,7 +352,7 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
 
     pub fn write_fixup_u32(&mut self) -> Result<usize, Error> {
         let pos = self.w.pos();
-        self.w.write_u32(FIXUP_OFFSET)?;
+        self.write_u32(FIXUP_OFFSET)?;
         Ok(pos)
     }
 
@@ -347,53 +382,53 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
                 self.module.extend(self.w.split());
             },
             TypesStart { c } => {
-                self.w.write_u32(c)?;
+                self.write_u32(c)?;
             },
             TypeParametersStart { c } => {
-                self.w.write_u8(c as u8)?;
+                self.write_u8(c as u8)?;
             },
             TypeParameter { n: _, t } => {
-                self.w.write_u8(t as u8)?;
+                self.write_u8(t as u8)?;
             },
             TypeReturnsStart { c } => {
-                self.w.write_u8(c as u8)?;
+                self.write_u8(c as u8)?;
             },
             TypeReturn { n: _, t } => {
-                self.w.write_u8(t as u8)?;
+                self.write_u8(t as u8)?;
             },
             FunctionsStart { c } => {
-                self.w.write_u32(c)?;
+                self.write_u32(c)?;
             },
             Function { n: _, index } => {
-                self.w.write_u32(index.0)?;
+                self.write_u32(index.0)?;
             },
             ExportsStart { c } => {
-                self.w.write_u32(c)?;
+                self.write_u32(c)?;
             },
             Export { n: _, id, index } => {
                 let id = id.0;
-                self.w.write_u32(id.len() as u32)?;
+                self.write_u32(id.len() as u32)?;
                 for b in id {
-                    self.w.write_u8(*b)?;
+                    self.write_u8(*b)?;
                 }
-                self.w.write_u8(index.kind())?;
-                self.w.write_u32(index.index())?;
+                self.write_u8(index.kind())?;
+                self.write_u32(index.index())?;
             },
             CodeStart { c } => {
-                self.w.write_u32(c)?;
+                self.write_u32(c)?;
             },
             Body { n: _, offset: _, size: _, locals } => {
                 self.body_fixup = self.write_fixup_u32()?;
-                self.w.write_u8(locals as u8)?;
+                self.write_u8(locals as u8)?;
             },
             Local { i: _, n, t } => {
-                self.w.write_u8(n as u8)?;
-                self.w.write_i8(t as i8)?;
+                self.write_u8(n as u8)?;
+                self.write_i8(t as i8)?;
             },
-            InstructionsStart { locals } => {
+            InstructionsStart { n: _, locals } => {
                 self.write_alloca(locals)?;
             }
-            Instruction(i) => self.dispatch_instruction(i)?,
+            Instruction(n, i) => self.dispatch_instruction(n, i)?,
             BodyEnd => {
                 let fixup = self.body_fixup;
                 self.apply_fixup_u32(fixup)?;                                
@@ -405,8 +440,261 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
 }
 
 impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
-    pub fn dispatch_instruction(&mut self, i: Instruction) -> DelegateResult {
-        info!("{:08x}, {:?} {:?}", i.offset, i.op, i.imm);
+    pub fn dispatch_instruction(&mut self, n: u32, i: Instruction) -> DelegateResult {
+        use opcode::Immediate::*;
+        info!("{:08x}: V:{} | {}{:?}", i.offset, self.type_stack.len(), i.op.text, i.imm);
+        let op = i.op.code;
+        match i.imm {
+            None => {},
+            Block { signature } => match op {
+                BLOCK => {
+                    self.push_label(op, signature, FIXUP_OFFSET)?;                    
+                },
+                LOOP => {
+                    let pos = self.w.pos();
+                    self.push_label(op, signature, pos as u32)?;                    
+                },
+                IF => {
+                    self.push_label(op, signature, FIXUP_OFFSET)?;
+                    info!("IF: DEPTH -> {}", self.label_depth());
+                    self.write_opcode(INTERP_BR_UNLESS)?;
+                    let pos = self.w.pos();
+                    info!("IF: ADD FIXUP {} 0x{:04x}", 0, pos);
+                    self.add_fixup(0, pos as u32)?;
+                    self.write_u32(FIXUP_OFFSET)?;                    
+                },
+                _ => unreachable!(),
+            },
+            Branch { depth } => {
+                let label = self.label_stack.peek(depth as usize)?;
+                let (drop, keep) = self.get_drop_keep(&label)?;
+                info!("drop_keep: {}, {}", drop, keep);
+                self.write_drop_keep(drop, keep)?;
+                self.write_opcode(op)?;
+                let pos = self.pos();
+                info!("BR / BR_IF ADD FIXUP {} 0x{:04x}", depth, self.pos());
+                self.add_fixup(depth, pos as u32)?;
+                self.write_u32(FIXUP_OFFSET)?;                
+            },
+            BranchTable { count } => {},
+            BranchTableDepth { n, depth } => {},
+            BranchTableDefault { depth } => {},
+            Local { index } => {}
+            Global { index } => {},
+            Call { index } => {},
+            CallIndirect { index } => {},
+            I32Const { value } => {},
+            F32Const { value } => {},
+            I64Const { value } => {},
+            F64Const { value } => {},
+            LoadStore { align, offset } => {},
+            Memory { reserved } => {},
+        }
+
+        // self.type_check(n, &i)?;   
+        // info!("type check done");
+        // match op {         
+        //     END => {
+        //         // w.write_opcode(op)?;
+        //         // info!("FIXUP {} 0x{:04x}", self.label_depth(), w.pos());
+        //         // info!("END");
+        //         self.fixup(w)?;
+        //         self.pop_label()?;
+        //     },
+        //     ELSE => {
+        //         w.write_opcode(BR)?;
+        //         self.fixup(w)?;
+        //         let label = self.pop_label()?;
+        //         self.push_label(op, label.signature, FIXUP_OFFSET)?;                    
+        //         info!("ELSE: ADD FIXUP {} 0x{:04x}", 0, w.pos());
+        //         self.add_fixup(0, w.pos() as u32)?;
+        //         w.write_u32(FIXUP_OFFSET)?;
+        //     }
+        //     BR | BR_IF => {
+        //         let depth = r.read_var_u32()?;
+        //         let label = self.label_stack.peek(depth as usize)?;
+        //         let (drop, keep) = self.get_drop_keep(&label)?;
+        //         info!("drop_keep: {}, {}", drop, keep);
+        //         w.write_drop_keep(drop, keep)?;
+        //         w.write_opcode(op)?;
+        //         info!("BR / BR_IF ADD FIXUP {} 0x{:04x}", depth, w.pos());
+        //         self.add_fixup(depth, w.pos() as u32)?;
+        //         w.write_u32(FIXUP_OFFSET)?;
+        //     },
+        //     BR_TABLE => {
+        //         // Emits BR_TABLE LEN [DROP OFFSET; LEN] [DROP OFFSET] KEEP
+
+        //         // Verify top of stack contains the index
+        //         self.pop_type_expecting(I32)?;
+                
+        //         w.write_opcode(op)?;
+        //         let n = r.read_var_u32()? as usize;
+        //         w.write_u32(n as u32)?;
+
+        //         let mut sig: Option<TypeValue> = None;
+        //         let mut sig_keep = 0;
+
+        //         for _ in 0..n {
+        //             let depth = r.read_var_u32()?;
+        //             let label = self.label_stack.peek(depth as usize)?;
+        //             self.expect_type(label.signature)?;
+        //             let (drop, keep) = self.get_drop_keep(&label)?;
+        //             info!("drop_keep: {}, {}", drop, keep);
+
+        //             if sig.is_none() {
+        //                 sig = Some(label.signature);
+        //                 sig_keep = keep;
+        //             }
+                    
+        //             w.write_u32(drop as u32)?;
+        //             info!("BR_TABLE ADD FIXUP {} 0x{:04x}", depth, w.pos());
+        //             self.add_fixup(depth, w.pos() as u32)?;
+        //             w.write_u32(FIXUP_OFFSET)?;
+        //         }
+        //         {
+        //             // Add default drop + offset
+        //             let depth = r.read_var_u32()?;
+        //             let label = self.label_stack.peek(depth as usize)?;
+        //             self.expect_type(label.signature)?;
+        //             let (drop, keep) = self.get_drop_keep(&label)?;
+        //             info!("drop_keep: {}, {}", drop, keep);
+
+        //             w.write_u32(drop as u32)?;
+        //             info!("BR_TABLE ADD FIXUP {} 0x{:04x}", depth, w.pos());
+        //             self.add_fixup(depth, w.pos() as u32)?;
+        //             w.write_u32(FIXUP_OFFSET)?;
+        //         }
+        //         w.write_u32(sig_keep as u32)?;
+
+
+        //     },
+        //     UNREACHABLE => return Err(Error::Unreachable),
+        //     RETURN => {
+        //         let depth = self.type_stack.len() as u32;
+        //         if return_type == VOID {
+        //             w.write_drop_keep(depth, 0)?;
+        //         } else {
+        //             w.write_drop_keep(depth - 1, 1)?;
+        //         }
+        //         w.write_opcode(RETURN)?;
+        //     },
+        //     GET_LOCAL | SET_LOCAL | TEE_LOCAL => {
+        //         // Emits OP DEPTH_TO_LOCAL
+        //         let id = r.read_var_u32()?;
+        //         let len = locals_count;
+        //         if id >= len {
+        //             return Err(Error::InvalidLocal { id: id })
+        //         }
+
+        //         let ty = if id < parameters.len() as u32 {
+        //             TypeValue::from(parameters[id as usize] as i8)
+        //         } else {
+        //             locals[(id as usize) - parameters.len()]
+        //         };
+        //         match op {
+        //             GET_LOCAL => self.push_type(ty)?,
+        //             SET_LOCAL => self.pop_type_expecting(ty)?,
+        //             TEE_LOCAL => {
+        //                 self.pop_type_expecting(ty)?;
+        //                 self.push_type(ty)?;
+        //             }
+        //             _ => unreachable!()
+        //         }
+        //         let depth = (self.type_stack.len() as u32) - id;
+        //         w.write_opcode(op)?;
+        //         w.write_u32(depth as u32)?;
+        //     },
+        //     GET_GLOBAL | SET_GLOBAL => {
+        //         let id = r.read_var_u32()?;
+        //         let global = if let Some(global) = self.module.global(id) {
+        //             global
+        //         } else {
+        //             return Err(Error::InvalidGlobal { id: id })
+        //         };
+        //         let ty = TypeValue::from(global.global_type);
+        //         match op {
+        //             GET_GLOBAL => self.push_type(ty)?,
+        //             SET_GLOBAL => self.pop_type_expecting(ty)?,
+        //             _ => unreachable!()
+        //         }
+        //         w.write_opcode(op)?;
+        //         w.write_u32(id as u32)?;
+        //     },
+        //     CALL => {
+        //         let id = r.read_var_u32()?;
+        //         let signature = if let Some(signature) = self.module.function_signature_type(id) {
+        //             signature
+        //         } else {
+        //             return Err(Error::InvalidFunction { id: id })
+        //         };
+        //         let (parameters, returns) = (signature.parameters, signature.returns);
+        //         if returns.len() > 1 {
+        //             return Err(Error::UnexpectedReturnLength { got: returns.len() as u32})
+        //         }
+        //         for p in parameters.iter() {
+        //             self.pop_type_expecting(TypeValue::from(*p as i8))?;
+        //         }
+        //         for r in returns.iter() {
+        //             self.push_type(TypeValue::from(*r as i8))?;
+        //         }
+
+        //         w.write_opcode(op)?;
+        //         w.write_u32(id as u32)?;
+        //     },
+        //     CALL_INDIRECT => {
+        //         // Emits OP SIG
+
+        //         let id = r.read_var_u32()?;
+        //         let _ = r.read_var_u1()?;
+                
+        //         let signature = if let Some(signature) = self.module.function_signature_type(id) {
+        //             signature
+        //         } else {
+        //             return Err(Error::InvalidFunction { id: id })
+        //         };
+
+        //         let ret_count = signature.returns.len() as u32;
+        //         if ret_count > 1 {
+        //             return Err(Error::UnexpectedReturnLength { got: ret_count })
+        //         }
+        //         // Load function index
+        //         self.pop_type_expecting(I32)?;
+        //         for p in signature.parameters() {
+        //             self.pop_type_expecting(p)?;
+        //         }
+        //         for r in signature.returns() {
+        //             self.push_type(r)?;
+        //         }                                     
+        //         w.write_opcode(op)?;                    
+        //         w.write_u32(id as u32)?;
+        //     },
+        //     I32_LOAD | I32_STORE | I32_LOAD8_S | I32_LOAD8_U | I32_LOAD16_S | I32_LOAD16_U => {
+        //         w.write_opcode(op)?;
+        //         let a = r.read_var_u32()?;
+        //         info!("  {:02x}", a);
+        //         let b = r.read_var_u32()?;
+        //         info!("  {:02x}", b);
+        //         w.write_u32(a)?;
+        //         w.write_u32(b)?;
+        //     },
+        //     MEM_GROW | MEM_SIZE => {
+        //         w.write_opcode(op)?;
+        //         r.read_var_u1()?;
+        //     },
+        //     I32_CONST => {
+        //         w.write_opcode(op)?;
+        //         let v = r.read_var_i32()?;
+        //         info!(" {:08x}", v);
+        //         w.write_i32(v)?;
+        //     },
+        //     DROP => {
+        //         w.write_opcode(op)?;
+        //         self.pop_type()?;
+        //     },
+        //     _ => {
+        //         w.write_opcode(op)?;
+        //     },
+        // }        
         Ok(())
     }
 }
