@@ -56,19 +56,9 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     let _out = String::new();
 
-    use wasm::TypeValue;
-    use wasm::loader::Label;
-
     let mut module_buf = [0u8; 1024];
-    let mut label_buf = [Label::default(); 256];
-    let mut type_buf = [TypeValue::default(); 256];
-
     let r = Reader::new(&mut data[..]);
-    let mut loader = wasm::loader::Loader::new(
-        &mut module_buf[..],
-        &mut label_buf[..],
-        &mut type_buf[..],
-    );
+    let mut loader = wasm::loader::Loader::new(&mut module_buf[..]);
     BinaryReader::new(&mut loader, r).read(path)?;        
     let m = loader.module();
     println!("{:?}", m);

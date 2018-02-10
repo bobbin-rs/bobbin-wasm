@@ -3,6 +3,7 @@ use byteorder::{ByteOrder, LittleEndian};
 use core::ops::Deref;
 use core::{mem, slice, str};
 use reader::Reader;
+use stack::Stack;
 use small_vec::SmallVec;
 use Error;
 
@@ -146,6 +147,12 @@ impl<'a> Writer<'a> {
         Reader::new(self.split())
     }
 
+    pub fn alloc_stack<T: Copy>(&mut self, len: usize) -> Stack<'a, T> {
+        assert!(self.pos == 0, "Allocation can only happen with an empty writer.");
+        self.pos += len * mem::size_of::<T>();
+        Stack::new(self.split_mut())
+    }
+
     pub fn alloc_smallvec<T>(&mut self, len: usize) -> SmallVec<'a, T> {
         assert!(self.pos == 0, "Allocation can only happen with an empty writer.");
         self.pos += len * mem::size_of::<T>();
@@ -178,6 +185,18 @@ mod tests {
         w.advance(16);
         let b: &mut [u32] = w.split_mut();
         assert_eq!(b.len(), 4);
+    }
+
+  #[test]
+    fn test_alloc_stack() {
+        let mut buf = [0u8; 32];
+        let mut w = Writer::new(&mut buf);
+        let mut v: Stack<u32> = w.alloc_stack(4);
+        assert_eq!(v.cap(), 4);
+        for i in 0..4 {
+            v.push(i as u32).unwrap();
+        }
+        assert_eq!(v.len(), 4);
     }
 
     #[test]

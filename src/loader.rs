@@ -131,11 +131,11 @@ impl Index<usize> for Context {
     }
 }
 
-pub struct Loader<'m, 'ls, 'ts> {
+pub struct Loader<'m> {
     w: Writer<'m>,
     module: Module<'m>,
-    label_stack: Stack<'ls, Label>,
-    type_stack: Stack<'ts, TypeValue>,
+    label_stack: Stack<'m, Label>,
+    type_stack: Stack<'m, TypeValue>,
     fixups: [Option<Fixup>; 256],
     fixups_pos: usize,
     section_fixup: usize,
@@ -143,12 +143,12 @@ pub struct Loader<'m, 'ls, 'ts> {
     context: Context,
 }
 
-impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
-    pub fn new(module_buf: &'m mut [u8], label_buf: &'ls mut [Label], type_buf: &'ts mut[TypeValue]) -> Self {
+impl<'m> Loader<'m> {
+    pub fn new(module_buf: &'m mut [u8]) -> Self {
         let mut w = Writer::new(module_buf);
         let module = Module::new(w.split());
-        let label_stack = Stack::new(label_buf);
-        let type_stack = Stack::new(type_buf);
+        let label_stack = w.alloc_stack(16);
+        let type_stack = w.alloc_stack(16);
         let fixups = [None; 256];
         let fixups_pos = 0;
         let section_fixup = 0;
@@ -395,12 +395,12 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
     }
 }
 
-impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
+impl<'m> Delegate for Loader<'m> {
     fn dispatch(&mut self, evt: Event) -> DelegateResult {
         use Event::*;
         // info!("{:08x}: {:?}", self.w.pos(), evt);
         match evt {
-            Start { ref name, version } => {
+            Start { name, version } => {
                 self.module.set_name(self.w.copy_str(name));
                 self.module.set_version(version);
             },
@@ -521,7 +521,7 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
     }
 }
 
-impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
+impl<'m> Loader<'m> {
     pub fn dispatch_instruction(&mut self, i: Instruction) -> DelegateResult {
         use opcode::Immediate::*;
 
