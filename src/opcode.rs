@@ -145,12 +145,12 @@ impl fmt::Debug for Immediate {
         match *self {
             None => Ok(()),
             Block { signature } => if signature != TypeValue::Void {
-                write!(f, "{:?}", signature)
+                write!(f, " {:?}", signature)
             } else {
                 Ok(())
             },
             Branch { depth } => if depth != 0 { 
-                write!(f, "{}", depth)
+                write!(f, " {}", depth)
             } else {
                 Ok(())
             },

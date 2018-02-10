@@ -501,6 +501,9 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
                         panic!("Orphan Fixup: {:?}", entry);
                     }
                 }
+
+                let return_type = self.context.return_type;
+                self.type_stack.pop_type_expecting(return_type)?;
             },
             BodyEnd => {
                 assert!(self.type_stack.len() == 0);
@@ -543,7 +546,10 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                     let pos = self.w.pos();                
                     self.add_fixup(0, pos as u32)?;
                     self.w.write_u32(FIXUP_OFFSET)?;
-                }                
+                },
+                DROP => {
+                    self.w.write_opcode(op)?;
+                }           
                 _ => {},
             },
             Block { signature: _ } => match op {
@@ -777,6 +783,9 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                 while self.type_stack.len() > label.stack_limit as usize {
                     self.type_stack.pop()?;
                 }
+                if label.signature != VOID {
+                    self.type_stack.push(label.signature)?;
+                }
             },
             BR => {
                 let label = self.label_stack.top()?;
@@ -799,6 +808,9 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                 // }
                 self.set_unreachable(true)?;                
             },
+            DROP => {
+                self.type_stack.pop_type()?;                
+            }
             _ => {
                 self.type_stack.pop_type_expecting(i.op.t1)?;
                 self.type_stack.pop_type_expecting(i.op.t2)?;
