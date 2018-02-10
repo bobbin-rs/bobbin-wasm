@@ -85,7 +85,7 @@ impl Context {
     }
 
     fn add_local(&mut self, n: u32, t: TypeValue) {
-        for i in 0..n {
+        for _ in 0..n {
             self.locals[self.locals_count] = t;
             self.locals_count += 1;
         }
@@ -518,8 +518,18 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
                 self.write_i8(t as i8)?;
             },
             InstructionsStart => {
-                let locals = self.context.locals.len();
-                self.write_alloca(locals as u32)?;
+                let mut locals_count = 0;
+                
+                for local in self.context.locals.iter() {
+                    self.type_stack.push_type(*local)?;
+                    locals_count += 1;
+                }        
+
+                for p in self.context.parameters() {
+                    self.type_stack.push_type(TypeValue::from(*p as i8))?;
+                }
+
+                self.write_alloca(locals_count as u32)?;
             }
             Instruction(i) => self.dispatch_instruction(i)?,
             InstructionsEnd => {},
@@ -553,10 +563,9 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                 },
                 IF => {
                     self.push_label(op, signature, FIXUP_OFFSET)?;
-                    info!("IF: DEPTH -> {}", self.label_depth());
+
                     self.w.write_opcode(INTERP_BR_UNLESS)?;
                     let pos = self.w.pos();
-                    info!("IF: ADD FIXUP {} 0x{:04x}", 0, pos);
                     self.add_fixup(0, pos as u32)?;
                     self.w.write_u32(FIXUP_OFFSET)?;                    
                 },
@@ -565,17 +574,44 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
             Branch { depth } => {
                 let label = self.label_stack.peek(depth as usize)?;
                 let (drop, keep) = self.get_drop_keep(&label)?;
-                info!("drop_keep: {}, {}", drop, keep);
                 self.write_drop_keep(drop, keep)?;
+
                 self.w.write_opcode(op)?;
                 let pos = self.pos();
-                info!("BR / BR_IF ADD FIXUP {} 0x{:04x}", depth, self.pos());
                 self.add_fixup(depth, pos as u32)?;
                 self.w.write_u32(FIXUP_OFFSET)?;                
             },
-            BranchTable { count } => {},
-            BranchTableDepth { n, depth } => {},
-            BranchTableDefault { depth } => {},
+            BranchTable { count } => {
+                // Emits BR_TABLE LEN [DROP OFFSET; LEN] [DROP OFFSET] KEEP
+
+                // Verify top of stack contains the index
+                self.type_stack.pop_type_expecting(I32)?;
+                
+                self.w.write_opcode(op)?;
+                self.w.write_u32(count as u32)?;
+            },
+            BranchTableDepth { n: _, depth } => {
+                let label = self.label_stack.peek(depth as usize)?;
+                self.type_stack.expect_type(label.signature)?;
+                let (drop, keep) = self.get_drop_keep(&label)?;
+
+                self.w.write_u32(drop as u32)?;
+                self.w.write_u32(keep as u32)?;
+                let pos = self.w.pos();
+                self.add_fixup(depth, pos as u32)?;
+                self.w.write_u32(FIXUP_OFFSET)?;                
+            },
+            BranchTableDefault { depth } => {
+                let label = self.label_stack.peek(depth as usize)?;
+                self.type_stack.expect_type(label.signature)?;
+
+                let (drop, keep) = self.get_drop_keep(&label)?;
+                self.w.write_u32(drop as u32)?;
+                self.w.write_u32(keep as u32)?;
+                let pos = self.w.pos();
+                self.add_fixup(depth, pos as u32)?;
+                self.w.write_u32(FIXUP_OFFSET)?;                
+            },
             Local { index } => {
                 // Emits OP DEPTH_TO_LOCAL
                 let id = index.0;
@@ -585,12 +621,6 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                 }
 
                 let ty = self.context[id as usize];
-
-                // let ty = if id < self.context.parameters.len() as u32 {
-                //     TypeValue::from(self.context.parameters()[id as usize] as i8)
-                // } else {
-                //     locals[(id as usize) - parameters.len()]
-                // };
                 match op {
                     GET_LOCAL => self.type_stack.push_type(ty)?,
                     SET_LOCAL => self.type_stack.pop_type_expecting(ty)?,
@@ -600,6 +630,7 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                     }
                     _ => unreachable!()
                 }
+
                 let depth = (self.type_stack.len() as u32) - id;
                 self.w.write_opcode(op)?;
                 self.w.write_u32(depth)?;                
@@ -619,6 +650,7 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                     SET_GLOBAL => self.type_stack.pop_type_expecting(ty)?,
                     _ => unreachable!()
                 }
+
                 self.w.write_opcode(op)?;
                 self.w.write_u32(id as u32)?;                
             },
@@ -643,13 +675,47 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                 self.w.write_opcode(op)?;
                 self.w.write_u32(id as u32)?;
             },
-            CallIndirect { index } => {},
-            I32Const { value } => {},
-            F32Const { value } => {},
-            I64Const { value } => {},
-            F64Const { value } => {},
-            LoadStore { align, offset } => {},
-            Memory { reserved } => {},
+            CallIndirect { index } => {
+                // Emits OP SIG
+
+                let id = index.0 as u32;                
+                let signature = if let Some(signature) = self.module.function_signature_type(id) {
+                    signature
+                } else {
+                    return Err(Error::InvalidFunction { id: id })
+                };
+
+                let ret_count = signature.returns.len() as u32;
+                if ret_count > 1 {
+                    return Err(Error::UnexpectedReturnLength { got: ret_count })
+                }
+                // Load function index
+                self.type_stack.pop_type_expecting(I32)?;
+                for p in signature.parameters() {
+                    self.type_stack.pop_type_expecting(p)?;
+                }
+                for r in signature.returns() {
+                    self.type_stack.push_type(r)?;
+                }                         
+
+                self.w.write_opcode(op)?;                    
+                self.w.write_u32(id as u32)?;                
+            },
+            I32Const { value } => {
+                self.w.write_opcode(op)?;
+                self.w.write_i32(value)?;
+            },
+            F32Const { value: _ } => { return Err(Error::Unimplemented) },
+            I64Const { value: _ } => { return Err(Error::Unimplemented) },
+            F64Const { value: _ } => { return Err(Error::Unimplemented) },
+            LoadStore { align, offset } => {
+                self.w.write_opcode(op)?;
+                self.w.write_u32(align)?;
+                self.w.write_u32(offset)?;
+            },
+            Memory { reserved: _ } => {
+                self.w.write_opcode(op)?;
+            },
         }
 
         // self.type_check(n, &i)?;   
