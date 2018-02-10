@@ -48,7 +48,6 @@ pub struct Loader<'m, 'ls, 'ts> {
     fixups_pos: usize,
     section_fixup: usize,
     body_fixup: usize,
-    body_type: Option<Type<'m>>,
 }
 
 impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
@@ -61,7 +60,6 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
         let fixups_pos = 0;
         let section_fixup = 0;
         let body_fixup = 0;
-        let body_type = None;
         Loader { 
             w, 
             module, 
@@ -71,7 +69,6 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
             fixups_pos, 
             section_fixup, 
             body_fixup,
-            body_type,
         }
     }
 
@@ -428,7 +425,7 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
             InstructionsStart { n: _, locals } => {
                 self.write_alloca(locals)?;
             }
-            Instruction(n, i) => self.dispatch_instruction(n, i)?,
+            Instruction(n, locals, i) => self.dispatch_instruction(n, locals, i)?,
             BodyEnd => {
                 let fixup = self.body_fixup;
                 self.apply_fixup_u32(fixup)?;                                
@@ -440,7 +437,7 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
 }
 
 impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
-    pub fn dispatch_instruction(&mut self, n: u32, i: Instruction) -> DelegateResult {
+    pub fn dispatch_instruction(&mut self, n: u32, locals: u32, i: Instruction) -> DelegateResult {
         use opcode::Immediate::*;
         info!("{:08x}: V:{} | {}{:?}", i.offset, self.type_stack.len(), i.op.text, i.imm);
         let op = i.op.code;
@@ -479,7 +476,37 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
             BranchTable { count } => {},
             BranchTableDepth { n, depth } => {},
             BranchTableDefault { depth } => {},
-            Local { index } => {}
+            Local { index } => {
+                // Cache and/or pass locals, parameters and return_type
+
+                // // Emits OP DEPTH_TO_LOCAL
+                // let id = index.0;
+                // let len = locals;
+                // let f_type = self.module.function_signature_type(n).unwrap();
+                // let parameters = f_type.parameters;
+
+                // if id >= len {
+                //     return Err(Error::InvalidLocal { id: id })
+                // }
+
+                // let ty = if id < parameters.len() as u32 {
+                //     TypeValue::from(parameters[id as usize] as i8)
+                // } else {
+                //     locals[(id as usize) - parameters.len()]
+                // };
+                // match op {
+                //     GET_LOCAL => self.push_type(ty)?,
+                //     SET_LOCAL => self.pop_type_expecting(ty)?,
+                //     TEE_LOCAL => {
+                //         self.pop_type_expecting(ty)?;
+                //         self.push_type(ty)?;
+                //     }
+                //     _ => unreachable!()
+                // }
+                // let depth = (self.type_stack.len() as u32) - id;
+                // self.write_opcode(op)?;
+                // self.write_u32(depth)?;                
+            }
             Global { index } => {},
             Call { index } => {},
             CallIndirect { index } => {},
@@ -508,17 +535,6 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
         //         self.push_label(op, label.signature, FIXUP_OFFSET)?;                    
         //         info!("ELSE: ADD FIXUP {} 0x{:04x}", 0, w.pos());
         //         self.add_fixup(0, w.pos() as u32)?;
-        //         w.write_u32(FIXUP_OFFSET)?;
-        //     }
-        //     BR | BR_IF => {
-        //         let depth = r.read_var_u32()?;
-        //         let label = self.label_stack.peek(depth as usize)?;
-        //         let (drop, keep) = self.get_drop_keep(&label)?;
-        //         info!("drop_keep: {}, {}", drop, keep);
-        //         w.write_drop_keep(drop, keep)?;
-        //         w.write_opcode(op)?;
-        //         info!("BR / BR_IF ADD FIXUP {} 0x{:04x}", depth, w.pos());
-        //         self.add_fixup(depth, w.pos() as u32)?;
         //         w.write_u32(FIXUP_OFFSET)?;
         //     },
         //     BR_TABLE => {
