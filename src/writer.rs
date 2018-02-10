@@ -2,7 +2,9 @@ use wasm_leb128::{write_u1, write_u7, write_i7, write_u32, write_i32};
 use byteorder::{ByteOrder, LittleEndian};
 use core::ops::Deref;
 use core::slice;
+use core::mem;
 use reader::Reader;
+use small_vec::SmallVec;
 use Error;
 
 pub type WriteResult<T> = Result<T, Error>;
@@ -24,6 +26,10 @@ impl<'a> Writer<'a> {
 
     pub fn pos(&self) -> usize {
         self.pos
+    }
+
+    pub fn advance(&mut self, len: usize) {
+        self.pos += len;
     }
 
     pub fn write_u8(&mut self, value: u8) -> WriteResult<()> {
@@ -109,8 +115,33 @@ impl<'a> Writer<'a> {
         }        
     }
 
+    pub fn split_mut<T>(&mut self) -> &'a mut [T] {
+        unsafe {
+            // First Half
+            let a_ptr = self.buf.as_mut_ptr() as *mut T;
+            let a_len = self.pos / mem::size_of::<T>();
+
+            // Second Half
+            let b_ptr = self.buf.as_mut_ptr().offset(a_len as isize);
+            let b_len = self.buf.len() - a_len;
+
+            // Update Writer
+            self.buf = slice::from_raw_parts_mut(b_ptr, b_len);
+            self.pos = 0;
+
+            // Return New Reader
+            slice::from_raw_parts_mut(a_ptr, a_len)
+        }        
+    }    
+
     pub fn split_reader(&mut self) -> Reader<'a> {
         Reader::new(self.split())
+    }
+
+    pub fn alloc_smallvec<T>(&mut self, len: usize) -> SmallVec<'a, T> {
+        assert!(self.pos == 0, "Allocation can only happen with an empty writer.");
+        self.pos += len * mem::size_of::<T>();
+        SmallVec::new(self.split_mut())
     }
 }
 
@@ -125,5 +156,31 @@ impl<'a> Deref for Writer<'a> {
     type Target = [u8];
     fn deref(&self) -> &Self::Target {
         &self.buf[..self.pos]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_split_mut() {
+        let mut buf = [0u8; 32];
+        let mut w = Writer::new(&mut buf);
+        w.advance(16);
+        let b: &mut [u32] = w.split_mut();
+        assert_eq!(b.len(), 4);
+    }
+
+    #[test]
+    fn test_alloc_smallvec() {
+        let mut buf = [0u8; 32];
+        let mut w = Writer::new(&mut buf);
+        let mut v: SmallVec<u32> = w.alloc_smallvec(4);
+        assert_eq!(v.cap(), 4);
+        for i in 0..4 {
+            v.push(i as u32);
+        }
+        assert_eq!(v.len(), 4);
     }
 }
