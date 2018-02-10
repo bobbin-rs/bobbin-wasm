@@ -158,6 +158,10 @@ impl<'a> Writer<'a> {
         self.pos += len * mem::size_of::<T>();
         SmallVec::new(self.split_mut())
     }
+
+    pub fn into_slice(self) -> &'a mut [u8] {
+        self.buf
+    }
 }
 
 impl<'a> Into<Reader<'a>> for Writer<'a> {

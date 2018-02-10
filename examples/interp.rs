@@ -60,8 +60,8 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     let r = Reader::new(&mut data[..]);
     let mut loader = wasm::loader::Loader::new(&mut module_buf[..]);
     BinaryReader::new(&mut loader, r).read(path)?;        
-    let m = loader.module();
-    println!("{:?}", m);
+    let _m = loader.module();
+    // println!("{:?}", m);
 
     Ok(())
 }
