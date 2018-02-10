@@ -522,7 +522,7 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
         use opcode::Immediate::*;
 
         let mut depth = self.label_stack.len();
-        if i.op.code == END && depth > 0 {
+        if i.op.code == END || i.op.code == ELSE {
             depth -= 1;
         }
         info!("{:08x}: V:{} | {:0width$}{}{:?}", i.offset, self.type_stack.len(), "", i.op.text, i.imm, width=depth);
@@ -750,9 +750,6 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
             }
             IF => {
                 if let Immediate::Block { signature } = i.imm {
-                    if signature != VOID {
-                        return Err(Error::InvalidIfSignature)                        
-                    }
                     self.type_stack.pop_type_expecting(I32)?;
                     self.push_label(opc, signature, FIXUP_OFFSET)?;
                 } else {
@@ -764,7 +761,6 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                 self.fixup()?;
                 let label = self.pop_label()?;
                 
-                // IF can only have type signature VOID
                 self.type_stack.expect_type(VOID)?;
                 self.type_stack.expect_type_stack_depth(label.stack_limit)?;
 
@@ -774,6 +770,8 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                 // All fixups go to the next instruction
                 self.fixup()?;
                 let label = self.pop_label()?;
+
+                // IF without ELSE can only have type signature VOID
                 if label.opcode == IF && label.signature != VOID {
                     return Err(Error::InvalidIfSignature)
                 }
