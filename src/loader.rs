@@ -209,7 +209,7 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
         Ok(())
     }
     fn write_drop_keep(&mut self, drop_count: u32, keep_count: u32) -> Result<(), Error> {
-        info!("drop_keep {}, {}", drop_count, keep_count);
+        // info!("drop_keep {}, {}", drop_count, keep_count);
         if drop_count == 1 && keep_count == 0 {
             self.w.write_opcode(DROP)?;            
         } else if drop_count > 0 {
@@ -245,14 +245,14 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
             stack_limit,
             unreachable: false,
         };
-        info!("-- label: {} <= {:?}", self.label_stack.len(), label);
+        // info!("-- label: {} <= {:?}", self.label_stack.len(), label);
         Ok(self.label_stack.push(label)?)
     }
 
     pub fn pop_label(&mut self) -> Result<Label, Error> {
-        let depth = self.label_stack.len();
+        // let depth = self.label_stack.len();
         let label = self.label_stack.pop()?;
-        info!("-- label: {} => {:?}", depth, label);
+        // info!("-- label: {} => {:?}", depth, label);
         Ok(label)
     }
 
@@ -265,7 +265,7 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
     }
 
     pub fn set_unreachable(&mut self, value: bool) -> Result<(), Error> {        
-        info!("UNREACHABLE: {}", value);
+        // info!("UNREACHABLE: {}", value);
         Ok(self.label_stack.pick(0)?.unreachable = value)
     }
 
@@ -448,21 +448,23 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
             CodeStart { c } => {
                 self.w.write_u32(c)?;
             },
-            Body { n, offset: _, size: _, locals } => {
+            Body { n, offset, size: _, locals } => {
                 self.context = Context::from(self.module.function_signature_type(n).unwrap());
                 self.body_fixup = self.write_fixup_u32()?;
                 self.write_u8(locals as u8)?;
+
+                info!("{:08x}: V:{} | func[{}]", offset, self.type_stack.len(), n);                
             },
             Local { i: _, n, t } => {
                 self.context.add_local(n, t);
-                info!("add_local: {} {}", n, t); 
+                // info!("add_local: {} {}", n, t); 
 
                 self.write_u8(n as u8)?;
                 self.write_i8(t as i8)?;
             },
             InstructionsStart => {
                 let mut locals_count = 0;
-                info!("{:?}", self.context);
+                // info!("{:?}", self.context);
 
                 let return_type = self.context.return_type;
 
@@ -482,11 +484,11 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
 
                 // Push Stack Entry Label
 
-                self.push_label(0, return_type, FIXUP_OFFSET)?;
+                self.push_label(0, return_type, FIXUP_OFFSET)?;               
             }
             Instruction(i) => self.dispatch_instruction(i)?,
             InstructionsEnd => {
-                info!("{:04x}: V:{} | {} ", self.w.pos(), self.type_stack.len(), "EXIT");
+                // info!("{:04x}: V:{} | {} ", self.w.pos(), self.type_stack.len(), "EXIT");
 
                 let return_type = self.context.return_type;                
                 let drop = self.context.len() as u32;
@@ -518,11 +520,14 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
 impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
     pub fn dispatch_instruction(&mut self, i: Instruction) -> DelegateResult {
         use opcode::Immediate::*;
-        let depth = self.label_stack.len() - 1;
-        info!("{:08x}: V:{} | {:0width$}{}{:?}", i.offset, self.type_stack.len(), "", i.op.text, i.imm, width=depth);
 
+        let mut depth = self.label_stack.len();
+        if i.op.code == END && depth > 0 {
+            depth -= 1;
+        }
+        info!("{:08x}: V:{} | {:0width$}{}{:?}", i.offset, self.type_stack.len(), "", i.op.text, i.imm, width=depth);
         self.type_check(&i)?;   
-        
+
         let op = i.op.code;
         match i.imm {
             None => match op {
@@ -562,8 +567,6 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                 },
                 RETURN => {
                     let depth = self.type_stack.len() as u32;
-                    let depth = depth - self.context.len() as u32;
-
                     let return_type = self.context.return_type;
                     if return_type == VOID {
                         self.write_drop_keep(depth, 0)?;
@@ -633,8 +636,8 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                     }
                     _ => unreachable!()
                 }
-                let depth = self.type_stack.len();
-                info!("id: {} depth: {}", id, depth);
+                // let depth = self.type_stack.len();
+                // info!("id: {} depth: {}", id, depth);
                 let depth = (self.type_stack.len() as u32) - id;
                 self.w.write_opcode(op)?;
                 self.w.write_u32(depth)?;                
@@ -794,16 +797,7 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
             },            
             RETURN => {
                 let return_type = self.context.return_type();
-                self.type_stack.expect_type(return_type)?;                
-                let drop = self.type_stack.len() as u32;
-                let (drop, keep) = if return_type == TypeValue::Void {
-                    (drop, 0)
-                } else {
-                    (drop - 1, 1)
-                };
-                info!("RETURN drop {} keep {}", drop, keep);
-                
-                self.type_stack.type_drop_keep(drop, keep)?;
+                self.type_stack.expect_type(return_type)?;
                 self.set_unreachable(true)?;                
             },
             _ => {
@@ -840,14 +834,14 @@ pub trait TypeStack {
 impl<'a> TypeStack for Stack<'a, TypeValue> {
     fn push_type<T: Into<TypeValue>>(&mut self, type_value: T) -> Result<(), Error> {
         let tv = type_value.into();
-        info!("-- type: {} <= {:?}", self.len(), tv);
+        // info!("-- type: {} <= {:?}", self.len(), tv);
         Ok(self.push(tv)?)
     }
 
     fn pop_type(&mut self) -> Result<TypeValue, Error> {
-        let depth = self.len();
+        // let depth = self.len();
         let tv = self.pop()?;
-        info!("-- type: {} => {:?}", depth, tv);
+        // info!("-- type: {} => {:?}", depth, tv);
         Ok(tv)
     }
 
@@ -887,7 +881,7 @@ impl<'a> TypeStack for Stack<'a, TypeValue> {
     }
 
     fn type_drop_keep(&mut self, drop: u32, keep: u32) -> Result<(), Error> {
-        info!("drop_keep {}, {}", drop,keep);
+        // info!("drop_keep {}, {}", drop,keep);
         self.drop_keep(drop as usize, keep as usize)?;
         Ok(())
     }    

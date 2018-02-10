@@ -309,7 +309,7 @@ impl<'a> fmt::Debug for Function<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Ok({
             let indent = "    ";
-            writeln!(f, "{}<Function index=\"{}\">", indent, self.signature_type_index)?;
+            writeln!(f, "{}<Function index={} signature_type={}>", indent, self.index, self.signature_type_index)?;
         })
     }
 }
