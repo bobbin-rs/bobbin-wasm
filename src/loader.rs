@@ -761,8 +761,20 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                 self.fixup()?;
                 let label = self.pop_label()?;
                 
-                self.type_stack.expect_type(VOID)?;
-                self.type_stack.expect_type_stack_depth(label.stack_limit)?;
+                self.type_stack.expect_type(label.signature)?;
+                if label.signature == VOID {
+                    self.type_stack.expect_type_stack_depth(label.stack_limit)?;
+                } else {
+                    self.type_stack.expect_type_stack_depth(label.stack_limit + 1)?;                    
+                }
+                
+                // Reset Stack to Label
+                while self.type_stack.len() > label.stack_limit as usize {
+                    self.type_stack.pop()?;
+                }
+                if label.signature != VOID {
+                    self.type_stack.push(label.signature)?;
+                }
 
                 self.push_label(opc, label.signature, FIXUP_OFFSET)?;
             },
