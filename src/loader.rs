@@ -454,7 +454,7 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
 impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
     fn dispatch(&mut self, evt: Event) -> DelegateResult {
         use Event::*;
-        info!("{:08x}: {:?}", self.w.pos(), evt);
+        // info!("{:08x}: {:?}", self.w.pos(), evt);
         match evt {
             Start { ref name, version } => {
                 self.module.set_name(name);
@@ -507,7 +507,7 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
             },
             Body { n, offset: _, size: _, locals } => {
                 self.context = Context::from(self.module.function_signature_type(n).unwrap());
-
+                info!("{:?}", self.context);
                 self.body_fixup = self.write_fixup_u32()?;
                 self.write_u8(locals as u8)?;
             },
@@ -519,8 +519,12 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
             },
             InstructionsStart => {
                 let mut locals_count = 0;
-                
-                for local in self.context.locals.iter() {
+
+                let return_type = self.context.return_type;
+
+                self.push_label(0, return_type, FIXUP_OFFSET)?;
+
+                for local in self.context.locals() {
                     self.type_stack.push_type(*local)?;
                     locals_count += 1;
                 }        
@@ -532,7 +536,20 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
                 self.write_alloca(locals_count as u32)?;
             }
             Instruction(i) => self.dispatch_instruction(i)?,
-            InstructionsEnd => {},
+            InstructionsEnd => {
+                info!("{:04x}: V:{} | {} ", self.w.pos(), self.type_stack.len(), "EXIT");
+                // Check Exit        
+                let return_type = self.context.return_type;
+                self.type_stack.expect_type(return_type)?;
+                self.type_stack.expect_type_stack_depth(if return_type == VOID { 0 } else { 1 })?;
+
+                for entry in self.fixups.iter() {
+                    if let &Some(entry) = entry {   
+                        info!("{:?}", entry);
+                        panic!("Orphan Fixup: {:?}", entry);
+                    }
+                }                
+            },
             BodyEnd => {
                 let fixup = self.body_fixup;
                 self.apply_fixup_u32(fixup)?;                                
@@ -546,13 +563,32 @@ impl<'m, 'ls, 'ts> Delegate for Loader<'m, 'ls, 'ts> {
 impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
     pub fn dispatch_instruction(&mut self, i: Instruction) -> DelegateResult {
         use opcode::Immediate::*;
-        info!("{:08x}: V:{} | {}{:?}", i.offset, self.type_stack.len(), i.op.text, i.imm);
+        let depth = self.label_stack.len() - 1;
+        info!("{:08x}: V:{} | {:0width$}{}{:?}", i.offset, self.type_stack.len(), "", i.op.text, i.imm, width=depth);
 
         // self.type_check(&i)?;   
         
         let op = i.op.code;
         match i.imm {
-            None => {},
+            None => match op {
+                END => {
+                    // w.write_opcode(op)?;
+                    // info!("FIXUP {} 0x{:04x}", self.label_depth(), w.pos());
+                    // info!("END");
+                    self.fixup()?;
+                    self.pop_label()?;
+                },
+                ELSE => {
+                    self.w.write_opcode(BR)?;
+                    self.fixup()?;
+                    let label = self.pop_label()?;
+                    self.push_label(op, label.signature, FIXUP_OFFSET)?;    
+                    let pos = self.w.pos();                
+                    self.add_fixup(0, pos as u32)?;
+                    self.w.write_u32(FIXUP_OFFSET)?;
+                }                
+                _ => {},
+            },
             Block { signature } => match op {
                 BLOCK => {
                     self.push_label(op, signature, FIXUP_OFFSET)?;                    
@@ -569,6 +605,16 @@ impl<'m, 'ls, 'ts> Loader<'m, 'ls, 'ts> {
                     self.add_fixup(0, pos as u32)?;
                     self.w.write_u32(FIXUP_OFFSET)?;                    
                 },
+                RETURN => {
+                    let depth = self.type_stack.len() as u32;
+                    let return_type = self.context.return_type;
+                    if return_type == VOID {
+                        self.write_drop_keep(depth, 0)?;
+                    } else {
+                        self.write_drop_keep(depth - 1, 1)?;
+                    }
+                    self.w.write_opcode(RETURN)?;
+                },                
                 _ => unreachable!(),
             },
             Branch { depth } => {
@@ -911,14 +957,14 @@ pub trait TypeStack {
 impl<'a> TypeStack for Stack<'a, TypeValue> {
     fn push_type<T: Into<TypeValue>>(&mut self, type_value: T) -> Result<(), Error> {
         let tv = type_value.into();
-        info!("-- type: {} <= {:?}", self.len(), tv);
+        // info!("-- type: {} <= {:?}", self.len(), tv);
         Ok(self.push(tv)?)
     }
 
     fn pop_type(&mut self) -> Result<TypeValue, Error> {
         let depth = self.len();
         let tv = self.pop()?;
-        info!("-- type: {} => {:?}", depth, tv);
+        // info!("-- type: {} => {:?}", depth, tv);
         Ok(tv)
     }
 
