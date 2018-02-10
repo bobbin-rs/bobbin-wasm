@@ -13,6 +13,7 @@ pub mod cursor;
 pub mod reader;
 pub mod writer;
 pub mod stack;
+pub mod small_vec;
 pub mod loader;
 // pub mod machine;
 pub mod module;
