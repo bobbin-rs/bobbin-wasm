@@ -236,7 +236,7 @@ impl<'m> Loader<'m> {
         )
     }    
 
-    pub fn push_label<T: Into<TypeValue>>(&mut self, opcode: u8, signature: T, offset: u32) -> Result<(), Error> {
+    fn push_label<T: Into<TypeValue>>(&mut self, opcode: u8, signature: T, offset: u32) -> Result<(), Error> {
         let stack_limit = self.type_stack.len() as u32;
         let label = Label {
             opcode,
@@ -249,85 +249,32 @@ impl<'m> Loader<'m> {
         Ok(self.label_stack.push(label)?)
     }
 
-    pub fn pop_label(&mut self) -> Result<Label, Error> {
+    fn pop_label(&mut self) -> Result<Label, Error> {
         // let depth = self.label_stack.len();
         let label = self.label_stack.pop()?;
         // info!("-- label: {} => {:?}", depth, label);
         Ok(label)
     }
 
-    pub fn label_depth(&self) -> u32 {
+    fn label_depth(&self) -> u32 {
         self.label_stack.len() as u32
     }
 
-    pub fn peek_label(&self, offset: usize) -> Result<Label, Error> {
+    fn peek_label(&self, offset: usize) -> Result<Label, Error> {
         Ok(self.label_stack.peek(offset)?)
     }
 
-    pub fn set_unreachable(&mut self, value: bool) -> Result<(), Error> {        
+    fn set_unreachable(&mut self, value: bool) -> Result<(), Error> {        
         // info!("UNREACHABLE: {}", value);
         Ok(self.label_stack.pick(0)?.unreachable = value)
     }
 
-    pub fn is_unreachable(&self) -> Result<bool, Error> {
+    fn is_unreachable(&self) -> Result<bool, Error> {
         Ok(self.label_stack.peek(0)?.unreachable)
     }
 
-    // pub fn push_type<T: Into<TypeValue>>(&mut self, type_value: T) -> Result<(), Error> {
-    //     let tv = type_value.into();
-    //     info!("-- type: {} <= {:?}", self.type_stack.len(), tv);
-    //     Ok(self.type_stack.push(tv)?)
-    // }
 
-    // pub fn pop_type(&mut self) -> Result<TypeValue, Error> {
-    //     let depth = self.type_stack.len();
-    //     let tv = self.type_stack.pop()?;
-    //     info!("-- type: {} => {:?}", depth, tv);
-    //     Ok(tv)
-    // }
-
-    // pub fn pop_type_expecting(&mut self, tv: TypeValue) -> Result<(), Error> {
-    //     if tv == TypeValue::Void || tv == TypeValue::None {
-    //        Ok(()) 
-    //     } else {
-    //         let t = self.pop_type()?;
-    //         if t == tv {
-    //             Ok(())
-    //         } else {
-    //             Err(Error::UnexpectedType { wanted: tv, got: t })
-    //         }
-    //     }
-    // }
-
-    // pub fn expect_type(&self, wanted: TypeValue) -> Result<(), Error> {
-    //     if wanted == TypeValue::Void || wanted == TypeValue::None {
-    //         Ok(())
-    //     } else {
-    //         let got = self.type_stack.top()?;
-    //         if wanted != got {
-    //             Err(Error::UnexpectedType { wanted, got })
-    //         } else {
-    //             Ok(())
-    //         }
-    //     }
-    // }
-
-    // pub fn expect_type_stack_depth(&self, wanted: u32) -> Result<(), Error> {
-    //     let got = self.type_stack.len() as u32;
-    //     if wanted != got {
-    //         Err(Error::UnexpectedTypeStackDepth { wanted, got })
-    //     } else {
-    //         Ok(())
-    //     }
-    // }
-
-    // pub fn type_drop_keep(&mut self, drop: u32, keep: u32) -> Result<(), Error> {
-    //     info!("drop_keep {}, {}", drop,keep);
-    //     self.type_stack.drop_keep(drop as usize, keep as usize)?;
-    //     Ok(())
-    // }
-
-    pub fn add_fixup(&mut self, rel_depth: u32, offset: u32) -> Result<(), Error> {
+    fn add_fixup(&mut self, rel_depth: u32, offset: u32) -> Result<(), Error> {
         let depth = self.label_depth() - rel_depth;
         let fixup = Fixup { depth: depth, offset: offset };
         // info!("add_fixup: {:?}", fixup);
@@ -340,7 +287,7 @@ impl<'m> Loader<'m> {
         Err(Error::FixupsFull)
     }
 
-    pub fn fixup(&mut self) -> Result<(), Error> {
+    fn fixup(&mut self) -> Result<(), Error> {
         let depth = self.label_depth();        
         let offset = self.peek_label(0)?.offset;
         let offset = if offset == FIXUP_OFFSET { self.w.pos() } else { offset as usize};
@@ -382,13 +329,13 @@ impl<'m> Loader<'m> {
     }
 
 
-    pub fn write_fixup_u32(&mut self) -> Result<usize, Error> {
+    fn write_fixup_u32(&mut self) -> Result<usize, Error> {
         let pos = self.w.pos();
         self.w.write_u32(FIXUP_OFFSET)?;
         Ok(pos)
     }
 
-    pub fn apply_fixup_u32(&mut self, fixup: usize) -> Result<u32, Error> {
+    fn apply_fixup_u32(&mut self, fixup: usize) -> Result<u32, Error> {
         let len = self.w.pos() - (fixup + 4);
         self.w.write_u32_at(len as u32, fixup)?;
         Ok(len as u32)
@@ -522,7 +469,7 @@ impl<'m> Delegate for Loader<'m> {
 }
 
 impl<'m> Loader<'m> {
-    pub fn dispatch_instruction(&mut self, i: Instruction) -> DelegateResult {
+    fn dispatch_instruction(&mut self, i: Instruction) -> DelegateResult {
         use opcode::Immediate::*;
 
         let mut depth = self.label_stack.len();
@@ -737,7 +684,7 @@ impl<'m> Loader<'m> {
         Ok(())
     }
 
-    pub fn type_check(&mut self, i: &Instruction) -> Result<(), Error> {
+    fn type_check(&mut self, i: &Instruction) -> Result<(), Error> {
         let opc = i.op.code;
         match opc {
             BLOCK => {
