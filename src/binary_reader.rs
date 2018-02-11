@@ -275,7 +275,6 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
 
     pub fn read_import_desc(&mut self) -> WasmResult<ImportDesc> {
         let kind = self.read_u8()?;
-        info!("kind: {:02x}", kind);
         Ok(match kind {
             0x00 => ImportDesc::Type(self.read_var_u32()?),
             0x01 => ImportDesc::Table(self.read_table()?),
@@ -289,7 +288,6 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#import-section
         Ok({
             let c = self.read_count()?;
-            info!("read imports");
             self.dispatch(Event::ImportsStart { c })?;
             for n in 0..c {                
                 let module_range = self.read_identifier_range()?;

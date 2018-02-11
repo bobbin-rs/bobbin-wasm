@@ -1,6 +1,7 @@
 use {Error, Event, TypeValue, Delegate, DelegateResult};
 use types::{ResizableLimits};
 
+use module;
 use module::*;
 use opcode::*;
 use writer::Writer;
@@ -163,7 +164,7 @@ impl<'m> Loader<'m> {
     }
     pub fn new_with_config(cfg: Config, module_buf: &'m mut [u8]) -> Self {
         let mut w = Writer::new(module_buf);
-        let module = Module::new(w.split());
+        let module = module::Module::new(w.split());
         let label_stack = w.alloc_stack(16);
         let type_stack = w.alloc_stack(16);
         let fixups = [None; 256];
@@ -407,8 +408,7 @@ impl<'m> Delegate for Loader<'m> {
                 for b in export {
                     self.write_u8(*b)?;
                 }                
-                // Write Import Descriptor
-                // self.w.write_u32(index.index())?;
+                self.w.write_import_desc(desc)?;
             }
             FunctionsStart { c } => {
                 self.w.write_u32(c)?;
@@ -420,21 +420,19 @@ impl<'m> Delegate for Loader<'m> {
                 self.w.write_u32(c)?;
             },
             Table { n: _, element_type, limits } => {
-                self.w.write_i8(element_type as i8)?;
-                self.w.write_limits(limits)?;
+                self.w.write_table(module::Table { element_type, limits })?
             },
             MemsStart { c } => {
                 self.w.write_u32(c)?;
             },
             Mem { n: _, limits } => {
-                self.w.write_limits(limits)?;
+                self.w.write_memory(module::Memory { limits })?;
             },
             GlobalsStart { c } => {
                 self.w.write_u32(c)?;
             },
             Global { n: _, t, mutability, init } => {
-                self.w.write_i8(t as i8)?;
-                self.w.write_u8(mutability)?;
+                self.w.write_global_type(module::GlobalType { type_value: t, mutability })?;
                 self.w.write_u8(init.opcode)?;
                 self.w.write_i32(init.immediate)?;
 
@@ -882,6 +880,10 @@ impl<'m> Loader<'m> {
 pub trait LoaderWrite {
     fn write_opcode(&mut self, op: u8) -> Result<(), Error>;
     fn write_limits(&mut self, limits: ResizableLimits) -> Result<(), Error>;
+    fn write_table(&mut self, table: module::Table) -> Result<(), Error>;
+    fn write_memory(&mut self, memory: module::Memory) -> Result<(), Error>;
+    fn write_global_type(&mut self, global_type: module::GlobalType) -> Result<(), Error>;
+    fn write_import_desc(&mut self, desc: module::ImportDesc) -> Result<(), Error>;
 }
 
 impl<'a> LoaderWrite for Writer<'a> {
@@ -900,7 +902,48 @@ impl<'a> LoaderWrite for Writer<'a> {
                 self.write_u32(limits.min)?;            
             }
         })
+    }    
+
+    fn write_table(&mut self, table: module::Table) -> Result<(), Error> {
+        Ok({
+            self.write_i8(table.element_type as i8)?;
+            self.write_limits(table.limits)?;
+        })
     }
+
+    fn write_memory(&mut self, memory: module::Memory) -> Result<(), Error> {
+        Ok({
+            self.write_limits(memory.limits)?;
+        })
+    }
+
+    fn write_global_type(&mut self, global_type: module::GlobalType) -> Result<(), Error> {
+        Ok({
+            self.write_i8(global_type.type_value as i8)?;
+            self.write_u8(global_type.mutability)?;
+            
+        })
+    }
+
+    fn write_import_desc(&mut self, desc: module::ImportDesc) -> Result<(), Error> {
+        Ok({
+            match desc {
+                module::ImportDesc::Type(t) => {
+                    self.write_u32(t)?;
+                },
+                module::ImportDesc::Table(t) => {
+                    self.write_table(t)?;
+                },
+                module::ImportDesc::Memory(m) => {
+                    self.write_memory(m)?;
+                },
+                module::ImportDesc::Global(g) => {
+                    self.write_global_type(g)?;
+                }
+            }
+        })
+    }
+    
 }
 
 pub trait TypeStack {
