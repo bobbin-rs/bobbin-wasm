@@ -236,6 +236,12 @@ impl<'a, 'c> Interp<'a, 'c> {
                     };
                     self.push(res as i32)?;
                 },
+                INTERP_ALLOCA => {
+                    let count = self.code.read_u32()?;
+                    for _ in 0..count {
+                        self.push(0)?;
+                    }
+                },
                 INTERP_BR_UNLESS => {
                     let offset = self.code.read_u32()?;
                     let val = self.pop()?;
@@ -436,7 +442,19 @@ mod tests {
                 assert_eq!(i.value_stack.len(), 0);
                 assert_eq!(i.get_mem_u32(0x11)?, 0x1234);
             }
-        }        
+        },
+        test_alloca : {
+            w : {
+                w.write_opcode(INTERP_ALLOCA)?;
+                w.write_u32(0x2)?;
+            },
+            i: {
+                i.run()?;
+                assert_eq!(i.pop()?, 0);
+                assert_eq!(i.pop()?, 0);
+                assert_eq!(i.value_stack.len(), 0);
+            }
+        }               
     }
 
     test_i32_unop! {
