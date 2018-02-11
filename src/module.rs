@@ -11,13 +11,24 @@ pub enum ExportDesc {
     Global(u32),
 }
 
-#[derive(Debug)]
 pub enum ImportDesc {
     Type(u32),
     Table(Table),
     Memory(Memory),
     Global(GlobalType),
 }
+
+impl fmt::Debug for ImportDesc {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ImportDesc::Type(n) => n.fmt(f),
+            ImportDesc::Table(ref t) => t.fmt(f),
+            ImportDesc::Memory(ref m) => m.fmt(f),
+            ImportDesc::Global(ref g) => g.fmt(f),
+        }
+    }
+}
+
 
 #[derive(Debug)]
 pub struct GlobalType {
@@ -341,18 +352,19 @@ impl<'a> Type<'a> {
 pub struct Import<'a> {
     pub module: &'a [u8],
     pub export: &'a [u8],
-    pub external_index: u32,    
+    pub desc: ImportDesc,    
 }
 
 impl<'a> fmt::Debug for Import<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Ok({
             let indent = "    ";
-            writeln!(f, "{}<Import module={:?} export={:?} index={:?}>", indent, 
+            writeln!(f, "{}<Import module={:?} export={:?}>", indent, 
                 str::from_utf8(self.module).unwrap(),
                 str::from_utf8(self.export).unwrap(),
-                self.external_index,
             )?;
+            write!(f, "  {:?}", self.desc)?;
+            writeln!(f, "{}</Import>", indent)?;
         })
     }
 }
@@ -596,9 +608,9 @@ impl<'a> Iterator for ImportIter<'a> {
         if self.buf.len() > 0 {
             let module = self.buf.slice_identifier();
             let export = self.buf.slice_identifier();
-            let external_index = self.buf.read_u32();
+            let desc = self.buf.read_import_desc();
             self.index += 1;
-            Some(Import { module, export, external_index })
+            Some(Import { module, export, desc })
         } else {
             None
         }
@@ -634,10 +646,8 @@ impl<'a> Iterator for TableIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            let element_type = self.buf.read_type();
-            let limits = self.buf.read_limits();
             self.index += 1;
-            Some(Table { element_type, limits })
+            Some(self.buf.read_table())
         } else {
             None
         }
@@ -655,9 +665,8 @@ impl<'a> Iterator for MemoryIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            let limits = self.buf.read_limits();
             self.index += 1;
-            Some(Memory { limits })
+            Some(self.buf.read_memory())
         } else {
             None
         }
@@ -777,6 +786,9 @@ trait ModuleRead {
     fn read_type(&mut self) -> TypeValue;
     fn read_global_type(&mut self) -> GlobalType;
     fn read_limits(&mut self) -> ResizableLimits;
+    fn read_table(&mut self) -> Table;
+    fn read_memory(&mut self) -> Memory;
+    fn read_import_desc(&mut self) -> ImportDesc;
     fn read_export_desc(&mut self) -> ExportDesc;
 }
 
@@ -800,6 +812,28 @@ impl<'a> ModuleRead for Cursor<'a> {
             _ => panic!("Unexpected Flags"),
         };
         ResizableLimits { flags, min, max }
+    }
+
+    fn read_table(&mut self) -> Table {
+        let element_type = self.read_type();
+        let limits = self.read_limits();
+        Table { element_type, limits }
+    }
+
+    fn read_memory(&mut self) -> Memory {
+        let limits = self.read_limits();
+        Memory { limits }
+    }
+
+    fn read_import_desc(&mut self) -> ImportDesc {
+        let kind = self.read_u8();
+        match kind {
+            0x00 => ImportDesc::Type(self.read_u32()),
+            0x01 => ImportDesc::Table(self.read_table()),
+            0x02 => ImportDesc::Memory(self.read_memory()),
+            0x03 => ImportDesc::Global(self.read_global_type()),
+            _ => panic!("Invalid import type: {:02x}", kind),
+        }        
     }
 
     fn read_export_desc(&mut self) -> ExportDesc {

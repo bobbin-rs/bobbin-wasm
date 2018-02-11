@@ -929,15 +929,19 @@ impl<'a> LoaderWrite for Writer<'a> {
         Ok({
             match desc {
                 module::ImportDesc::Type(t) => {
+                    self.write_u8(0x00)?;
                     self.write_u32(t)?;
                 },
                 module::ImportDesc::Table(t) => {
+                    self.write_u8(0x01)?;
                     self.write_table(t)?;
                 },
                 module::ImportDesc::Memory(m) => {
+                    self.write_u8(0x02)?;
                     self.write_memory(m)?;
                 },
                 module::ImportDesc::Global(g) => {
+                    self.write_u8(0x03)?;                    
                     self.write_global_type(g)?;
                 }
             }
