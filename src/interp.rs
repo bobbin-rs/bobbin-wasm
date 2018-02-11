@@ -6,11 +6,14 @@ use stack::Stack;
 use opcode::*;
 
 pub struct Config {
+    mem_size: usize,
 }
 
 impl Default for Config {
     fn default() -> Config {
-        Config {}
+        Config {
+            mem_size: 64,
+        }
     }
 }
 
@@ -19,6 +22,7 @@ pub struct Interp<'a, 'c> {
     cfg: Config,
     value_stack: Stack<'a, Value>,
     call_stack: Stack<'a, u32>,
+    mem: &'a mut [u8],
     code: Reader<'c>,
     count: usize,
 }
@@ -28,9 +32,10 @@ impl<'a, 'c> Interp<'a, 'c> {
         let mut w = Writer::new(buf);
         let value_stack = w.alloc_stack(64);
         let call_stack = w.alloc_stack(64);
+        let mem = w.alloc_slice(cfg.mem_size);
         let code = Reader::new(code);
         let count = 0;
-        Interp { cfg, value_stack, call_stack, code, count }
+        Interp { cfg, value_stack, call_stack, mem, code, count }
     }
 
     pub fn pc(&self) -> usize {

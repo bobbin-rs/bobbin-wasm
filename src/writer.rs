@@ -159,6 +159,12 @@ impl<'a> Writer<'a> {
         SmallVec::new(self.split_mut())
     }
 
+    pub fn alloc_slice<T>(&mut self, len: usize) -> &'a mut [T] {
+        assert!(self.pos == 0, "Allocation can only happen with an empty writer.");
+        self.pos += len * mem::size_of::<T>();
+        self.split_mut()
+    }
+
     pub fn into_slice(self) -> &'a mut [u8] {
         self.buf
     }
