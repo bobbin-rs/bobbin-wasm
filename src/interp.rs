@@ -118,24 +118,24 @@ impl<'a, 'c> Interp<'a, 'c> {
                 //         _ => unimplemented!(),
                 //     }
                 // },
-                // // I32 cmpops
-                // 0x46 ... 0x50 => {
-                //     let (rhs, lhs): (u32, u32) = (self.pop()?, self.pop()?);
-                //     let res = match op {
-                //         I32_EQ => lhs == rhs,
-                //         I32_NE => lhs != rhs,
-                //         I32_LT_S => (lhs as i32) < (rhs as i32),
-                //         I32_LT_U => lhs < rhs,
-                //         I32_GT_S => (lhs as i32) > (rhs as i32),
-                //         I32_GT_U => lhs > rhs,
-                //         I32_LE_S => (lhs as i32) <= (rhs as i32),
-                //         I32_LE_U => lhs <= rhs,
-                //         I32_GE_S => (lhs as i32) >= (rhs as i32),
-                //         I32_GE_U => lhs >= rhs,                        
-                //         _ => return Err(Error::Unimplemented),
-                //     };
-                //     self.push(if res { 1 } else { 0 })?;
-                // }
+                // I32 cmpops
+                0x46 ... 0x50 => {
+                    let (rhs, lhs): (i32, i32) = (self.pop()?, self.pop()?);
+                    let res = match op {
+                        I32_EQ => lhs == rhs,
+                        I32_NE => lhs != rhs,
+                        I32_LT_U => lhs < rhs,
+                        I32_LT_S => (lhs as u32) < (rhs as u32),
+                        I32_GT_U => lhs > rhs,
+                        I32_GT_S => (lhs as u32) > (rhs as u32),
+                        I32_LE_U => lhs <= rhs,
+                        I32_LE_S => (lhs as u32) <= (rhs as u32),
+                        I32_GE_U => lhs >= rhs,                        
+                        I32_GE_S => (lhs as u32) >= (rhs as u32),
+                        _ => return Err(Error::Unimplemented),
+                    };
+                    self.push(if res { 1 } else { 0 })?;
+                }
                 // I32 binops
                 0x6a ... 0x79 => {
                     let (rhs, lhs): (i32, i32) = (self.pop()?, self.pop()?);
@@ -188,18 +188,65 @@ mod tests {
     use loader::LoaderWrite;
 
     macro_rules! interp_test {
-        ($name:ident, $w:ident : $w_blk:block, $i:ident : $i_blk:block) => {
-            #[test]
-            fn $name() {                
-                with_writer(|mut $w| {
-                    $w_blk
-                    with_interp($w, |mut $i| {
-                        $i_blk
+        { $($name:ident: { $w:ident : $w_blk:block, $i:ident : $i_blk:block }),* }  => {
+            $(
+                #[test]
+                fn $name() {                
+                    with_writer(|mut $w| {
+                        $w_blk
+                        with_interp($w, |mut $i| {
+                            $i.run()?;
+                            $i_blk
+                            Ok(())
+                        })?;
                         Ok(())
-                    })?;
-                    Ok(())
-                }).unwrap();            
-            }
+                    }).unwrap();            
+                }
+            )*
+        }
+    }
+
+    macro_rules! test_i32_unop {
+        { $($name:ident($op:expr, $val:expr, $ret:expr);)* } => {
+            $(     
+                #[test]
+                fn $name() {                
+                    with_writer(|mut w| {
+                        w.write_opcode(I32_CONST)?;
+                        w.write_u32($val)?;
+                        w.write_opcode($op)?;
+                        with_interp(w, |mut i| {
+                            i.run()?;
+                            assert_eq!(i.pop()?, $ret);
+                            Ok(())
+                        })?;
+                        Ok(())
+                    }).unwrap();            
+                }                
+            )*
+        }
+    }
+
+    macro_rules! test_i32_binop {
+        { $($name:ident($op:expr, $lhs:expr, $rhs:expr, $ret:expr);)* } => {
+            $(     
+                #[test]
+                fn $name() {                
+                    with_writer(|mut w| {
+                        w.write_opcode(I32_CONST)?;
+                        w.write_u32($lhs)?;
+                        w.write_opcode(I32_CONST)?;
+                        w.write_u32($rhs)?;
+                        w.write_opcode($op)?;
+                        with_interp(w, |mut i| {
+                            i.run()?;
+                            assert_eq!(i.pop()?, $ret);
+                            Ok(())
+                        })?;
+                        Ok(())
+                    }).unwrap();            
+                }                
+            )*
         }
     }
 
@@ -214,79 +261,46 @@ mod tests {
         f(Writer::new(&mut buf))
     }
 
-    interp_test!(test_nop, w : {
-        w.write_opcode(NOP)?;
-    }, i: {
-        i.run()?;
-        assert!(i.pc() == 1);
-    });
-
-
-
-    #[test]
-    #[should_panic]
-    fn test_unreachable() {
-        with_writer(|mut w| {
-            w.write_opcode(UNREACHABLE)?;
-            with_interp(w, |mut interp| {                
-                interp.run_count(1)?;
-                assert_eq!(interp.pc(), 1);
-                assert_eq!(interp.count(), 1);
-
-                Ok(())
-            })?;
-            Ok(())
-        }).unwrap();
+    interp_test! {
+        test_nop: {
+            w : {
+                w.write_opcode(NOP)?;
+            }, 
+            i: {
+                assert!(i.pc() == 1);
+            }
+        },
+        test_i32_const : {
+            w : {
+                w.write_opcode(I32_CONST)?;
+                w.write_u32(0x1234)?;
+            }, 
+            i: {
+                assert_eq!(i.pop()?, 0x1234);
+            }
+        },
+        test_br : {
+            w : {
+                w.write_opcode(BR)?;
+                w.write_u32(6)?;
+                w.write_opcode(UNREACHABLE)?;
+            }, 
+            i: {
+                assert_eq!(i.pc(), 6);
+            }
+        }        
     }
 
-
-    #[test]
-    fn test_i32_const() {
-        with_writer(|mut w| {
-            w.write_opcode(I32_CONST)?;
-            w.write_u32(0x1234)?;
-            with_interp(w, |mut interp| {                
-                interp.run_count(1)?;
-                let top = interp.value_stack.pop()?;
-                assert_eq!(top, Value(0x1234));
-                Ok(())
-            })?;
-            Ok(())
-        }).unwrap();
+    test_i32_unop! {
+        test_i32_eqz_0(I32_EQZ, 0, 1);
+        test_i32_eqz_1(I32_EQZ, 1, 0);
     }
 
-    #[test]
-    fn test_i32_add() {
-        with_writer(|mut w| {
-            w.write_opcode(I32_CONST)?;
-            w.write_u32(1)?;
-            w.write_opcode(I32_CONST)?;
-            w.write_u32(2)?;
-            w.write_opcode(I32_ADD)?;
-            with_interp(w, |mut interp| {                
-                interp.run_count(0)?;
-                let top = interp.value_stack.pop()?;
-                assert_eq!(top, Value(3));
-                Ok(())
-            })?;
-            Ok(())
-        }).unwrap();
-    }    
-
-    #[test]
-    fn test_br() {
-        with_writer(|mut w| {
-            w.write_opcode(BR)?;
-            w.write_u32(0x4)?;
-            w.write_opcode(NOP)?;
-            w.write_opcode(NOP)?;
-            with_interp(w, |mut interp| {                
-                interp.run_count(1)?;
-                assert_eq!(interp.pc(), 0x4);
-                Ok(())
-            })?;
-            Ok(())
-        }).unwrap();
-    }    
-
+    test_i32_binop! {
+        test_i32_eq_0_1(I32_EQ, 0, 1, 0);
+        test_i32_eq_1_1(I32_EQ, 1, 1, 1);
+        test_i32_add_1_2(I32_ADD, 1, 2, 3);
+        test_i32_sub_3_2(I32_SUB, 3, 2, 1);
+        test_i32_mul_3_2(I32_MUL, 3, 2, 6);
+    }
 }
