@@ -17,6 +17,7 @@ pub mod small_vec;
 pub mod loader;
 pub mod interp;
 pub mod module;
+pub mod module_inst;
 pub mod binary_reader;
 pub mod event;
 pub mod delegate;
