@@ -348,7 +348,7 @@ impl<'m> Delegate for Loader<'m> {
         // info!("{:08x}: {:?}", self.w.pos(), evt);
         match evt {
             Start { name, version } => {
-                self.module.set_name(self.w.copy_str(name));
+                self.module.set_name(self.w.copy_str(name), self.w.split());
                 self.module.set_version(version);
             },
             SectionStart { s_type, s_beg: _, s_end:_ , s_len: _ } => {

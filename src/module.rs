@@ -47,8 +47,9 @@ impl<'a> Module<'a> {
         self.name
     }
 
-    pub fn set_name(&mut self, name: &'a str) {
-        self.name = name
+    pub fn set_name(&mut self, name: &'a str, buf: &'a [u8]) {
+        self.name = name;
+        self.buf = buf;
     }
 
     pub fn set_version(&mut self, version: u32){
