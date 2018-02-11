@@ -36,6 +36,7 @@ pub fn main() {
     let matches = App::new("interp")
         .arg(Arg::with_name("path")
             .required(true))
+        .arg(Arg::with_name("dump").long("dump"))
         .get_matches();
     
     if let Err(e) = run(matches) {
@@ -60,8 +61,10 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     let r = Reader::new(&mut data[..]);
     let mut loader = wasm::loader::Loader::new(&mut module_buf[..]);
     BinaryReader::new(&mut loader, r).read(path)?;        
-    let _m = loader.module();
-    // println!("{:?}", m);
+    let m = loader.module();
+    if matches.is_present("dump") {
+        print!("{:?}", m);
+    }
 
     Ok(())
 }
