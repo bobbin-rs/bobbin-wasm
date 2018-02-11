@@ -37,6 +37,7 @@ pub fn main() {
         .arg(Arg::with_name("path")
             .required(true))
         .arg(Arg::with_name("dump").long("dump"))
+        .arg(Arg::with_name("no-compile").long("no-compile"))
         .get_matches();
     
     if let Err(e) = run(matches) {
@@ -57,9 +58,15 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     let _out = String::new();
 
+    let mut cfg = wasm::loader::Config::default();
+    if matches.is_present("no-compile") {
+        cfg.compile = false;
+    }
+
     let mut module_buf = [0u8; 1024];
     let r = Reader::new(&mut data[..]);
-    let mut loader = wasm::loader::Loader::new(&mut module_buf[..]);
+    
+    let mut loader = wasm::loader::Loader::new_with_config(cfg, &mut module_buf[..]);
     BinaryReader::new(&mut loader, r).read(path)?;        
     let m = loader.module();
     if matches.is_present("dump") {

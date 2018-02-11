@@ -131,7 +131,20 @@ impl Index<usize> for Context {
     }
 }
 
+pub struct Config {
+    pub compile: bool
+}
+
+impl Default for Config {
+    fn default() -> Config {
+        let compile = true;
+
+        Config { compile }
+    }
+}
+
 pub struct Loader<'m> {
+    cfg: Config,
     w: Writer<'m>,
     module: Module<'m>,
     label_stack: Stack<'m, Label>,
@@ -145,6 +158,9 @@ pub struct Loader<'m> {
 
 impl<'m> Loader<'m> {
     pub fn new(module_buf: &'m mut [u8]) -> Self {
+        Loader::new_with_config(Config::default(), module_buf)
+    }
+    pub fn new_with_config(cfg: Config, module_buf: &'m mut [u8]) -> Self {
         let mut w = Writer::new(module_buf);
         let module = Module::new(w.split());
         let label_stack = w.alloc_stack(16);
@@ -155,6 +171,7 @@ impl<'m> Loader<'m> {
         let body_fixup = 0;
         let context = Context::default();
         Loader { 
+            cfg,
             w, 
             module, 
             label_stack, 
@@ -375,12 +392,44 @@ impl<'m> Delegate for Loader<'m> {
             TypeReturn { n: _, t } => {
                 self.write_u8(t as u8)?;
             },
+            ImportsStart { c } => {
+                self.w.write_u32(c)?;
+            },            
+            Import { n: _, module, export, index} => {
+                let module = module.0;
+                self.w.write_u32(module.len() as u32)?;
+                for b in module {
+                    self.write_u8(*b)?;
+                }                
+                let export = export.0;
+                self.w.write_u32(export.len() as u32)?;
+                for b in export {
+                    self.write_u8(*b)?;
+                }                
+                self.w.write_u32(index.index())?;
+            }
             FunctionsStart { c } => {
                 self.w.write_u32(c)?;
             },
             Function { n: _, index } => {
                 self.w.write_u32(index.0)?;
             },
+            TablesStart { c } => {
+                self.w.write_u32(c)?;
+            },            
+            MemsStart { c } => {
+                self.w.write_u32(c)?;
+            },            
+            GlobalsStart { c } => {
+                self.w.write_u32(c)?;
+            },
+            Global { n: _, t, mutability, init } => {
+                self.w.write_i8(t as i8)?;
+                self.w.write_u8(mutability)?;
+                self.w.write_u8(init.opcode)?;
+                self.w.write_i32(init.immediate)?;
+
+            }
             ExportsStart { c } => {
                 self.w.write_u32(c)?;
             },
@@ -396,6 +445,9 @@ impl<'m> Delegate for Loader<'m> {
             StartFunction { index } => {
                 self.w.write_u32(index.0)?;                
             },
+            ElementsStart { c } => {
+                self.w.write_u32(c)?;
+            }
             CodeStart { c } => {
                 self.w.write_u32(c)?;
             },
@@ -407,6 +459,8 @@ impl<'m> Delegate for Loader<'m> {
                 info!("{:08x}: V:{} | func[{}]", offset, self.type_stack.len(), n);                
             },
             Local { i: _, n, t } => {
+                if !self.cfg.compile { return Ok(()) }
+
                 self.context.add_local(n, t);
                 // info!("add_local: {} {}", n, t); 
 
@@ -414,6 +468,8 @@ impl<'m> Delegate for Loader<'m> {
                 self.write_i8(t as i8)?;
             },
             InstructionsStart => {
+                if !self.cfg.compile { return Ok(()) }
+
                 let mut locals_count = 0;
                 // info!("{:?}", self.context);
 
@@ -436,9 +492,13 @@ impl<'m> Delegate for Loader<'m> {
                 // Push Stack Entry Label
 
                 self.push_label(0, return_type, FIXUP_OFFSET)?;               
-            }
-            Instruction(i) => self.dispatch_instruction(i)?,
+            },
+            Instruction(i) => {
+                if !self.cfg.compile { return Ok(()) }
+                self.dispatch_instruction(i)?;
+            },
             InstructionsEnd => {
+                if !self.cfg.compile { return Ok(()) }
                 // info!("{:04x}: V:{} | {} ", self.w.pos(), self.type_stack.len(), "EXIT");
                 let return_type = self.context.return_type;
 

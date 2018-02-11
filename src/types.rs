@@ -55,6 +55,6 @@ pub struct ResizableLimits {
 #[derive(Debug)]
 pub struct Initializer {
     pub opcode: u8,
-    pub immediate: u32,
+    pub immediate: i32,
     pub end: u8,
 }

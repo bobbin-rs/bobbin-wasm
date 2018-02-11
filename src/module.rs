@@ -402,15 +402,16 @@ pub struct Global {
     pub index: u32,
     pub global_type: TypeValue,
     pub mutability: u8,
-    pub init_opcode: u8,
-    pub init_parameter: u32,
+    pub opcode: u8,
+    pub immediate: u32,
 }
 
 impl fmt::Debug for Global {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Ok({
             let indent = "    ";
-            writeln!(f, "{}<Global>", indent)?;
+            writeln!(f, "{}<Global type={:?} mutability={} opcode=0x{:02x} immediate=0x{:08x}>", 
+                indent, self.global_type, self.mutability, self.opcode, self.immediate)?;
         })
     }
 }
@@ -673,10 +674,10 @@ impl<'a> Iterator for GlobalIter<'a> {
             let index = self.index;
             let global_type = TypeValue::from(self.buf.read_i8());
             let mutability = self.buf.read_u8();
-            let init_opcode = self.buf.read_u8();
-            let init_parameter = self.buf.read_u32();
+            let opcode = self.buf.read_u8();
+            let immediate = self.buf.read_u32();
             self.index += 1;
-            Some(Global { index, global_type, mutability, init_opcode, init_parameter })
+            Some(Global { index, global_type, mutability, opcode, immediate })
         } else {
             None
         }

@@ -162,8 +162,12 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
     }
 
     fn read_initializer(&mut self) -> WasmResult<Initializer> {
-        let opcode = self.read_u8()?;
-        let immediate = self.read_var_u32()?;
+        let opcode = self.read_u8()?;        
+        let immediate = match opcode {
+            I32_CONST => self.read_var_i32()?,
+            F32_CONST => self.read_f32()? as i32,
+            _ => unimplemented!()
+        };
         let end = self.read_u8()?;
         Ok(Initializer { opcode, immediate, end })
     }
