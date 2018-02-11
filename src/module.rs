@@ -1,4 +1,5 @@
 use {SectionType, TypeValue, Cursor};
+use types::{ResizableLimits};
 
 use core::{slice, str, fmt};
 
@@ -371,6 +372,8 @@ impl fmt::Debug for Function {
 
 pub struct Table {
     pub index: u32,
+    pub element_type: TypeValue,
+    pub limits: ResizableLimits,
 }
 
 impl fmt::Debug for Table {
@@ -384,9 +387,7 @@ impl fmt::Debug for Table {
 
 pub struct Memory {
     pub index: u32,
-    pub flags: u32,
-    pub minimum: u32,
-    pub maximum: Option<u32>,
+    pub limits: ResizableLimits,
 }
 
 impl fmt::Debug for Memory {
@@ -626,8 +627,10 @@ impl<'a> Iterator for TableIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
             let index = self.index;
+            let element_type = self.buf.read_type();
+            let limits = self.buf.read_limits();
             self.index += 1;
-            Some(Table { index })
+            Some(Table { index, element_type, limits })
         } else {
             None
         }
@@ -646,15 +649,9 @@ impl<'a> Iterator for MemoryIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
             let index = self.index;
-            let flags = self.buf.read_u32();
-            let minimum = self.buf.read_u32();
-            let maximum = if flags == 1 {
-                Some(self.buf.read_u32())
-            } else {
-                None
-            };
+            let limits = self.buf.read_limits();
             self.index += 1;
-            Some(Memory { index, flags, minimum, maximum })
+            Some(Memory { index, limits })
         } else {
             None
         }
@@ -769,5 +766,26 @@ impl<'a> Iterator for DataIter<'a> {
         } else {
             None
         }
+    }
+}
+
+trait ModuleRead {
+    fn read_type(&mut self) -> TypeValue;
+    fn read_limits(&mut self) -> ResizableLimits;
+}
+
+impl<'a> ModuleRead for Cursor<'a> {
+    fn read_type(&mut self) -> TypeValue {
+        TypeValue::from(self.read_i8())
+    }
+    fn read_limits(&mut self) -> ResizableLimits {
+        let flags = self.read_u32();
+        let min = self.read_u32();
+        let max = match flags {
+            0 => None,
+            1 => Some(self.read_u32()),
+            _ => panic!("Unexpected Flags"),
+        };
+        ResizableLimits { flags, min, max }
     }
 }

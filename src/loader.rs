@@ -1,4 +1,5 @@
 use {Error, Event, TypeValue, Delegate, DelegateResult};
+use types::{ResizableLimits};
 
 use module::*;
 use opcode::*;
@@ -416,10 +417,17 @@ impl<'m> Delegate for Loader<'m> {
             },
             TablesStart { c } => {
                 self.w.write_u32(c)?;
-            },            
+            },
+            Table { n: _, element_type, limits } => {
+                self.w.write_i8(element_type as i8)?;
+                self.w.write_limits(limits)?;
+            },
             MemsStart { c } => {
                 self.w.write_u32(c)?;
-            },            
+            },
+            Mem { n: _, limits } => {
+                self.w.write_limits(limits)?;
+            },
             GlobalsStart { c } => {
                 self.w.write_u32(c)?;
             },
@@ -849,12 +857,26 @@ impl<'m> Loader<'m> {
 
 pub trait LoaderWrite {
     fn write_opcode(&mut self, op: u8) -> Result<(), Error>;
+    fn write_limits(&mut self, limits: ResizableLimits) -> Result<(), Error>;
 }
 
 impl<'a> LoaderWrite for Writer<'a> {
     fn write_opcode(&mut self, op: u8) -> Result<(), Error> {
         self.write_u8(op)
-    }    
+    }
+
+    fn write_limits(&mut self, limits: ResizableLimits) -> Result<(), Error> {
+        Ok({
+            if let Some(max) = limits.max {
+                self.write_u32(1)?;
+                self.write_u32(limits.min)?;
+                self.write_u32(max)?;
+            } else {
+                self.write_u32(0)?;
+                self.write_u32(limits.min)?;            
+            }
+        })
+    }
 }
 
 pub trait TypeStack {
