@@ -461,6 +461,7 @@ impl<'m> Delegate for Loader<'m> {
                 self.w.write_u8(offset.opcode)?;
                 self.w.write_i32(offset.immediate)?;
                 if let Some(data) = data {
+                    self.w.write_u32(data.len() as u32)?;
                     for d in data {
                         self.w.write_u8(*d)?;
                     }
@@ -540,6 +541,18 @@ impl<'m> Delegate for Loader<'m> {
                 let fixup = self.body_fixup;
                 self.apply_fixup_u32(fixup)?;                                
             },
+            DataSegmentsStart { c } => {
+                self.w.write_u32(c)?;
+            }
+            DataSegment { n: _, index, offset, data } => {
+                self.w.write_u32(index.0)?;
+                self.w.write_u8(offset.opcode)?;
+                self.w.write_i32(offset.immediate)?;
+                self.w.write_u32(data.len() as u32)?;
+                for d in data {
+                    self.w.write_u8(*d)?;
+                }
+            },            
             _ => {},    
         }
         Ok(())

@@ -109,6 +109,10 @@ impl<'a> Module<'a> {
     pub fn start(&self) -> Option<Function> {
         self.section(SectionType::Start).and_then(|s| self.function(Cursor::new(s.buf).read_u32()))
     }
+
+    pub fn elements(&self, index: u32) -> Option<Element> {
+        self.section(SectionType::Element).unwrap().elements().nth(index as usize)
+    }    
 }
 
 impl<'a> fmt::Debug for Module<'a> {
@@ -273,6 +277,11 @@ impl<'a> fmt::Debug for Section<'a> {
                 },
                 SectionType::Start => {
                     self.start().fmt(f)?;
+                }                
+                SectionType::Element => {
+                    for e in self.elements() {
+                        e.fmt(f)?;
+                    }
                 }                
                 SectionType::Code => {
                     for b in self.bodies() {
@@ -462,18 +471,27 @@ impl fmt::Debug for Start {
     }
 }
 
-pub struct Element {
+pub struct Element<'a> {
     pub index: u32,
-    // pub table_index: u32,
-    // pub offset_opcode: u8,
-    // pub offset_parameter: u32,a
+    pub table_index: u32,
+    pub opcode: u8,
+    pub immediate: u32,
+    pub data: &'a [u8],
 }
 
-impl fmt::Debug for Element {
+impl<'a> fmt::Debug for Element<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Ok({
             let indent = "    ";
-            writeln!(f, "{}<Element>", indent)?;
+            writeln!(f, "{}<Element index={} opcode={:02x} immediate={:02x}>", indent,
+                self.table_index, self.opcode, self.immediate,
+            )?;
+            write!(f, "{}  ", indent)?;
+            for d in self.data {
+                write!(f,"{:02x} ", *d)?;
+            }
+            writeln!(f, "")?;
+            writeln!(f, "{}</Element>", indent)?;
         })
     }
 }
@@ -496,8 +514,8 @@ impl<'a> fmt::Debug for Body<'a> {
 pub struct Data<'a> {
     pub index: u32,
     pub memory_index: u32,
-    pub offset_opcode: u8,
-    pub offset_parameter: u32,
+    pub opcode: u8,
+    pub immediate: u32,
     pub data: &'a [u8],
 }
 
@@ -506,7 +524,15 @@ impl<'a> fmt::Debug for Data<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Ok({
             let indent = "    ";
-            writeln!(f, "{}<Data/>", indent)?;
+            writeln!(f, "{}<Data index={} opcode={:02x} immediate={:02x}>", indent,
+                self.memory_index, self.opcode, self.immediate,
+            )?;
+            write!(f, "{}  ", indent)?;
+            for d in self.data {
+                write!(f,"{:02x} ", *d)?;
+            }
+            writeln!(f, "")?;
+            writeln!(f, "{}</Data>", indent)?;
         })
     }
 }
@@ -714,13 +740,18 @@ pub struct ElementIter<'a> {
 }
 
 impl<'a> Iterator for ElementIter<'a> {
-    type Item = Element;
+    type Item = Element<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
             let index = self.index;
+            let table_index = self.buf.read_u32();
+            let opcode = self.buf.read_u8();      
+            let immediate = self.buf.read_u32();
+            let data_len = self.buf.read_u32();
+            let data = self.buf.slice(data_len as usize);
             self.index += 1;
-            Some(Element { index })
+            Some(Element { index, table_index, opcode, immediate, data })
         } else {
             None
         }
@@ -760,12 +791,12 @@ impl<'a> Iterator for DataIter<'a> {
         if self.buf.len() > 0 {
             let index = self.index;
             let memory_index = self.buf.read_u32();
-            let offset_opcode = self.buf.read_u8();            
-            let offset_parameter = self.buf.read_u32();
+            let opcode = self.buf.read_u8();            
+            let immediate = self.buf.read_u32();
             let data_len = self.buf.read_u32();
             let data = self.buf.slice(data_len as usize);
             self.index += 1;
-            Some(Data { index, memory_index, offset_opcode, offset_parameter, data })
+            Some(Data { index, memory_index, opcode, immediate, data })
         } else {
             None
         }

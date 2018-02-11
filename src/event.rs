@@ -21,6 +21,10 @@ pub enum Event<'a> {
         TypeEnd,
     TypesEnd,
 
+    ImportsStart { c: u32 },
+        Import { n: u32, module: Identifier<'a>, export: Identifier<'a>, index: ExternalIndex },
+    ImportsEnd,    
+
     FunctionsStart { c: u32 },
         Function { n: u32, index: TypeIndex },
     FunctionsEnd,
@@ -60,7 +64,4 @@ pub enum Event<'a> {
         DataSegment { n: u32, index: MemIndex, offset: Initializer, data: &'a [u8] },
     DataSegmentsEnd,
 
-    ImportsStart { c: u32 },
-        Import { n: u32, module: Identifier<'a>, export: Identifier<'a>, index: ExternalIndex },
-    ImportsEnd,
 }
