@@ -3,13 +3,28 @@ use types::{ResizableLimits};
 
 use core::{slice, str, fmt};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum ExportDesc {
     Function(u32),
     Table(u32),
     Memory(u32),
     Global(u32),
 }
+
+#[derive(Debug)]
+pub enum ImportDesc {
+    Type(u32),
+    Table(Table),
+    Memory(Memory),
+    Global(GlobalType),
+}
+
+#[derive(Debug)]
+pub struct GlobalType {
+    pub type_value: TypeValue,
+    pub mutability: u8,
+}
+
 
 pub struct Module<'a> {
     name: &'a str,
@@ -386,8 +401,7 @@ impl fmt::Debug for Memory {
 }
 
 pub struct Global {
-    pub global_type: TypeValue,
-    pub mutability: u8,
+    pub global_type: GlobalType,
     pub opcode: u8,
     pub immediate: u32,
 }
@@ -396,8 +410,8 @@ impl fmt::Debug for Global {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Ok({
             let indent = "    ";
-            writeln!(f, "{}<Global type={:?} mutability={} opcode=0x{:02x} immediate=0x{:08x}>", 
-                indent, self.global_type, self.mutability, self.opcode, self.immediate)?;
+            writeln!(f, "{}<Global type={:?} opcode=0x{:02x} immediate=0x{:08x}>", 
+                indent, self.global_type, self.opcode, self.immediate)?;
         })
     }
 }
@@ -660,12 +674,11 @@ impl<'a> Iterator for GlobalIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            let global_type = TypeValue::from(self.buf.read_i8());
-            let mutability = self.buf.read_u8();
+            let global_type = self.buf.read_global_type();
             let opcode = self.buf.read_u8();
             let immediate = self.buf.read_u32();
             self.index += 1;
-            Some(Global { global_type, mutability, opcode, immediate })
+            Some(Global { global_type, opcode, immediate })
         } else {
             None
         }
@@ -762,6 +775,7 @@ impl<'a> Iterator for DataIter<'a> {
 
 trait ModuleRead {
     fn read_type(&mut self) -> TypeValue;
+    fn read_global_type(&mut self) -> GlobalType;
     fn read_limits(&mut self) -> ResizableLimits;
     fn read_export_desc(&mut self) -> ExportDesc;
 }
@@ -769,6 +783,12 @@ trait ModuleRead {
 impl<'a> ModuleRead for Cursor<'a> {
     fn read_type(&mut self) -> TypeValue {
         TypeValue::from(self.read_i8())
+    }
+
+    fn read_global_type(&mut self) -> GlobalType {
+        let type_value = self.read_type();
+        let mutability = self.read_u8();
+        GlobalType { type_value, mutability }
     }
 
     fn read_limits(&mut self) -> ResizableLimits {

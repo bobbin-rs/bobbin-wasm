@@ -698,7 +698,7 @@ impl<'m> Loader<'m> {
                     } else {
                         return Err(Error::InvalidGlobal { id: id })
                     };
-                    TypeValue::from(global.global_type)
+                    global.global_type.type_value
                 };
                 match op {
                     GET_GLOBAL => self.type_stack.push_type(ty)?,
