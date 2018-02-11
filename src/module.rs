@@ -1,5 +1,6 @@
-use {SectionType, TypeValue, Cursor};
-use types::{Limits};
+use {Error, SectionType, TypeValue, Cursor};
+use types::{Limits, Identifier};
+use writer::Writer;
 
 use core::{slice, str, fmt};
 
@@ -850,6 +851,101 @@ impl<'a> ModuleRead for Cursor<'a> {
             0x03 => ExportDesc::Global(index),
             _ => panic!("Invalid export type: {:02x}", kind),
         }
+    }
+    
+}
+
+pub trait ModuleWrite {
+    fn write_section_type(&mut self, st: SectionType) -> Result<(), Error>;
+    fn write_type(&mut self, t: TypeValue) -> Result<(), Error>;
+    fn write_bytes(&mut self, buf: &[u8]) -> Result<(), Error>;
+    fn write_identifier(&mut self, id: Identifier) -> Result<(), Error>;
+    fn write_opcode(&mut self, op: u8) -> Result<(), Error>;
+    fn write_limits(&mut self, limits: Limits) -> Result<(), Error>;
+    fn write_table(&mut self, table: Table) -> Result<(), Error>;
+    fn write_memory(&mut self, memory: Memory) -> Result<(), Error>;
+    fn write_global_type(&mut self, global_type: GlobalType) -> Result<(), Error>;
+    fn write_import_desc(&mut self, desc: ImportDesc) -> Result<(), Error>;
+}
+
+impl<'a> ModuleWrite for Writer<'a> {
+    fn write_section_type(&mut self, st: SectionType) -> Result<(), Error> {
+        self.write_u8(st as u8)
+    }    
+    fn write_type(&mut self, t: TypeValue) -> Result<(), Error> {
+        self.write_u8(t as u8)
+    }
+    fn write_bytes(&mut self, buf: &[u8]) -> Result<(), Error> {
+        Ok({
+            self.write_u32(buf.len() as u32)?;
+            for b in buf {
+                self.write_u8(*b)?;
+            }
+        })
+    }
+    fn write_identifier(&mut self, id: Identifier) -> Result<(), Error> {
+        self.write_bytes(id.0)
+    }
+
+    fn write_opcode(&mut self, op: u8) -> Result<(), Error> {
+        self.write_u8(op)
+    }
+
+    fn write_limits(&mut self, limits: Limits) -> Result<(), Error> {
+        Ok({
+            if let Some(max) = limits.max {
+                self.write_u32(1)?;
+                self.write_u32(limits.min)?;
+                self.write_u32(max)?;
+            } else {
+                self.write_u32(0)?;
+                self.write_u32(limits.min)?;            
+            }
+        })
+    }    
+
+    fn write_table(&mut self, table: Table) -> Result<(), Error> {
+        Ok({
+            self.write_i8(table.element_type as i8)?;
+            self.write_limits(table.limits)?;
+        })
+    }
+
+    fn write_memory(&mut self, memory: Memory) -> Result<(), Error> {
+        Ok({
+            self.write_limits(memory.limits)?;
+        })
+    }
+
+    fn write_global_type(&mut self, global_type: GlobalType) -> Result<(), Error> {
+        Ok({
+            self.write_i8(global_type.type_value as i8)?;
+            self.write_u8(global_type.mutability)?;
+            
+        })
+    }
+
+    fn write_import_desc(&mut self, desc: ImportDesc) -> Result<(), Error> {
+        Ok({
+            match desc {
+                ImportDesc::Type(t) => {
+                    self.write_u8(0x00)?;
+                    self.write_u32(t)?;
+                },
+                ImportDesc::Table(t) => {
+                    self.write_u8(0x01)?;
+                    self.write_table(t)?;
+                },
+                ImportDesc::Memory(m) => {
+                    self.write_u8(0x02)?;
+                    self.write_memory(m)?;
+                },
+                ImportDesc::Global(g) => {
+                    self.write_u8(0x03)?;                    
+                    self.write_global_type(g)?;
+                }
+            }
+        })
     }
     
 }

@@ -1,8 +1,8 @@
 use {Error, Event, TypeValue, Delegate, DelegateResult};
-use types::{Limits};
 
 use module;
 use module::*;
+use module::ModuleWrite;
 use opcode::*;
 use writer::Writer;
 use stack::Stack;
@@ -371,7 +371,7 @@ impl<'m> Delegate for Loader<'m> {
                 self.module.set_version(version);
             },
             SectionStart { s_type, s_beg: _, s_end:_ , s_len: _ } => {
-                self.w.write_u8(s_type as u8)?;                
+                self.w.write_section_type(s_type)?;
                 self.section_fixup = self.write_fixup_u32()?;
             },
             SectionEnd => {
@@ -398,16 +398,8 @@ impl<'m> Delegate for Loader<'m> {
                 self.w.write_u32(c)?;
             },            
             Import { n: _, module, export, desc } => {
-                let module = module.0;
-                self.w.write_u32(module.len() as u32)?;
-                for b in module {
-                    self.write_u8(*b)?;
-                }                
-                let export = export.0;
-                self.w.write_u32(export.len() as u32)?;
-                for b in export {
-                    self.write_u8(*b)?;
-                }                
+                self.w.write_identifier(module)?;
+                self.w.write_identifier(export)?;
                 self.w.write_import_desc(desc)?;
             }
             FunctionsStart { c } => {
@@ -441,11 +433,7 @@ impl<'m> Delegate for Loader<'m> {
                 self.w.write_u32(c)?;
             },
             Export { n: _, id, index } => {
-                let id = id.0;
-                self.w.write_u32(id.len() as u32)?;
-                for b in id {
-                    self.write_u8(*b)?;
-                }
+                self.w.write_identifier(id)?;                
                 self.write_u8(index.kind())?;
                 self.w.write_u32(index.index())?;
             },
@@ -460,10 +448,7 @@ impl<'m> Delegate for Loader<'m> {
                 self.w.write_u8(offset.opcode)?;
                 self.w.write_i32(offset.immediate)?;
                 if let Some(data) = data {
-                    self.w.write_u32(data.len() as u32)?;
-                    for d in data {
-                        self.w.write_u8(*d)?;
-                    }
+                    self.w.write_bytes(data)?;
                 }
             },
             CodeStart { c } => {
@@ -547,10 +532,7 @@ impl<'m> Delegate for Loader<'m> {
                 self.w.write_u32(index.0)?;
                 self.w.write_u8(offset.opcode)?;
                 self.w.write_i32(offset.immediate)?;
-                self.w.write_u32(data.len() as u32)?;
-                for d in data {
-                    self.w.write_u8(*d)?;
-                }
+                self.w.write_bytes(data)?;
             },            
             _ => {},    
         }
@@ -877,78 +859,6 @@ impl<'m> Loader<'m> {
     }    
 }
 
-pub trait LoaderWrite {
-    fn write_opcode(&mut self, op: u8) -> Result<(), Error>;
-    fn write_limits(&mut self, limits: Limits) -> Result<(), Error>;
-    fn write_table(&mut self, table: module::Table) -> Result<(), Error>;
-    fn write_memory(&mut self, memory: module::Memory) -> Result<(), Error>;
-    fn write_global_type(&mut self, global_type: module::GlobalType) -> Result<(), Error>;
-    fn write_import_desc(&mut self, desc: module::ImportDesc) -> Result<(), Error>;
-}
-
-impl<'a> LoaderWrite for Writer<'a> {
-    fn write_opcode(&mut self, op: u8) -> Result<(), Error> {
-        self.write_u8(op)
-    }
-
-    fn write_limits(&mut self, limits: Limits) -> Result<(), Error> {
-        Ok({
-            if let Some(max) = limits.max {
-                self.write_u32(1)?;
-                self.write_u32(limits.min)?;
-                self.write_u32(max)?;
-            } else {
-                self.write_u32(0)?;
-                self.write_u32(limits.min)?;            
-            }
-        })
-    }    
-
-    fn write_table(&mut self, table: module::Table) -> Result<(), Error> {
-        Ok({
-            self.write_i8(table.element_type as i8)?;
-            self.write_limits(table.limits)?;
-        })
-    }
-
-    fn write_memory(&mut self, memory: module::Memory) -> Result<(), Error> {
-        Ok({
-            self.write_limits(memory.limits)?;
-        })
-    }
-
-    fn write_global_type(&mut self, global_type: module::GlobalType) -> Result<(), Error> {
-        Ok({
-            self.write_i8(global_type.type_value as i8)?;
-            self.write_u8(global_type.mutability)?;
-            
-        })
-    }
-
-    fn write_import_desc(&mut self, desc: module::ImportDesc) -> Result<(), Error> {
-        Ok({
-            match desc {
-                module::ImportDesc::Type(t) => {
-                    self.write_u8(0x00)?;
-                    self.write_u32(t)?;
-                },
-                module::ImportDesc::Table(t) => {
-                    self.write_u8(0x01)?;
-                    self.write_table(t)?;
-                },
-                module::ImportDesc::Memory(m) => {
-                    self.write_u8(0x02)?;
-                    self.write_memory(m)?;
-                },
-                module::ImportDesc::Global(g) => {
-                    self.write_u8(0x03)?;                    
-                    self.write_global_type(g)?;
-                }
-            }
-        })
-    }
-    
-}
 
 pub trait TypeStack {
     fn push_type<T: Into<TypeValue>>(&mut self, type_value: T) -> Result<(), Error>;
