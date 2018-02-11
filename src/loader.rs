@@ -396,7 +396,7 @@ impl<'m> Delegate for Loader<'m> {
             ImportsStart { c } => {
                 self.w.write_u32(c)?;
             },            
-            Import { n: _, module, export, index} => {
+            Import { n: _, module, export, desc } => {
                 let module = module.0;
                 self.w.write_u32(module.len() as u32)?;
                 for b in module {
@@ -407,7 +407,8 @@ impl<'m> Delegate for Loader<'m> {
                 for b in export {
                     self.write_u8(*b)?;
                 }                
-                self.w.write_u32(index.index())?;
+                // Write Import Descriptor
+                // self.w.write_u32(index.index())?;
             }
             FunctionsStart { c } => {
                 self.w.write_u32(c)?;

@@ -1,3 +1,4 @@
+use module::*;
 use types::*;
 use opcode::{Instruction};
 use {SectionType, TypeValue};
@@ -22,7 +23,7 @@ pub enum Event<'a> {
     TypesEnd,
 
     ImportsStart { c: u32 },
-        Import { n: u32, module: Identifier<'a>, export: Identifier<'a>, index: ExternalIndex },
+        Import { n: u32, module: Identifier<'a>, export: Identifier<'a>, desc: ImportDesc },
     ImportsEnd,    
 
     FunctionsStart { c: u32 },

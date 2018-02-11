@@ -1,5 +1,6 @@
 use {Error, WasmResult, Reader, TypeValue, SectionType, ExternalKind, Delegate};
 use MAGIC_COOKIE;
+use module::*;
 use types::*;
 use opcode::*;
 use event::Event;
@@ -189,7 +190,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         self.read_u32_expecting(MAGIC_COOKIE, Error::InvalidHeader)?;
         self.read_u32()
     }
-    
+
     pub fn read_section(&mut self) -> WasmResult<SectionType> {
         // ID(u8) LEN(u32) [LEN]
         Ok({
@@ -272,19 +273,32 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         })
     }
 
+    pub fn read_import_desc(&mut self) -> WasmResult<ImportDesc> {
+        let kind = self.read_u8()?;
+        info!("kind: {:02x}", kind);
+        Ok(match kind {
+            0x00 => ImportDesc::Type(self.read_var_u32()?),
+            0x01 => ImportDesc::Table(self.read_table()?),
+            0x02 => ImportDesc::Memory(self.read_memory()?),
+            0x03 => ImportDesc::Global(self.read_global_type()?),
+            _ => return Err(Error::InvalidImport),
+        })
+    }
+
     pub fn read_imports(&mut self) -> WasmResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#import-section
         Ok({
             let c = self.read_count()?;
+            info!("read imports");
             self.dispatch(Event::ImportsStart { c })?;
-            for n in 0..c {
+            for n in 0..c {                
                 let module_range = self.read_identifier_range()?;
                 let export_range = self.read_identifier_range()?;
-                let index = self.read_external_index()?;
+                let desc = self.read_import_desc()?;
 
                 let module = Identifier(self.r.slice(module_range));
                 let export = Identifier(self.r.slice(export_range));
-                self.d.dispatch(Event::Import { n, module, export, index })?;
+                self.d.dispatch(Event::Import { n, module, export, desc })?;
             }
             self.dispatch(Event::ImportsEnd)?;
         })
@@ -303,17 +317,33 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         })
     }
 
+    pub fn read_table(&mut self) -> WasmResult<Table> {
+        Ok({
+            let element_type = self.read_type()?;
+            let limits = self.read_resizable_limits()?;
+            Table { element_type, limits }
+        })
+    }
+
     pub fn read_tables(&mut self) -> WasmResult<()> {
         // https://github.com/sunfishcode/wasm-reference-manual/blob/master/WebAssembly.md#table-section
         Ok({
             let c = self.read_count()?;
             self.dispatch(Event::TablesStart { c })?;
             for n in 0..c {
-                let element_type = self.read_type()?;
-                let limits = self.read_resizable_limits()?;
+                let table = self.read_table()?;
+                let element_type = table.element_type;
+                let limits = table.limits;
                 self.dispatch(Event::Table { n, element_type, limits })?;
             }
             self.dispatch(Event::TablesEnd)?;
+        })
+    }
+
+    pub fn read_memory(&mut self) -> WasmResult<Memory> {
+        Ok({
+            let limits = self.read_resizable_limits()?;
+            Memory { limits }
         })
     }
 
@@ -323,10 +353,19 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
             let c = self.read_count()?;
             self.dispatch(Event::MemsStart { c })?;
             for n in 0..c {
-                let limits = self.read_resizable_limits()?;
+                let memory = self.read_memory()?;
+                let limits = memory.limits;
                 self.dispatch(Event::Mem { n, limits })?;
             }
             self.dispatch(Event::MemsEnd)?;
+        })
+    }
+
+    pub fn read_global_type(&mut self) -> WasmResult<GlobalType> {
+        Ok({
+            let type_value = self.read_type()?;
+            let mutability = self.r.read_var_u1()?;
+            GlobalType { type_value, mutability }
         })
     }
 
@@ -336,8 +375,9 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
             let c = self.read_count()?;
             self.dispatch(Event::GlobalsStart { c })?;
             for n in 0..c {
-                let t = self.read_type()?;
-                let mutability = self.r.read_var_u1()?;
+                let global_type = self.read_global_type()?;
+                let t = global_type.type_value;
+                let mutability = global_type.mutability;
                 let init = self.read_initializer()?;
                 self.dispatch(Event::Global { n, t, mutability, init })?;
             }

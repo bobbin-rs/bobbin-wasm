@@ -1,6 +1,7 @@
 use {SectionType, Delegate, DelegateResult, ExternalIndex, Event};
 use opcode::*;
 use opcode;
+use module::*;
 
 use core::str;
 use core::fmt::Write;
@@ -85,16 +86,24 @@ impl<W: Write> Delegate for DetailsDumper<W> {
                 };
                 writeln!(self.w," - {}[{}] -> {:?}", kind, n, str::from_utf8(id.0)?)?;            
             },
-            Import { n, module, export, index } => {
-                let (kind, i_type, index) = match index {
-                    ExternalIndex::Func(i) => ("func", "sig", i.0),
-                    ExternalIndex::Table(i) => ("table", "table", i.0),
-                    ExternalIndex::Mem(i) => ("memory", "memory", i.0),
-                    ExternalIndex::Global(i) => ("global", "global", i.0),
-                };
+            Import { n, module, export, desc } => {
                 let module = str::from_utf8(module.0)?;
                 let export = str::from_utf8(export.0)?;
-                writeln!(self.w, " - {}[{}] {}[{}] <- {}.{}", kind, n, i_type, index, module, export)?;
+                match desc {
+                    ImportDesc::Type(f) => {
+                        writeln!(self.w, " - func[{}] func[{}] <- {}.{}", n, f, module, export)?;
+                    },
+                    ImportDesc::Table(t) => {
+                        writeln!(self.w, " - table[{}] elem_type=anyfunc init={} max={:?} <- {}.{}", n, t.limits.min, t.limits.max, module, export)?;
+                    },
+                    ImportDesc::Memory(m) => {
+                        writeln!(self.w, " - memory[{}] pages: initial={} max={:?} <- {}.{}", n, m.limits.min, m.limits.max, module, export)?;
+                    },
+                    ImportDesc::Global(g) => {
+                        writeln!(self.w, " - global[{}] {} mutable={} <- {}.{}", n, g.type_value, g.mutability, module, export)?;                        
+                    },                    
+                };
+                
             }
             
             StartFunction { index } => {

@@ -62,6 +62,7 @@ pub enum Error {
     InvalidIfSignature,
     InvalidReservedValue,
     InvalidBranchTableDefault { id: u32, len: u32},
+    InvalidImport,
     InvalidLocal { id: u32 },
     InvalidGlobal { id: u32 },
     InvalidFunction { id: u32 },
