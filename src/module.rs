@@ -182,6 +182,14 @@ impl<'a> Section<'a> {
         }
     }
 
+    pub fn imports(&self) -> ImportIter<'a> {
+        if let SectionType::Import = self.section_type {
+            ImportIter { index: 0, buf: Cursor::new(&self.buf[4..]) }
+        } else {
+            ImportIter { index: 0, buf: Cursor::new(&[]) }
+        }
+    }    
+
     pub fn elements(&self) -> ElementIter<'a> {
         if let SectionType::Element = self.section_type {
             ElementIter { index: 0, buf: Cursor::new(&self.buf[4..]) }
@@ -241,6 +249,11 @@ impl<'a> fmt::Debug for Section<'a> {
                         e.fmt(f)?;
                     }
                 },
+                SectionType::Import => {
+                    for i in self.imports() {
+                        i.fmt(f)?;
+                    }
+                },                
                 SectionType::Code => {
                     for b in self.bodies() {
                         b.fmt(f)?;
@@ -381,6 +394,27 @@ pub struct Element {
     // pub offset_opcode: u8,
     // pub offset_parameter: u32,a
 }
+
+pub struct Import<'a> {
+    pub index: u32,
+    pub module: &'a [u8],
+    pub export: &'a [u8],
+    pub external_index: u32,    
+}
+
+impl<'a> fmt::Debug for Import<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Ok({
+            let indent = "    ";
+            writeln!(f, "{}<Import module={:?} export={:?} index={:?}>", indent, 
+                str::from_utf8(self.module).unwrap(),
+                str::from_utf8(self.export).unwrap(),
+                self.external_index,
+            )?;
+        })
+    }
+}
+
 
 pub struct Body<'a> {
     pub index: u32,
@@ -575,6 +609,29 @@ impl<'a> Iterator for ExportIter<'a> {
             let export_index = ExportIndex::from((kind, self.buf.read_u32()));
             self.index += 1;
             Some(Export { index, identifier, export_index })
+        } else {
+            None
+        }
+    }
+}
+
+
+pub struct ImportIter<'a> {
+    index: u32,
+    buf: Cursor<'a>,
+}
+
+impl<'a> Iterator for ImportIter<'a> {
+    type Item = Import<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.buf.len() > 0 {
+            let index = self.index;
+            let module = self.buf.slice_identifier();
+            let export = self.buf.slice_identifier();
+            let external_index = self.buf.read_u32();
+            self.index += 1;
+            Some(Import { index, module, export, external_index })
         } else {
             None
         }
