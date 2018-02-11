@@ -380,7 +380,9 @@ impl fmt::Debug for Table {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Ok({
             let indent = "    ";
-            writeln!(f, "{}<Table>", indent)?;
+            writeln!(f, "{}<Table type={:?} min={} max={:?}>", indent,
+                self.element_type, self.limits.min, self.limits.max
+            )?;
         })
     }
 }
@@ -394,7 +396,8 @@ impl fmt::Debug for Memory {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Ok({
             let indent = "    ";
-            writeln!(f, "{}<Memory>", indent)?;
+            writeln!(f, "{}<Memory min={} max={:?}>", indent, 
+                self.limits.min, self.limits.max)?;
         })
     }
 }

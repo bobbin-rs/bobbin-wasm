@@ -455,16 +455,26 @@ impl<'m> Delegate for Loader<'m> {
             },
             ElementsStart { c } => {
                 self.w.write_u32(c)?;
-            }
+            },
+            Element { n: _, index, offset, data } => {
+                self.w.write_u32(index.0)?;
+                self.w.write_u8(offset.opcode)?;
+                self.w.write_i32(offset.immediate)?;
+                if let Some(data) = data {
+                    for d in data {
+                        self.w.write_u8(*d)?;
+                    }
+                }
+            },
             CodeStart { c } => {
                 self.w.write_u32(c)?;
             },
-            Body { n, offset, size: _, locals } => {
+            Body { n, offset: _, size: _, locals } => {
                 self.context = Context::from(self.module.function_signature_type(n).unwrap());
                 self.body_fixup = self.write_fixup_u32()?;
                 self.write_u8(locals as u8)?;
 
-                info!("{:08x}: V:{} | func[{}]", offset, self.type_stack.len(), n);                
+                // info!("{:08x}: V:{} | func[{}]", offset, self.type_stack.len(), n);                
             },
             Local { i: _, n, t } => {
                 if !self.cfg.compile { return Ok(()) }

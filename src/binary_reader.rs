@@ -4,7 +4,6 @@ use types::*;
 use opcode::*;
 use event::Event;
 
-use core::mem;
 use core::convert::TryFrom;
 use core::ops::Range;
 
@@ -199,7 +198,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
             let s_len = self.read_var_u32()?;
             let s_beg = self.r.pos() as u32;
             let s_end = s_beg + s_len;
-
+            // info!("section: {:08x} to {:08x} len {:02x}", s_beg, s_end, s_len);
             self.dispatch(Event::SectionStart { s_type, s_beg, s_end, s_len })?;
             // self.d.section_start(s, s_beg, s_end, s_len)?;
 
@@ -379,13 +378,15 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
             for n in 0..c { 
                 let index = self.read_table_index()?;
                 let offset = self.read_initializer()?;
-
                 // TODO: check table index type
                 let data_len = self.read_var_u32()? as usize;
                 let data_beg = self.r.pos() as usize;
-                let data_end = data_beg + data_len * mem::size_of::<FuncIndex>();
-                let data = Some(self.r.slice(data_beg..data_end));
-                self.d.dispatch(Event::Element { n, index, offset, data })?;
+                let data_end = data_beg + data_len;
+                {
+                    let data = Some(self.r.slice(data_beg..data_end));
+                    self.d.dispatch(Event::Element { n, index, offset, data })?;
+                }
+                self.r.set_pos(data_end);
             }
             self.dispatch(Event::ElementsEnd)?;
         })

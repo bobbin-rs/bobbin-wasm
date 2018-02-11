@@ -43,6 +43,10 @@ pub enum Event<'a> {
 
     StartFunction { index: FuncIndex },
 
+    ElementsStart { c: u32 },
+        Element { n: u32, index: TableIndex, offset: Initializer, data: Option<&'a [u8]> },
+    ElementsEnd,
+
     CodeStart { c: u32 },
         Body { n: u32, offset: u32, size: u32, locals: u32},
             Local { i: u32, n: u32, t: TypeValue },
@@ -59,8 +63,4 @@ pub enum Event<'a> {
     ImportsStart { c: u32 },
         Import { n: u32, module: Identifier<'a>, export: Identifier<'a>, index: ExternalIndex },
     ImportsEnd,
-    
-    ElementsStart { c: u32 },
-        Element { n: u32, index: TableIndex, offset: Initializer, data: Option<&'a [u8]> },
-    ElementsEnd,
 }
