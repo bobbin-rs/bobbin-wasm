@@ -129,14 +129,13 @@ impl<'a> fmt::Debug for Module<'a> {
 
 
 pub struct Section<'a> {
-    pub index: u32,
     pub section_type: SectionType,
     pub buf: &'a [u8],
 }
 
 impl<'a> Section<'a> {
-    pub fn new(index: u32, section_type: SectionType, buf: &'a [u8]) -> Self {
-        Section { index, section_type, buf }
+    pub fn new(section_type: SectionType, buf: &'a [u8]) -> Self {
+        Section { section_type, buf }
     }
 
     pub fn types(&self) -> TypeIter<'a> {
@@ -230,7 +229,7 @@ impl<'a> fmt::Debug for Section<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Ok({
             let indent = "  ";
-            writeln!(f, "{}<Section index={} type={:?} size={}>", indent, self.index, self.section_type, self.buf.len())?;
+            writeln!(f, "{}<Section type={:?} size={}>", indent, self.section_type, self.buf.len())?;
             if self.buf.len() > 0 {
                 let indent = "    ";
                 write!(f, "{}", indent)?;
@@ -303,7 +302,6 @@ impl<'a> fmt::Debug for Section<'a> {
 
 
 pub struct Type<'a> {
-    pub index: u32,
     pub parameters: &'a [u8],
     pub returns: &'a [u8],
 }
@@ -313,7 +311,7 @@ impl<'a> fmt::Debug for Type<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Ok({
             let indent = "    ";
-            writeln!(f, "{}<Type index=\"{}\">", indent, self.index)?;
+            writeln!(f, "{}<Type>", indent)?;
             for p in self.parameters {
                 let indent = "      ";
                 writeln!(f, "{}<parameter>{:?}</parameter>", indent, TypeValue::from(*p as i8))?;
@@ -328,8 +326,8 @@ impl<'a> fmt::Debug for Type<'a> {
 }
 
 impl<'a> Type<'a> {
-    pub fn new(index: u32, parameters: &'a [u8], returns: &'a [u8]) -> Self {
-        Type { index, parameters, returns }
+    pub fn new(parameters: &'a [u8], returns: &'a [u8]) -> Self {
+        Type { parameters, returns }
     }
     
     pub fn parameters(&self) -> TypeValuesIter<'a> {
@@ -346,7 +344,6 @@ impl<'a> Type<'a> {
 }
 
 pub struct Import<'a> {
-    pub index: u32,
     pub module: &'a [u8],
     pub export: &'a [u8],
     pub external_index: u32,    
@@ -366,7 +363,6 @@ impl<'a> fmt::Debug for Import<'a> {
 }
 
 pub struct Function {
-    pub index: u32,
     pub signature_type_index: u32,
 }
 
@@ -374,13 +370,12 @@ impl fmt::Debug for Function {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Ok({
             let indent = "    ";
-            writeln!(f, "{}<Function index={} signature_type={}>", indent, self.index, self.signature_type_index)?;
+            writeln!(f, "{}<Function signature_type={}>", indent, self.signature_type_index)?;
         })
     }
 }
 
 pub struct Table {
-    pub index: u32,
     pub element_type: TypeValue,
     pub limits: ResizableLimits,
 }
@@ -397,7 +392,6 @@ impl fmt::Debug for Table {
 }
 
 pub struct Memory {
-    pub index: u32,
     pub limits: ResizableLimits,
 }
 
@@ -412,7 +406,6 @@ impl fmt::Debug for Memory {
 }
 
 pub struct Global {
-    pub index: u32,
     pub global_type: TypeValue,
     pub mutability: u8,
     pub opcode: u8,
@@ -441,7 +434,6 @@ impl fmt::Debug for Global {
 // }
 
 pub struct Export<'a> {
-    pub index: u32,
     pub identifier: &'a [u8],
     pub export_index: ExportIndex,
 }
@@ -472,7 +464,6 @@ impl fmt::Debug for Start {
 }
 
 pub struct Element<'a> {
-    pub index: u32,
     pub table_index: u32,
     pub opcode: u8,
     pub immediate: u32,
@@ -497,7 +488,6 @@ impl<'a> fmt::Debug for Element<'a> {
 }
 
 pub struct Body<'a> {
-    pub index: u32,
     pub buf: &'a [u8],
 }
 
@@ -512,7 +502,6 @@ impl<'a> fmt::Debug for Body<'a> {
 }
 
 pub struct Data<'a> {
-    pub index: u32,
     pub memory_index: u32,
     pub opcode: u8,
     pub immediate: u32,
@@ -547,12 +536,11 @@ impl<'a> Iterator for SectionIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            let index = self.index;
             let section_type = SectionType::from(self.buf.read_u8());
             let len = self.buf.read_u32() as usize;
             let buf = self.buf.slice(len);
             self.index += 1;
-            Some(Section { index, section_type, buf })
+            Some(Section { section_type, buf })
         } else {
             None
         }
@@ -569,13 +557,12 @@ impl<'a> Iterator for TypeIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            let index = self.index;
             let p_len = self.buf.read_u8();
             let p_buf = self.buf.slice(p_len as usize);
             let r_len = self.buf.read_u8();
             let r_buf = self.buf.slice(r_len as usize);
             self.index += 1;
-            Some(Type { index, parameters: p_buf, returns: r_buf })
+            Some(Type { parameters: p_buf, returns: r_buf })
         } else {
             None
         }
@@ -613,12 +600,11 @@ impl<'a> Iterator for ImportIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            let index = self.index;
             let module = self.buf.slice_identifier();
             let export = self.buf.slice_identifier();
             let external_index = self.buf.read_u32();
             self.index += 1;
-            Some(Import { index, module, export, external_index })
+            Some(Import { module, export, external_index })
         } else {
             None
         }
@@ -636,9 +622,8 @@ impl<'a> Iterator for FunctionIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            let index = self.index;
             self.index += 1;
-            Some(Function { index, signature_type_index: self.buf.read_u32() })
+            Some(Function { signature_type_index: self.buf.read_u32() })
         } else {
             None
         }
@@ -655,11 +640,10 @@ impl<'a> Iterator for TableIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            let index = self.index;
             let element_type = self.buf.read_type();
             let limits = self.buf.read_limits();
             self.index += 1;
-            Some(Table { index, element_type, limits })
+            Some(Table { element_type, limits })
         } else {
             None
         }
@@ -677,10 +661,9 @@ impl<'a> Iterator for MemoryIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            let index = self.index;
             let limits = self.buf.read_limits();
             self.index += 1;
-            Some(Memory { index, limits })
+            Some(Memory { limits })
         } else {
             None
         }
@@ -697,13 +680,12 @@ impl<'a> Iterator for GlobalIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            let index = self.index;
             let global_type = TypeValue::from(self.buf.read_i8());
             let mutability = self.buf.read_u8();
             let opcode = self.buf.read_u8();
             let immediate = self.buf.read_u32();
             self.index += 1;
-            Some(Global { index, global_type, mutability, opcode, immediate })
+            Some(Global { global_type, mutability, opcode, immediate })
         } else {
             None
         }
@@ -721,12 +703,11 @@ impl<'a> Iterator for ExportIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            let index = self.index;
             let identifier = self.buf.slice_identifier();
             let kind = self.buf.read_u8();
             let export_index = ExportIndex::from((kind, self.buf.read_u32()));
             self.index += 1;
-            Some(Export { index, identifier, export_index })
+            Some(Export { identifier, export_index })
         } else {
             None
         }
@@ -744,14 +725,13 @@ impl<'a> Iterator for ElementIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            let index = self.index;
             let table_index = self.buf.read_u32();
             let opcode = self.buf.read_u8();      
             let immediate = self.buf.read_u32();
             let data_len = self.buf.read_u32();
             let data = self.buf.slice(data_len as usize);
             self.index += 1;
-            Some(Element { index, table_index, opcode, immediate, data })
+            Some(Element { table_index, opcode, immediate, data })
         } else {
             None
         }
@@ -768,11 +748,10 @@ impl<'a> Iterator for BodyIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            let index = self.index;
             let buf_len = self.buf.read_u32();
             let buf = self.buf.slice(buf_len as usize);
             self.index += 1;            
-            Some(Body { index, buf })
+            Some(Body { buf })
         } else {
             None
         }
@@ -789,14 +768,13 @@ impl<'a> Iterator for DataIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            let index = self.index;
             let memory_index = self.buf.read_u32();
             let opcode = self.buf.read_u8();            
             let immediate = self.buf.read_u32();
             let data_len = self.buf.read_u32();
             let data = self.buf.slice(data_len as usize);
             self.index += 1;
-            Some(Data { index, memory_index, opcode, immediate, data })
+            Some(Data { memory_index, opcode, immediate, data })
         } else {
             None
         }
