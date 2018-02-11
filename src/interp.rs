@@ -171,7 +171,7 @@ impl<'a, 'c> Interp<'a, 'c> {
                     // check: should depth be relative to top of stack at beginning of operation?
                     let depth: u32 = self.code.read_u32()?;
                     let value: i32 = self.pop()?;
-                    self.value_stack.pick(depth as usize)?.0 = value;
+                    self.value_stack.pick((depth - 1) as usize)?.0 = value;
                 },
                 TEE_LOCAL => {
                     let depth: u32 = self.code.read_u32()?;
@@ -501,7 +501,7 @@ mod tests {
         test_set_local : {
             w : {
                 w.write_opcode(SET_LOCAL)?;
-                w.write_u32(0x0)?;
+                w.write_u32(0x1)?;
             },
             i: {
                 i.push(0x0)?;
