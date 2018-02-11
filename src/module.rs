@@ -44,9 +44,10 @@ pub struct Module<'a> {
 }
 
 impl<'a> Module<'a> {
-    pub fn new(buf: &'a [u8]) -> Self {
+    pub fn new() -> Self {
         let name = "";
         let version = 0;
+        let buf = &[];
         Module { name, version, buf }
     }
 
@@ -54,9 +55,8 @@ impl<'a> Module<'a> {
         self.name
     }
 
-    pub fn set_name(&mut self, name: &'a str, buf: &'a [u8]) {
+    pub fn set_name(&mut self, name: &'a str) {
         self.name = name;
-        self.buf = buf;
     }
 
     pub fn set_version(&mut self, version: u32){
@@ -64,15 +64,18 @@ impl<'a> Module<'a> {
     }
 
 
-    pub fn extend(&mut self, buf: &[u8]) {
-        let a_ptr = self.buf.as_ptr();
-        let a_len = self.buf.len();
-        let b_ptr = buf.as_ptr();
-        let b_len = buf.len();
-
-        unsafe {
-            assert!(a_ptr.offset(a_len as isize) == b_ptr);
-            self.buf = slice::from_raw_parts(a_ptr, a_len + b_len)
+    pub fn extend(&mut self, buf: &'a [u8]) {
+        if self.buf.len() == 0 {
+            self.buf = buf
+        } else {
+            let a_ptr = self.buf.as_ptr();
+            let a_len = self.buf.len();
+            let b_ptr = buf.as_ptr();
+            let b_len = buf.len();
+            unsafe {
+                assert!(a_ptr.offset(a_len as isize) == b_ptr);
+                self.buf = slice::from_raw_parts(a_ptr, a_len + b_len)
+            }
         }
     }
 

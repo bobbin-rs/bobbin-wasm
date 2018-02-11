@@ -28,8 +28,8 @@ mod tests {
     fn test_module_inst() {
         let mut buf = [0u8; 1024];
 
-        let mut m = Module::new(&[]);
-        m.set_name("hello.wasm", &[]);
+        let mut m = Module::new();
+        m.set_name("hello.wasm");
 
         let mi = ModuleInst::new(&m, &mut buf).unwrap();
         assert_eq!(mi.name(), "hello.wasm");

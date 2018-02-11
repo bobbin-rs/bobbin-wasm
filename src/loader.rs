@@ -164,7 +164,7 @@ impl<'m> Loader<'m> {
     }
     pub fn new_with_config(cfg: Config, module_buf: &'m mut [u8]) -> Self {
         let mut w = Writer::new(module_buf);
-        let module = module::Module::new(w.split());
+        let module = module::Module::new();
         let label_stack = w.alloc_stack(16);
         let type_stack = w.alloc_stack(16);
         let fixups = [None; 256];
@@ -367,7 +367,7 @@ impl<'m> Delegate for Loader<'m> {
         // info!("{:08x}: {:?}", self.w.pos(), evt);
         match evt {
             Start { name, version } => {
-                self.module.set_name(self.w.copy_str(name), self.w.split());
+                self.module.set_name(self.w.copy_str(name));
                 self.module.set_version(version);
             },
             SectionStart { s_type, s_beg: _, s_end:_ , s_len: _ } => {
