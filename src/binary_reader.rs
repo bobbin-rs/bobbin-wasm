@@ -166,6 +166,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         let immediate = match opcode {
             I32_CONST => self.read_var_i32()?,
             F32_CONST => self.read_f32()? as i32,
+            GET_GLOBAL => self.read_var_u32()? as i32,
             _ => unimplemented!()
         };
         let end = self.read_u8()?;
