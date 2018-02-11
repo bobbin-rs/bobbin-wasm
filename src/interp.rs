@@ -157,7 +157,13 @@ impl<'a, 'c> Interp<'a, 'c> {
                 },                
                 DROP => {
                     self.value_stack.pop()?;
-                }
+                },
+                SELECT => {
+                    let cond: i32 = self.pop()?;
+                    let _false: i32 = self.pop()?;
+                    let _true: i32 = self.pop()?;
+                    self.push(if cond != 0 { _true } else { _false })?;
+                },                
                 I32_CONST => {
                     let value = Value(self.code.read_i32()?);
                     self.value_stack.push(value)?;
@@ -424,7 +430,7 @@ mod tests {
                 assert_eq!(i.pop()?, 0x1234);
             }
         },
-        test_i32_drop : {
+        test_drop : {
             w : {
                 w.write_opcode(I32_CONST)?;
                 w.write_u32(0x1234)?;
@@ -433,6 +439,30 @@ mod tests {
             i: {
                 i.run()?;
                 assert_eq!(i.value_stack.len(), 0);
+            }
+        },
+        test_select_0 : {
+            w : {
+                w.write_opcode(SELECT)?;
+            }, 
+            i: {
+                i.push(0x10)?; // true
+                i.push(0x20)?; // false 
+                i.push(0x0)?;  // cond
+                i.run()?;
+                assert_eq!(i.pop()?, 0x20);
+            }
+        },        
+        test_select_1 : {
+            w : {
+                w.write_opcode(SELECT)?;
+            }, 
+            i: {
+                i.push(0x10)?; // true
+                i.push(0x20)?; // false 
+                i.push(0x1)?;  // cond
+                i.run()?;
+                assert_eq!(i.pop()?, 0x10);
             }
         },
         test_br : {
