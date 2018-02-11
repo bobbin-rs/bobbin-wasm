@@ -629,6 +629,7 @@ impl<'m> Loader<'m> {
                 // Emits OP DEPTH_TO_LOCAL
                 let id = index.0;
 
+                // TODO: Move to Type Check
                 if id >= self.context.len() as u32 {
                     return Err(Error::InvalidLocal { id: id })
                 }
@@ -651,6 +652,8 @@ impl<'m> Loader<'m> {
             }
             Global { index } => {
                 let id = index.0 as u32;
+
+                // TODO: Move to type_check
                 let ty = {
                     let global = if let Some(global) = self.module.global(id) {
                         global

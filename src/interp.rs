@@ -162,6 +162,23 @@ impl<'a, 'c> Interp<'a, 'c> {
                     let value = Value(self.code.read_i32()?);
                     self.value_stack.push(value)?;
                 },
+                GET_LOCAL => {
+                    let depth: u32 = self.code.read_u32()?;
+                    let value: i32 = self.value_stack.peek(depth as usize)?.0;
+                    self.push(value)?;
+                },
+                SET_LOCAL => {
+                    // check: should depth be relative to top of stack at beginning of operation?
+                    let depth: u32 = self.code.read_u32()?;
+                    let value: i32 = self.pop()?;
+                    self.value_stack.pick(depth as usize)?.0 = value;
+                },
+                TEE_LOCAL => {
+                    let depth: u32 = self.code.read_u32()?;
+                    let value: i32 = self.pop()?;
+                    self.value_stack.peek(depth as usize)?.0 = value;
+                    self.push(value)?;
+                },                
                 GET_GLOBAL => {
                     let index = self.code.read_u32()?;
                     self.check_index(index)?;
@@ -480,7 +497,43 @@ mod tests {
             i: {                
                 i.run()?;
             }
-        },         
+        },   
+        test_set_local : {
+            w : {
+                w.write_opcode(SET_LOCAL)?;
+                w.write_u32(0x0)?;
+            },
+            i: {
+                i.push(0x0)?;
+                i.push(0x1234)?;
+                i.run()?;
+                assert_eq!(i.pop()?, 0x1234);
+            }
+        },   
+        test_get_local : {
+            w : {
+                w.write_opcode(GET_LOCAL)?;
+                w.write_u32(0x1)?;
+            },
+            i: {
+                i.push(0x1234)?;
+                i.push(0x0000)?;
+                i.run()?;
+                assert_eq!(i.pop()?, 0x1234);
+            }
+        }, 
+        test_tee_local : {
+            w : {
+                w.write_opcode(TEE_LOCAL)?;
+                w.write_u32(0x0)?;
+            },
+            i: {
+                i.push(0x1234)?; // Local 0
+                i.push(0x0010)?;
+                i.run()?;
+                assert_eq!(i.pop()?, 0x0010);
+            }
+        },                                                    
         test_set_global : {
             w : {
                 w.write_opcode(SET_GLOBAL)?;
