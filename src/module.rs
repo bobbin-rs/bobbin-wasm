@@ -4,31 +4,11 @@ use types::{ResizableLimits};
 use core::{slice, str, fmt};
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum ExportIndex {
+pub enum ExportDesc {
     Function(u32),
     Table(u32),
     Memory(u32),
     Global(u32),
-}
-
-// pub enum ExportItem {
-//     Function(Function),
-//     Table(Table),
-//     Memory(Memory),
-//     Global(Global),
-// }
-
-impl From<(u8, u32)> for ExportIndex {
-    fn from(other: (u8, u32)) -> Self {
-        use ExportIndex::*;
-        match other.0 {
-            0x00 => Function(other.1),
-            0x01 => Table(other.1),
-            0x02 => Memory(other.1),
-            0x03 => Global(other.1),
-            _ => panic!("Invalid Kind: {:02x}", other.0)
-        }
-    }
 }
 
 pub struct Module<'a> {
@@ -435,16 +415,16 @@ impl fmt::Debug for Global {
 
 pub struct Export<'a> {
     pub identifier: &'a [u8],
-    pub export_index: ExportIndex,
+    pub export_desc: ExportDesc,
 }
 
 impl<'a> fmt::Debug for Export<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Ok({
             let indent = "    ";
-            writeln!(f, "{}<Export id={:?} index={:?}>", indent, 
+            writeln!(f, "{}<Export id={:?} desc: {:?}>", indent, 
                 str::from_utf8(self.identifier).unwrap(),
-                self.export_index,
+                self.export_desc,
             )?;
         })
     }
@@ -704,10 +684,9 @@ impl<'a> Iterator for ExportIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
             let identifier = self.buf.slice_identifier();
-            let kind = self.buf.read_u8();
-            let export_index = ExportIndex::from((kind, self.buf.read_u32()));
+            let export_desc = self.buf.read_export_desc();
             self.index += 1;
-            Some(Export { identifier, export_index })
+            Some(Export { identifier, export_desc })
         } else {
             None
         }
@@ -784,12 +763,14 @@ impl<'a> Iterator for DataIter<'a> {
 trait ModuleRead {
     fn read_type(&mut self) -> TypeValue;
     fn read_limits(&mut self) -> ResizableLimits;
+    fn read_export_desc(&mut self) -> ExportDesc;
 }
 
 impl<'a> ModuleRead for Cursor<'a> {
     fn read_type(&mut self) -> TypeValue {
         TypeValue::from(self.read_i8())
     }
+
     fn read_limits(&mut self) -> ResizableLimits {
         let flags = self.read_u32();
         let min = self.read_u32();
@@ -800,4 +781,18 @@ impl<'a> ModuleRead for Cursor<'a> {
         };
         ResizableLimits { flags, min, max }
     }
+
+    fn read_export_desc(&mut self) -> ExportDesc {
+        let kind = self.read_u8();
+        let index = self.read_u32();
+
+        match kind {
+            0x00 => ExportDesc::Function(index),
+            0x01 => ExportDesc::Table(index),
+            0x02 => ExportDesc::Memory(index),
+            0x03 => ExportDesc::Global(index),
+            _ => panic!("Invalid export type: {:02x}", kind),
+        }
+    }
+    
 }
