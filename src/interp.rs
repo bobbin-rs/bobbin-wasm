@@ -10,12 +10,14 @@ use opcode::*;
 pub type InterpResult<T> = Result<T, Error>;
 
 pub struct Config {
+    globals_count: usize,
     mem_size: usize,
 }
 
 impl Default for Config {
     fn default() -> Config {
         Config {
+            globals_count: 32,
             mem_size: 64,
         }
     }
@@ -26,6 +28,7 @@ pub struct Interp<'a, 'c> {
     cfg: Config,
     value_stack: Stack<'a, Value>,
     call_stack: Stack<'a, u32>,
+    globals: &'a mut [i32],
     mem: &'a mut [u8],
     code: Reader<'c>,
     count: usize,
@@ -36,10 +39,11 @@ impl<'a, 'c> Interp<'a, 'c> {
         let mut w = Writer::new(buf);
         let value_stack = w.alloc_stack(64);
         let call_stack = w.alloc_stack(64);
+        let globals = w.alloc_slice(cfg.globals_count);
         let mem = w.alloc_slice(cfg.mem_size);
         let code = Reader::new(code);
         let count = 0;
-        Interp { cfg, value_stack, call_stack, mem, code, count }
+        Interp { cfg, value_stack, call_stack, globals, mem, code, count }
     }
 
     pub fn pc(&self) -> usize {
@@ -54,6 +58,8 @@ impl<'a, 'c> Interp<'a, 'c> {
         self.code.set_pos(offset as usize);
     }
 
+    // Value Stack
+
     pub fn push(&mut self, value: i32) -> Result<(), Error> {
         Ok(self.value_stack.push(Value(value))?)
     }
@@ -61,6 +67,26 @@ impl<'a, 'c> Interp<'a, 'c> {
     pub fn pop(&mut self) -> Result<i32, Error> {
         Ok(self.value_stack.pop()?.0)
     }
+
+    // Globals 
+
+    fn check_index(&self, index: u32) -> InterpResult<()> {
+        if index as usize <= self.globals.len() {
+            Ok(())
+        } else {
+            Err(Error::OutOfBounds)
+        }        
+    }
+
+    pub fn get_global(&self, index: u32) -> InterpResult<i32> {
+        Ok(self.globals[index as usize])
+    }
+
+    pub fn set_global(&mut self, index: u32, value: i32) -> InterpResult<()> {
+        Ok(self.globals[index as usize] = value)
+    }
+
+    // Memory
 
     fn check_addr(&self, addr: u32) -> InterpResult<()> {
         if addr as usize <= self.mem.len() {
@@ -136,7 +162,20 @@ impl<'a, 'c> Interp<'a, 'c> {
                     let value = Value(self.code.read_i32()?);
                     self.value_stack.push(value)?;
                 },
+                GET_GLOBAL => {
+                    let index = self.code.read_u32()?;
+                    self.check_index(index)?;
 
+                    let value: i32 = self.get_global(index)?;
+                    self.push(value)?;
+                },
+                SET_GLOBAL => {
+                    let index = self.code.read_u32()?;
+                    self.check_index(index)?;
+
+                    let value: i32 = self.pop()?;
+                    self.set_global(index, value)?;
+                },
                 // I32 load
                 0x28 ... 0x30 => {
                     let _flags = self.code.read_u32()?;
@@ -441,7 +480,30 @@ mod tests {
             i: {                
                 i.run()?;
             }
-        },                        
+        },         
+        test_set_global : {
+            w : {
+                w.write_opcode(SET_GLOBAL)?;
+                w.write_u32(0x10)?;
+            },
+            i: {
+                i.push(0x1234)?;
+                i.run()?;
+                assert_eq!(i.value_stack.len(), 0);
+                assert_eq!(i.get_global(0x10)?, 0x1234);
+            }
+        },                       
+        test_get_global : {
+            w : {
+                w.write_opcode(GET_GLOBAL)?;
+                w.write_u32(0x10)?;
+            },
+            i: {
+                i.set_global(0x10, 0x1234)?;
+                i.run()?;
+                assert_eq!(i.pop()?, 0x1234);
+            }
+        },                       
         test_i32_load : {
             w : {
                 w.write_opcode(I32_LOAD)?;
