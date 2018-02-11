@@ -1,5 +1,5 @@
 use {SectionType, TypeValue, Cursor};
-use types::{ResizableLimits};
+use types::{Limits};
 
 use core::{slice, str, fmt};
 
@@ -384,7 +384,7 @@ impl fmt::Debug for Function {
 
 pub struct Table {
     pub element_type: TypeValue,
-    pub limits: ResizableLimits,
+    pub limits: Limits,
 }
 
 impl fmt::Debug for Table {
@@ -399,7 +399,7 @@ impl fmt::Debug for Table {
 }
 
 pub struct Memory {
-    pub limits: ResizableLimits,
+    pub limits: Limits,
 }
 
 impl fmt::Debug for Memory {
@@ -785,7 +785,7 @@ impl<'a> Iterator for DataIter<'a> {
 trait ModuleRead {
     fn read_type(&mut self) -> TypeValue;
     fn read_global_type(&mut self) -> GlobalType;
-    fn read_limits(&mut self) -> ResizableLimits;
+    fn read_limits(&mut self) -> Limits;
     fn read_table(&mut self) -> Table;
     fn read_memory(&mut self) -> Memory;
     fn read_import_desc(&mut self) -> ImportDesc;
@@ -803,7 +803,7 @@ impl<'a> ModuleRead for Cursor<'a> {
         GlobalType { type_value, mutability }
     }
 
-    fn read_limits(&mut self) -> ResizableLimits {
+    fn read_limits(&mut self) -> Limits {
         let flags = self.read_u32();
         let min = self.read_u32();
         let max = match flags {
@@ -811,7 +811,7 @@ impl<'a> ModuleRead for Cursor<'a> {
             1 => Some(self.read_u32()),
             _ => panic!("Unexpected Flags"),
         };
-        ResizableLimits { flags, min, max }
+        Limits { flags, min, max }
     }
 
     fn read_table(&mut self) -> Table {

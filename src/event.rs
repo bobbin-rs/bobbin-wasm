@@ -31,11 +31,11 @@ pub enum Event<'a> {
     FunctionsEnd,
 
     TablesStart { c: u32 },
-        Table { n: u32, element_type: TypeValue, limits: ResizableLimits },
+        Table { n: u32, element_type: TypeValue, limits: Limits },
     TablesEnd,
 
     MemsStart { c: u32 },
-        Mem { n: u32, limits: ResizableLimits },
+        Mem { n: u32, limits: Limits },
     MemsEnd,
 
     GlobalsStart { c: u32 },

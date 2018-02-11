@@ -46,7 +46,7 @@ impl ExternalIndex {
 }
 
 #[derive(Debug)]
-pub struct ResizableLimits {
+pub struct Limits {
     pub flags: u32,
     pub min: u32,
     pub max: Option<u32>,

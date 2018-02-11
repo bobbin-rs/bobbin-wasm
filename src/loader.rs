@@ -1,5 +1,5 @@
 use {Error, Event, TypeValue, Delegate, DelegateResult};
-use types::{ResizableLimits};
+use types::{Limits};
 
 use module;
 use module::*;
@@ -879,7 +879,7 @@ impl<'m> Loader<'m> {
 
 pub trait LoaderWrite {
     fn write_opcode(&mut self, op: u8) -> Result<(), Error>;
-    fn write_limits(&mut self, limits: ResizableLimits) -> Result<(), Error>;
+    fn write_limits(&mut self, limits: Limits) -> Result<(), Error>;
     fn write_table(&mut self, table: module::Table) -> Result<(), Error>;
     fn write_memory(&mut self, memory: module::Memory) -> Result<(), Error>;
     fn write_global_type(&mut self, global_type: module::GlobalType) -> Result<(), Error>;
@@ -891,7 +891,7 @@ impl<'a> LoaderWrite for Writer<'a> {
         self.write_u8(op)
     }
 
-    fn write_limits(&mut self, limits: ResizableLimits) -> Result<(), Error> {
+    fn write_limits(&mut self, limits: Limits) -> Result<(), Error> {
         Ok({
             if let Some(max) = limits.max {
                 self.write_u32(1)?;

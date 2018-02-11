@@ -150,7 +150,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         self.read_bytes_range()
     }
 
-    fn read_resizable_limits(&mut self) -> WasmResult<ResizableLimits> {
+    fn read_limits(&mut self) -> WasmResult<Limits> {
         let flags = self.read_var_u32()?;
         let min = self.read_var_u32()?;
         let max = if flags & 0x1 != 0 {
@@ -158,7 +158,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         } else {
             None
         };
-        Ok(ResizableLimits { flags, min, max })
+        Ok(Limits { flags, min, max })
     }
 
     fn read_initializer(&mut self) -> WasmResult<Initializer> {
@@ -319,7 +319,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
     pub fn read_table(&mut self) -> WasmResult<Table> {
         Ok({
             let element_type = self.read_type()?;
-            let limits = self.read_resizable_limits()?;
+            let limits = self.read_limits()?;
             Table { element_type, limits }
         })
     }
@@ -341,7 +341,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
 
     pub fn read_memory(&mut self) -> WasmResult<Memory> {
         Ok({
-            let limits = self.read_resizable_limits()?;
+            let limits = self.read_limits()?;
             Memory { limits }
         })
     }
