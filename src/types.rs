@@ -14,7 +14,7 @@ pub struct GlobalIndex(pub u32);
 #[derive(Debug)]
 pub struct LocalIndex(pub u32);
 #[derive(Debug)]
-pub struct LablelIndex(pub u32);
+pub struct LabelIndex(pub u32);
 
 #[derive(Debug)]
 pub enum ExternalIndex {
