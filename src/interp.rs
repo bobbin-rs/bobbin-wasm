@@ -249,6 +249,21 @@ impl<'a, 'c> Interp<'a, 'c> {
                         self.code.set_pos(offset as usize);
                     }
                 },                
+                INTERP_DROP_KEEP => {
+                    let drop = self.code.read_u32()?;
+                    let keep = self.code.read_u32()?;
+                    let val = if keep > 0 {
+                        Some(self.pop()?)
+                    } else {
+                        None
+                    };
+                    for _ in 0..drop {
+                        self.pop()?;
+                    }
+                    if let Some(val) = val {
+                        self.push(val)?;
+                    }
+                },
                 _ => return Err(Error::Unimplemented),
             }
             self.count += 1;
@@ -353,6 +368,17 @@ mod tests {
                 assert_eq!(i.pop()?, 0x1234);
             }
         },
+        test_i32_drop : {
+            w : {
+                w.write_opcode(I32_CONST)?;
+                w.write_u32(0x1234)?;
+                w.write_opcode(DROP)?
+            }, 
+            i: {
+                i.run()?;
+                assert_eq!(i.value_stack.len(), 0);
+            }
+        },
         test_br : {
             w : {
                 w.write_opcode(BR)?;
@@ -452,6 +478,59 @@ mod tests {
                 i.run()?;
                 assert_eq!(i.pop()?, 0);
                 assert_eq!(i.pop()?, 0);
+                assert_eq!(i.value_stack.len(), 0);
+            }
+        },
+        test_drop_keep_0_0 : {
+            w : {
+                w.write_opcode(INTERP_DROP_KEEP)?;
+                w.write_u32(0x0)?;
+                w.write_u32(0x0)?;
+            },
+            i: {
+                i.push(0x10)?;
+                i.run()?;
+                assert_eq!(i.pop()?, 0x10);
+                assert_eq!(i.value_stack.len(), 0);
+            }
+        },                
+        test_drop_keep_0_1 : {
+            w : {
+                w.write_opcode(INTERP_DROP_KEEP)?;
+                w.write_u32(0x0)?;
+                w.write_u32(0x1)?;
+            },
+            i: {
+                i.push(0x10)?;
+                i.push(0x20)?;
+                i.run()?;
+                assert_eq!(i.pop()?, 0x20);
+                assert_eq!(i.value_stack.len(), 1);
+            }
+        },
+        test_drop_keep_1_0 : {
+            w : {
+                w.write_opcode(INTERP_DROP_KEEP)?;
+                w.write_u32(0x1)?;
+                w.write_u32(0x0)?;
+            },
+            i: {
+                i.push(0x10)?;
+                i.run()?;
+                assert_eq!(i.value_stack.len(), 0);
+            }
+        },
+        test_drop_keep_1_1 : {
+            w : {
+                w.write_opcode(INTERP_DROP_KEEP)?;
+                w.write_u32(0x1)?;
+                w.write_u32(0x1)?;
+            },
+            i: {
+                i.push(0x10)?;
+                i.push(0x20)?;
+                i.run()?;
+                assert_eq!(i.pop()?, 0x20);                
                 assert_eq!(i.value_stack.len(), 0);
             }
         }               
