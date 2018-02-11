@@ -689,8 +689,44 @@ mod tests {
     test_i32_binop! {
         test_i32_eq_0_1(I32_EQ, 0, 1, 0);
         test_i32_eq_1_1(I32_EQ, 1, 1, 1);
+        test_i32_ne_0_1(I32_NE, 0, 1, 1);
+        test_i32_ne_1_1(I32_NE, 1, 1, 0);
+
+        test_i32_ltu_0_1(I32_LT_U, 0, 1, 1);
+        test_i32_ltu_1_1(I32_LT_U, 1, 1, 0);
+
+        test_i32_lts_0_1(I32_LT_S, 0, 1, 1);
+        test_i32_lts_1_1(I32_LT_S, 1, 1, 0);
+
+        test_i32_gtu_1_0(I32_GT_U, 1, 0, 1);
+        test_i32_gtu_1_1(I32_GT_U, 1, 1, 0);
+
+        test_i32_gts_1_0(I32_GT_S, 1, 0, 1);
+        test_i32_gts_1_1(I32_GT_S, 1, 1, 0);
+
+        test_i32_leu_0_1(I32_LE_U, 0, 1, 1);
+        test_i32_leu_1_1(I32_LE_U, 1, 1, 1);
+        test_i32_leu_2_1(I32_LE_U, 2, 1, 0);
+
+        test_i32_les_0_1(I32_LE_S, 0, 1, 1);
+        test_i32_les_1_1(I32_LE_S, 1, 1, 1);
+        test_i32_les_2_1(I32_LE_S, 2, 1, 0);
+
+        test_i32_geu_0_1(I32_GE_U, 0, 1, 0);
+        test_i32_geu_1_1(I32_GE_U, 1, 1, 1);
+        test_i32_geu_2_1(I32_GE_U, 2, 1, 1);
+
+        test_i32_ges_0_1(I32_GE_S, 0, 1, 0);
+        test_i32_ges_1_1(I32_GE_S, 1, 1, 1);
+        test_i32_ges_2_1(I32_GE_S, 2, 1, 1);
+
         test_i32_add_1_2(I32_ADD, 1, 2, 3);
+
         test_i32_sub_3_2(I32_SUB, 3, 2, 1);
+
         test_i32_mul_3_2(I32_MUL, 3, 2, 6);
+
+        test_i32_divs_12_3(I32_DIV_S, -12, 3, -4);
+        test_i32_divu_12_3(I32_DIV_U, 12, 3, 4);
     }
 }
