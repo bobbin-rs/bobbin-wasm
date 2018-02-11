@@ -1,9 +1,13 @@
 use {Error, Value};
 
+use byteorder::{ByteOrder, LittleEndian};
+
 use reader::Reader;
 use writer::Writer;
 use stack::Stack;
 use opcode::*;
+
+pub type InterpResult<T> = Result<T, Error>;
 
 pub struct Config {
     mem_size: usize,
@@ -58,6 +62,50 @@ impl<'a, 'c> Interp<'a, 'c> {
         Ok(self.value_stack.pop()?.0)
     }
 
+    fn check_addr(&self, addr: u32) -> InterpResult<()> {
+        if addr as usize <= self.mem.len() {
+            Ok(())
+        } else {
+            Err(Error::OutOfBounds)
+        }
+    }
+
+    pub fn get_mem_i8(&self, addr: u32) -> InterpResult<i8> {
+        Ok(self.mem[addr as usize] as i8)
+    }
+
+    pub fn get_mem_u8(&self, addr: u32) -> InterpResult<u8> {
+        Ok(self.mem[addr as usize])
+    }
+
+    pub fn get_mem_i16(&self, addr: u32) -> InterpResult<i16> {
+        Ok(LittleEndian::read_i16(&self.mem[addr as usize..]))
+    }
+
+    pub fn get_mem_i32(&self, addr: u32) -> InterpResult<i32> {
+        Ok(LittleEndian::read_i32(&self.mem[addr as usize..]))
+    }
+    
+    pub fn get_mem_u16(&self, addr: u32) -> InterpResult<u16> {
+        Ok(LittleEndian::read_u16(&self.mem[addr as usize..]))
+    }
+
+    pub fn get_mem_u32(&self, addr: u32) -> InterpResult<u32> {
+        Ok(LittleEndian::read_u32(&self.mem[addr as usize..]))
+    }
+
+    pub fn set_mem_i8(&mut self, addr: u32, value: i8) -> InterpResult<()> {
+        Ok(self.mem[addr as usize] = value as u8)
+    }
+
+    pub fn set_mem_i16(&mut self, addr: u32, value: i16) -> InterpResult<()>  {
+        Ok(LittleEndian::write_i16(&mut self.mem[addr as usize..], value))
+    }
+
+    pub fn set_mem_i32(&mut self, addr: u32, value: i32) -> InterpResult<()>  {
+        Ok(LittleEndian::write_i32(&mut self.mem[addr as usize..], value))
+    }
+
     pub fn run(&mut self) -> Result<(), Error> {   
         self.run_count(0)
     }
@@ -74,6 +122,13 @@ impl<'a, 'c> Interp<'a, 'c> {
                     let offset = self.code.read_u32()?;                    
                     self.code.set_pos(offset as usize);
                 },
+                BR_IF => {
+                    let offset = self.code.read_u32()?;
+                    let val = self.pop()?;
+                    if val != 0 {             
+                        self.code.set_pos(offset as usize);
+                    }
+                },                
                 DROP => {
                     self.value_stack.pop()?;
                 }
@@ -82,47 +137,50 @@ impl<'a, 'c> Interp<'a, 'c> {
                     self.value_stack.push(value)?;
                 },
 
-                // // I32 load
-                // 0x28 ... 0x30 => {
-                //     let _flags = self.code.read_u32()?;
-                //     let offset = self.code.read_u32()?;
-                //     let base: u32 = self.pop()?;
-                //     let addr = offset + base;
+                // I32 load
+                0x28 ... 0x30 => {
+                    let _flags = self.code.read_u32()?;
+                    let offset = self.code.read_u32()?;
+                    let base: u32 = self.pop()? as u32;
+                    let addr = (offset + base) as u32;
+                    self.check_addr(addr)?;
 
-                //     let res = match op {
-                //         I32_LOAD => {
-                //             self.get_memory_u32(addr)?
-                //         },
-                //         I32_LOAD8_S => {
-                //             self.get_memory_u8(addr)? as i8 as u32
-                //         },
-                //         I32_LOAD8_U => {
-                //             self.get_memory_u8(addr)? as i8 as u32
-                //         },
-                //         I32_LOAD16_S => {
-                //             self.get_memory_u16(addr)? as i16 as u32
-                //         },
-                //         I32_LOAD16_U => {
-                //             self.get_memory_u16(addr)? as u16 as u32
-                //         }                                               
-                //         _ => unimplemented!(),
-                //     };
-                //     self.push(res)?;
-                // },
-                // // I32 store
-                // 0x36 | 0x38 | 0x3a | 0x3b => {
-                //     let _flags = self.code.read_u32()?;
-                //     let offset = self.code.read_u32()?;
-                //     let base: u32 = self.pop()?;
-                //     let value: u32 = self.pop()?;
-                //     let addr = offset + base;
-                //     match op {
-                //         I32_STORE => self.set_memory_u32(addr, value)?,
-                //         I32_STORE8 => self.set_memory_u8(addr, value as u8)?,
-                //         I32_STORE16 => self.set_memory_u16(addr, value as u16)?,
-                //         _ => unimplemented!(),
-                //     }
-                // },
+                    let res = match op {
+                        I32_LOAD => {
+                            self.get_mem_i32(addr)?
+                        },
+                        I32_LOAD8_S => {
+                            self.get_mem_i8(addr)? as i8 as i32
+                        },
+                        I32_LOAD8_U => {
+                            self.get_mem_u8(addr)? as u8 as i32
+                        },
+                        I32_LOAD16_S => {
+                            self.get_mem_i16(addr)? as i16 as i32
+                        },
+                        I32_LOAD16_U => {
+                            self.get_mem_u16(addr)? as u16 as i32
+                        }                                               
+                        _ => unimplemented!(),
+                    };
+                    self.push(res)?;
+                },
+                // I32 store
+                0x36 | 0x38 | 0x3a | 0x3b => {
+                    let _flags = self.code.read_u32()?;
+                    let offset = self.code.read_u32()?;
+                    let base: u32 = self.pop()? as u32;
+                    let value: i32 = self.pop()?;
+                    let addr = (offset + base) as u32;
+                    self.check_addr(addr)?;
+
+                    match op {
+                        I32_STORE => self.set_mem_i32(addr, value)?,
+                        I32_STORE8 => self.set_mem_i8(addr, value as i8)?,
+                        I32_STORE16 => self.set_mem_i16(addr, value as i16)?,
+                        _ => unimplemented!(),
+                    }
+                },
                 // I32 cmpops
                 0x46 ... 0x50 => {
                     let (rhs, lhs): (i32, i32) = (self.pop()?, self.pop()?);
@@ -140,7 +198,7 @@ impl<'a, 'c> Interp<'a, 'c> {
                         _ => return Err(Error::Unimplemented),
                     };
                     self.push(if res { 1 } else { 0 })?;
-                }
+                },
                 // I32 binops
                 0x6a ... 0x79 => {
                     let (rhs, lhs): (i32, i32) = (self.pop()?, self.pop()?);
@@ -178,6 +236,13 @@ impl<'a, 'c> Interp<'a, 'c> {
                     };
                     self.push(res as i32)?;
                 },
+                INTERP_BR_UNLESS => {
+                    let offset = self.code.read_u32()?;
+                    let val = self.pop()?;
+                    if val == 0 {             
+                        self.code.set_pos(offset as usize);
+                    }
+                },                
                 _ => return Err(Error::Unimplemented),
             }
             self.count += 1;
@@ -200,7 +265,6 @@ mod tests {
                     with_writer(|mut $w| {
                         $w_blk
                         with_interp($w, |mut $i| {
-                            $i.run()?;
                             $i_blk
                             Ok(())
                         })?;
@@ -217,10 +281,9 @@ mod tests {
                 #[test]
                 fn $name() {                
                     with_writer(|mut w| {
-                        w.write_opcode(I32_CONST)?;
-                        w.write_u32($val)?;
                         w.write_opcode($op)?;
                         with_interp(w, |mut i| {
+                            i.push($val)?;
                             i.run()?;
                             assert_eq!(i.pop()?, $ret);
                             Ok(())
@@ -238,12 +301,10 @@ mod tests {
                 #[test]
                 fn $name() {                
                     with_writer(|mut w| {
-                        w.write_opcode(I32_CONST)?;
-                        w.write_u32($lhs)?;
-                        w.write_opcode(I32_CONST)?;
-                        w.write_u32($rhs)?;
                         w.write_opcode($op)?;
                         with_interp(w, |mut i| {
+                            i.push($lhs)?;
+                            i.push($rhs)?;
                             i.run()?;
                             assert_eq!(i.pop()?, $ret);
                             Ok(())
@@ -272,6 +333,7 @@ mod tests {
                 w.write_opcode(NOP)?;
             }, 
             i: {
+                i.run()?;
                 assert!(i.pc() == 1);
             }
         },
@@ -281,6 +343,7 @@ mod tests {
                 w.write_u32(0x1234)?;
             }, 
             i: {
+                i.run()?;
                 assert_eq!(i.pop()?, 0x1234);
             }
         },
@@ -291,7 +354,87 @@ mod tests {
                 w.write_opcode(UNREACHABLE)?;
             }, 
             i: {
+                i.run()?;
                 assert_eq!(i.pc(), 6);
+            }
+        },
+        test_br_if_0 : {
+            w : {
+                w.write_opcode(I32_CONST)?; // 0x0
+                w.write_u32(0)?; // 0x1
+                w.write_opcode(BR_IF)?; // 0x5
+                w.write_u32(0x0f)?; // 0x6
+                w.write_opcode(BR)?; // 0x0a
+                w.write_u32(0x10)?; // 0x0b
+                w.write_opcode(UNREACHABLE)?; // 0x0f
+            }, 
+            i: {                
+                i.run()?;
+            }
+        },             
+        test_br_if_1 : {
+            w : {
+                w.write_opcode(I32_CONST)?;
+                w.write_u32(1)?;
+                w.write_opcode(BR_IF)?;
+                w.write_u32(11)?;
+                w.write_opcode(UNREACHABLE)?;
+            }, 
+            i: {                
+                i.run()?;
+            }
+        },
+        test_br_unless_0 : {
+            w : {
+                w.write_opcode(I32_CONST)?;
+                w.write_u32(0)?;
+                w.write_opcode(INTERP_BR_UNLESS)?;
+                w.write_u32(11)?;
+                w.write_opcode(UNREACHABLE)?;
+            }, 
+            i: {                
+                i.run()?;
+            }
+        },
+        test_br_unless_1 : {
+            w : {
+                w.write_opcode(I32_CONST)?; // 0x0
+                w.write_u32(1)?; // 0x1
+                w.write_opcode(INTERP_BR_UNLESS)?; // 0x5
+                w.write_u32(0x0f)?; // 0x6
+                w.write_opcode(BR)?; // 0x0a
+                w.write_u32(0x10)?; // 0x0b
+                w.write_opcode(UNREACHABLE)?; // 0x0f
+            }, 
+            i: {                
+                i.run()?;
+            }
+        },                        
+        test_i32_load : {
+            w : {
+                w.write_opcode(I32_LOAD)?;
+                w.write_u32(0x0)?;
+                w.write_u32(0x1)?;
+            },
+            i: {
+                i.set_mem_i32(0x11, 0x2345)?;
+                i.push(0x10)?;
+                i.run()?;
+                assert_eq!(i.pop()?, 0x2345);
+            }
+        },
+        test_i32_store : {
+            w : {
+                w.write_opcode(I32_STORE)?;
+                w.write_u32(0x0)?;
+                w.write_u32(0x1)?;
+            },
+            i: {
+                i.push(0x1234)?;
+                i.push(0x10)?;
+                i.run()?;
+                assert_eq!(i.value_stack.len(), 0);
+                assert_eq!(i.get_mem_u32(0x11)?, 0x1234);
             }
         }        
     }
