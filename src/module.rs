@@ -142,6 +142,14 @@ impl<'a> Section<'a> {
         }
     }
 
+    pub fn imports(&self) -> ImportIter<'a> {
+        if let SectionType::Import = self.section_type {
+            ImportIter { index: 0, buf: Cursor::new(&self.buf[4..]) }
+        } else {
+            ImportIter { index: 0, buf: Cursor::new(&[]) }
+        }
+    }    
+
     pub fn functions(&self) -> FunctionIter<'a> {
         if let SectionType::Function = self.section_type {
             FunctionIter { index: 0, buf: Cursor::new(&self.buf[4..]) }
@@ -182,13 +190,10 @@ impl<'a> Section<'a> {
         }
     }
 
-    pub fn imports(&self) -> ImportIter<'a> {
-        if let SectionType::Import = self.section_type {
-            ImportIter { index: 0, buf: Cursor::new(&self.buf[4..]) }
-        } else {
-            ImportIter { index: 0, buf: Cursor::new(&[]) }
-        }
-    }    
+    pub fn start(&self) -> Start {
+        let function_index = Cursor::new(self.buf).read_u32();
+        Start { function_index }
+    }
 
     pub fn elements(&self) -> ElementIter<'a> {
         if let SectionType::Element = self.section_type {
@@ -214,10 +219,6 @@ impl<'a> Section<'a> {
         }
     }
 
-    pub fn start(&self) -> Start {
-        let function_index = Cursor::new(self.buf).read_u32();
-        Start { function_index }
-    }
 }
 
 impl<'a> fmt::Debug for Section<'a> {
@@ -239,29 +240,50 @@ impl<'a> fmt::Debug for Section<'a> {
                         t.fmt(f)?;
                     }
                 },
-                SectionType::Function => {
-                    for func in self.functions() {
-                        func.fmt(f)?;
-                    }
-                },
-                SectionType::Export => {
-                    for e in self.exports() {
-                        e.fmt(f)?;
-                    }
-                },
                 SectionType::Import => {
                     for i in self.imports() {
                         i.fmt(f)?;
                     }
                 },                
+                SectionType::Function => {
+                    for func in self.functions() {
+                        func.fmt(f)?;
+                    }
+                },
+                SectionType::Table => {
+                    for t in self.tables() {
+                        t.fmt(f)?;
+                    }
+                },                
+                SectionType::Memory => {
+                    for m in self.linear_memories() {
+                        m.fmt(f)?;
+                    }
+                },      
+                SectionType::Global => {
+                    for g in self.globals() {
+                        g.fmt(f)?;
+                    }
+                },                          
+                SectionType::Export => {
+                    for e in self.exports() {
+                        e.fmt(f)?;
+                    }
+                },
+                SectionType::Start => {
+                    self.start().fmt(f)?;
+                }                
                 SectionType::Code => {
                     for b in self.bodies() {
                         b.fmt(f)?;
                     }
                 },
-                SectionType::Start => {
-                    self.start().fmt(f)?;
-                }
+                SectionType::Data => {
+                    for d in self.data() {
+                        d.fmt(f)?;
+                    }
+                },
+
                 _ => {},
             }
             writeln!(f, "{}</Section>", indent)?;
@@ -313,6 +335,26 @@ impl<'a> Type<'a> {
     }
 }
 
+pub struct Import<'a> {
+    pub index: u32,
+    pub module: &'a [u8],
+    pub export: &'a [u8],
+    pub external_index: u32,    
+}
+
+impl<'a> fmt::Debug for Import<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Ok({
+            let indent = "    ";
+            writeln!(f, "{}<Import module={:?} export={:?} index={:?}>", indent, 
+                str::from_utf8(self.module).unwrap(),
+                str::from_utf8(self.export).unwrap(),
+                self.external_index,
+            )?;
+        })
+    }
+}
+
 pub struct Function {
     pub index: u32,
     pub signature_type_index: u32,
@@ -331,6 +373,15 @@ pub struct Table {
     pub index: u32,
 }
 
+impl fmt::Debug for Table {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Ok({
+            let indent = "    ";
+            writeln!(f, "{}<Table>", indent)?;
+        })
+    }
+}
+
 pub struct Memory {
     pub index: u32,
     pub flags: u32,
@@ -338,12 +389,30 @@ pub struct Memory {
     pub maximum: Option<u32>,
 }
 
-pub struct Global{
+impl fmt::Debug for Memory {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Ok({
+            let indent = "    ";
+            writeln!(f, "{}<Memory>", indent)?;
+        })
+    }
+}
+
+pub struct Global {
     pub index: u32,
     pub global_type: TypeValue,
     pub mutability: u8,
     pub init_opcode: u8,
     pub init_parameter: u32,
+}
+
+impl fmt::Debug for Global {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Ok({
+            let indent = "    ";
+            writeln!(f, "{}<Global>", indent)?;
+        })
+    }
 }
 
 // impl Global {
@@ -395,26 +464,14 @@ pub struct Element {
     // pub offset_parameter: u32,a
 }
 
-pub struct Import<'a> {
-    pub index: u32,
-    pub module: &'a [u8],
-    pub export: &'a [u8],
-    pub external_index: u32,    
-}
-
-impl<'a> fmt::Debug for Import<'a> {
+impl fmt::Debug for Element {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Ok({
             let indent = "    ";
-            writeln!(f, "{}<Import module={:?} export={:?} index={:?}>", indent, 
-                str::from_utf8(self.module).unwrap(),
-                str::from_utf8(self.export).unwrap(),
-                self.external_index,
-            )?;
+            writeln!(f, "{}<Element>", indent)?;
         })
     }
 }
-
 
 pub struct Body<'a> {
     pub index: u32,
@@ -437,6 +494,16 @@ pub struct Data<'a> {
     pub offset_opcode: u8,
     pub offset_parameter: u32,
     pub data: &'a [u8],
+}
+
+
+impl<'a> fmt::Debug for Data<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Ok({
+            let indent = "    ";
+            writeln!(f, "{}<Data/>", indent)?;
+        })
+    }
 }
 
 pub struct SectionIter<'a> {
@@ -503,6 +570,30 @@ impl<'a> Iterator for TypeValuesIter<'a> {
         }
     }
 }
+
+
+pub struct ImportIter<'a> {
+    index: u32,
+    buf: Cursor<'a>,
+}
+
+impl<'a> Iterator for ImportIter<'a> {
+    type Item = Import<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.buf.len() > 0 {
+            let index = self.index;
+            let module = self.buf.slice_identifier();
+            let export = self.buf.slice_identifier();
+            let external_index = self.buf.read_u32();
+            self.index += 1;
+            Some(Import { index, module, export, external_index })
+        } else {
+            None
+        }
+    }
+}
+
 
 pub struct FunctionIter<'a> {
     index: u32,
@@ -615,28 +706,6 @@ impl<'a> Iterator for ExportIter<'a> {
     }
 }
 
-
-pub struct ImportIter<'a> {
-    index: u32,
-    buf: Cursor<'a>,
-}
-
-impl<'a> Iterator for ImportIter<'a> {
-    type Item = Import<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.buf.len() > 0 {
-            let index = self.index;
-            let module = self.buf.slice_identifier();
-            let export = self.buf.slice_identifier();
-            let external_index = self.buf.read_u32();
-            self.index += 1;
-            Some(Import { index, module, export, external_index })
-        } else {
-            None
-        }
-    }
-}
 
 pub struct ElementIter<'a> {
     index: u32,
