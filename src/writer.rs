@@ -112,8 +112,8 @@ impl<'a> Writer<'a> {
             let a_len = self.pos;
 
             // Second Half
-            let b_ptr = self.buf.as_mut_ptr().offset(a_len as isize);
-            let b_len = self.buf.len() - a_len;
+            let b_ptr = self.buf.as_mut_ptr().offset(self.pos() as isize);
+            let b_len = self.buf.len() - self.pos();
 
             // Update Writer
             self.buf = slice::from_raw_parts_mut(b_ptr, b_len);
@@ -131,8 +131,8 @@ impl<'a> Writer<'a> {
             let a_len = self.pos / mem::size_of::<T>();
 
             // Second Half
-            let b_ptr = self.buf.as_mut_ptr().offset(a_len as isize);
-            let b_len = self.buf.len() - a_len;
+            let b_ptr = self.buf.as_mut_ptr().offset(self.pos() as isize);
+            let b_len = self.buf.len() - self.pos();
 
             // Update Writer
             self.buf = slice::from_raw_parts_mut(b_ptr, b_len);
@@ -154,13 +154,13 @@ impl<'a> Writer<'a> {
     }
 
     pub fn alloc_smallvec<T>(&mut self, len: usize) -> SmallVec<'a, T> {
-        assert!(self.pos == 0, "Allocation can only happen with an empty writer.");
+        assert!(self.pos == 0, "Allocation can only happen with an empty writer.");        
         self.pos += len * mem::size_of::<T>();
         SmallVec::new(self.split_mut())
     }
 
     pub fn alloc_slice<T>(&mut self, len: usize) -> &'a mut [T] {
-        assert!(self.pos == 0, "Allocation can only happen with an empty writer.");
+        assert!(self.pos == 0, "Allocation can only happen with an empty writer.");        
         self.pos += len * mem::size_of::<T>();
         self.split_mut()
     }
