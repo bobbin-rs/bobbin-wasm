@@ -721,10 +721,8 @@ impl<'a> Iterator for BodyIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            let buf_len = self.buf.read_u32();
-            let buf = self.buf.slice(buf_len as usize);
             self.index += 1;            
-            Some(Body { buf })
+            Some(self.buf.read_body())
         } else {
             None
         }
@@ -770,6 +768,7 @@ trait ModuleRead<'a> {
     fn read_global(&mut self) -> Global;
     fn read_export(&mut self) -> Export<'a>;
     fn read_import(&mut self) -> Import<'a>;
+    fn read_body(&mut self) -> Body<'a>;
 }
 
 impl<'a> ModuleRead<'a> for Cursor<'a> {
@@ -903,6 +902,11 @@ impl<'a> ModuleRead<'a> for Cursor<'a> {
         let desc = self.read_import_desc();
         Import { module, export, desc }    
     }    
+    fn read_body(&mut self) -> Body<'a> {
+        let buf = self.read_bytes();
+        Body { buf }
+    }
+    
 }
 
 pub trait ModuleWrite {
