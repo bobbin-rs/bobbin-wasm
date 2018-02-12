@@ -51,16 +51,16 @@ impl<'a> ModuleInst<'a> {
                     }
                 },
                 SectionType::Function => {
-                    for (index, function) in section.functions().enumerate() {
+                    for (function_index, function) in section.functions().enumerate() {
                         let type_index = function.signature_type_index as usize;
-                        functions.push(FuncInst::Local { type_index, index });
+                        functions.push(FuncInst::Local { type_index, function_index });
                     }
                 },
                 SectionType::Global => {
-                    for (index, global) in section.globals().enumerate() {
+                    for (global_index, global) in section.globals().enumerate() {
                         let global_type = global.global_type;
                         let init = global.init;
-                        globals.push(GlobalInst::Local { global_type, index, init });
+                        globals.push(GlobalInst::Local { global_type, global_index, init });
                     }
                 },
                 _ => {},
@@ -95,13 +95,13 @@ impl<'a> ModuleInst<'a> {
 #[derive(Debug)]
 pub enum FuncInst {
     Import { type_index: usize, import_index: usize },
-    Local { type_index: usize, index: usize },
+    Local { type_index: usize, function_index: usize },
 }
 
 #[derive(Debug)]
 pub enum GlobalInst {
     Import { global_type: GlobalType, import_index: usize },
-    Local { global_type: GlobalType, index: usize, init: Initializer },
+    Local { global_type: GlobalType, global_index: usize, init: Initializer },
 }
 
 

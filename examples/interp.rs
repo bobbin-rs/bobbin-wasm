@@ -76,16 +76,17 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     let (mi, _buf) = m.instantiate(buf)?;
     println!("mi: {}", mi.name());
     println!("types");
-    for t in mi.types() {
-        println!("{:?}", t);
+
+    for (i, t) in mi.types().iter().enumerate() {
+        println!("  {}: {:?} -> {:?}", i, t.parameters, t.return_type());
     }
     println!("functions");
-    for i in mi.functions() {
-        println!("{:?}", i);
+    for (i, f) in mi.functions().iter().enumerate() {
+        println!("  {}: {:?}", i, f);
     }
     println!("globals");
-    for i in mi.globals() {
-        println!("{:?}", i);
+    for (i, g) in mi.globals().iter().enumerate() {
+        println!("  {}: {:?}", i, g);
     }
     
     Ok(())
