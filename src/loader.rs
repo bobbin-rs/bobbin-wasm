@@ -330,12 +330,10 @@ impl<'m> Delegate for Loader<'m> {
                 self.module.set_version(version);
             },
             SectionStart { s_type, s_beg: _, s_end:_ , s_len: _ } => {
-                self.w.write_section_type(s_type)?;
-                self.section_fixup = self.write_fixup_u32()?;
+                self.section_fixup = self.w.write_section_start(s_type)?;
             },
             SectionEnd => {
-                let fixup = self.section_fixup;
-                self.apply_fixup_u32(fixup)?;                
+                self.w.write_section_end(self.section_fixup)?;
                 self.module.extend(self.w.split());
             },
             TypesStart { c } => {
@@ -411,7 +409,7 @@ impl<'m> Delegate for Loader<'m> {
             },
             Body { n, offset: _, size: _, locals } => {
                 self.context = Context::from(self.module.function_signature_type(n).unwrap());
-                self.body_fixup = self.write_fixup_u32()?;
+                self.body_fixup = self.w.write_code_start()?;
                 self.w.write_u8(locals as u8)?;
 
                 // info!("{:08x}: V:{} | func[{}]", offset, self.type_stack.len(), n);                
@@ -477,8 +475,9 @@ impl<'m> Delegate for Loader<'m> {
             BodyEnd => {
                 assert!(self.type_stack.len() == 0);
                 assert!(self.label_stack.len() == 0);
-                let fixup = self.body_fixup;
-                self.apply_fixup_u32(fixup)?;                                
+                // let fixup = self.body_fixup;
+                // self.apply_fixup_u32(fixup)?;                                
+                self.w.write_code_end(self.body_fixup)?;
             },
             DataSegmentsStart { c } => {
                 self.w.write_u32(c)?;
