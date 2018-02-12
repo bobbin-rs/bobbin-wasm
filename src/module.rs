@@ -533,11 +533,8 @@ impl<'a> Iterator for SectionIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            let section_type = SectionType::from(self.buf.read_u8());
-            let len = self.buf.read_u32() as usize;
-            let buf = self.buf.slice(len);
             self.index += 1;
-            Some(Section { section_type, buf })
+            Some(self.buf.read_section())
         } else {
             None
         }
@@ -755,11 +752,13 @@ impl<'a> Iterator for DataIter<'a> {
 trait ModuleRead<'a> {
     fn read_identifier(&mut self) -> Identifier<'a>;
     fn read_initializer(&mut self) -> Initializer;
+    fn read_section_type(&mut self) -> SectionType;
     fn read_type_value(&mut self) -> TypeValue;
     fn read_type_values(&mut self) -> &'a [u8];
     fn read_bytes(&mut self) -> &'a [u8];
     fn read_global_type(&mut self) -> GlobalType;
     fn read_limits(&mut self) -> Limits;
+    fn read_section(&mut self) -> Section<'a>;
     fn read_type(&mut self) -> Type<'a>;
     fn read_function(&mut self) -> Function;
     fn read_table(&mut self) -> Table;
@@ -783,6 +782,10 @@ impl<'a> ModuleRead<'a> for Cursor<'a> {
         let immediate = self.read_i32();
         let end = self.read_u8();
         Initializer { opcode, immediate, end }
+    }
+
+    fn read_section_type(&mut self) -> SectionType {
+        SectionType::from(self.read_u8())
     }
 
     fn read_type_value(&mut self) -> TypeValue {
@@ -816,12 +819,17 @@ impl<'a> ModuleRead<'a> for Cursor<'a> {
         Limits { flags, min, max }
     }
 
+    fn read_section(&mut self) -> Section<'a> {
+        let section_type = self.read_section_type();
+        let buf = self.read_bytes();
+        Section { section_type, buf }
+    }    
+
     fn read_type(&mut self) -> Type<'a> {
         let parameters = self.read_type_values();
         let returns = self.read_type_values();
         Type { parameters, returns }
     }
-
 
     fn read_function(&mut self) -> Function {
         let signature_type_index = self.read_u32();
