@@ -1,5 +1,5 @@
 use {Error, SectionType};
-use types::Identifier;
+// use types::Identifier;
 use module::*;
 use small_vec::SmallVec;
 use writer::Writer;
@@ -7,15 +7,19 @@ use writer::Writer;
 pub struct ModuleInst<'a> {
     name: &'a str,
     types: SmallVec<'a, Type<'a>>,
-    imports: SmallVec<'a, Import<'a>>,    
+    functions: SmallVec<'a, Function>,
+    globals: SmallVec<'a, Global>,
 }
 
 impl<'a> ModuleInst<'a> {
     pub fn new(m: &Module, buf: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), Error> {
         let mut w = Writer::new(buf);
         let name = w.copy_str(m.name());
+
         let mut types = w.alloc_smallvec(16);
-        let mut imports = w.alloc_smallvec(16);
+        let mut functions = w.alloc_smallvec(16);
+        let mut globals = w.alloc_smallvec(16);
+        // let mut imports = w.alloc_smallvec(16);
 
         for section in m.iter() {
             match section.section_type {
@@ -26,24 +30,43 @@ impl<'a> ModuleInst<'a> {
                         types.push(Type { parameters, returns });
                     }
                 },
+                SectionType::Function => {
+                    for t in section.functions() {
+                        functions.push(t);
+                    }
+                },                
+                SectionType::Global => {
+                    for t in section.globals() {
+                        globals.push(t);
+                    }
+                },                                
                 SectionType::Import => {
                     for i in section.imports() {
-                        let module = Identifier(w.copy_slice(i.module.0)?);
-                        let export = Identifier(w.copy_slice(i.export.0)?);
-                        let desc = i.desc;
-                        imports.push(Import { module, export, desc });
+                        info!("{:?}", i);
                     }
-                }
+                },
                 _ => {},
             }
         }
 
 
-        Ok((ModuleInst { name, types, imports }, w.into_slice()))
+        Ok((ModuleInst { name, types, functions, globals }, w.into_slice()))
     }
 
     pub fn name(&self) -> &str {
         self.name
+    }
+
+    pub fn types(&self) -> &[Type] {
+        self.types.as_ref()
+    }
+
+    pub fn functions(&self) -> &[Function] {
+        self.functions.as_ref()
+    }
+
+    pub fn globals(&self) -> &[Global] {
+        self.globals.as_ref()
     }
 
     pub fn type_signature(&self, index: usize) -> &Type {

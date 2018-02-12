@@ -63,7 +63,7 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
         cfg.compile = false;
     }
 
-    let mut module_buf = [0u8; 1024];
+    let mut module_buf = [0u8; 4096];
     let r = Reader::new(&mut data[..]);
     
     let mut loader = wasm::loader::Loader::new_with_config(cfg, &mut module_buf[..]);
@@ -75,6 +75,18 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     println!("remaining: {}", buf.len());
     let (mi, _buf) = m.instantiate(buf)?;
     println!("mi: {}", mi.name());
+    println!("types");
+    for t in mi.types() {
+        println!("{:?}", t);
+    }
+    println!("functions");
+    for i in mi.functions() {
+        println!("{:?}", i);
+    }
+    println!("globals");
+    for i in mi.globals() {
+        println!("{:?}", i);
+    }
     
     Ok(())
 }
