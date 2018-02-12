@@ -142,13 +142,16 @@ impl<'a, T: 'a + Copy> Stack<'a, T> {
     }
 }
 
-// impl<'a, T: 'a + Copy + fmt::Debug> Stack<'a, T> {
-//     pub fn dump(&self) {
-//         for i in 0..self.len() {
-//             println!("0x{:04}: {:?}", i, self.buf[self.pos - i - 1]);
-//         }
-//     }
-// }
+impl<'a, T: 'a + Copy + fmt::Debug> Stack<'a, T> {
+    pub fn dump(&self) {
+        for i in 0..self.len() {
+            let ptr = unsafe {
+                self.buf.as_ptr().offset((self.pos - i - 1) as isize)
+            };
+            info!("0x{:04}: {:p} {:?}", i, ptr, self.buf[self.pos - i - 1]);
+        }
+    }
+}
 
 
 impl<'a, T: 'a + Copy + fmt::Debug> fmt::Debug for Stack<'a, T> {
