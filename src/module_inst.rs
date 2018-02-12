@@ -8,7 +8,7 @@ pub struct ModuleInst<'a> {
     name: &'a str,
     types: SmallVec<'a, Type<'a>>,
     functions: SmallVec<'a, Function>,
-    globals: SmallVec<'a, Global>,
+    globals: SmallVec<'a, GlobalType>,
 }
 
 impl<'a> ModuleInst<'a> {
@@ -32,8 +32,21 @@ impl<'a> ModuleInst<'a> {
                 },
                 SectionType::Import => {
                     for i in section.imports() {
-                        if let ImportDesc::Type(signature_type_index) = i.desc {
-                            functions.push(Function { signature_type_index })
+                        match i.desc {
+                            ImportDesc::Type(signature_type_index) => {
+                                info!("Import Function");
+                                functions.push(Function { signature_type_index })
+                            },
+                            ImportDesc::Table(_t) => {
+                                info!("Import Table");
+                            },
+                            ImportDesc::Memory(_m) => {
+                                info!("Import Memory");
+                            },
+                            ImportDesc::Global(g) => {
+                                info!("Import Global");
+                                globals.push(g);
+                            }
                         }
                     }
                 },
@@ -44,7 +57,7 @@ impl<'a> ModuleInst<'a> {
                 },                
                 SectionType::Global => {
                     for t in section.globals() {
-                        globals.push(t);
+                        globals.push(t.global_type);
                     }
                 },                                
 
@@ -68,7 +81,7 @@ impl<'a> ModuleInst<'a> {
         self.functions.as_ref()
     }
 
-    pub fn globals(&self) -> &[Global] {
+    pub fn globals(&self) -> &[GlobalType] {
         self.globals.as_ref()
     }
 

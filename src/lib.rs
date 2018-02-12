@@ -16,6 +16,7 @@ pub mod stack;
 pub mod small_vec;
 pub mod loader;
 pub mod interp;
+pub mod memory_inst;
 pub mod module;
 pub mod module_inst;
 pub mod binary_reader;
