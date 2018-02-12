@@ -62,8 +62,14 @@ impl<'a> Interp<'a> {
 
         info!("body: size={}", body.buf.len());
 
+        for (i, b) in body.buf.iter().enumerate() {
+            info!("{:04x}: {:02x}", i, b);
+        }
+        
         let mut _count = 0;
         let mut code = Reader::new(body.buf);
+
+        // Set up locals
 
         while code.pos() < code.len() {
             let opc = code.read_u8()?;

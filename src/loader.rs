@@ -169,7 +169,7 @@ impl<'m> Loader<'m> {
         // These should be not be allocated from module storage
         let label_stack = w.alloc_stack(16);        
         let type_stack = w.alloc_stack(16);
-        
+
         // TODO: Break out into separate struct
         let fixups = [None; 256];
         let fixups_pos = 0;
@@ -417,7 +417,7 @@ impl<'m> Delegate for Loader<'m> {
                 self.body_fixup = self.w.write_code_start()?;
                 self.w.write_u8(locals as u8)?;
 
-                // info!("{:08x}: V:{} | func[{}]", offset, self.type_stack.len(), n);                
+                info!("{:08x}: V:{} | func[{}]", self.w.pos(), self.type_stack.len(), n);                
             },
             Local { i: _, n, t } => {
                 if !self.cfg.compile { return Ok(()) }
@@ -460,7 +460,7 @@ impl<'m> Delegate for Loader<'m> {
             },
             InstructionsEnd => {
                 if !self.cfg.compile { return Ok(()) }
-                // info!("{:04x}: V:{} | {} ", self.w.pos(), self.type_stack.len(), "EXIT");
+                info!("{:08x}: V:{} | {} ", self.w.pos(), self.type_stack.len(), "EXIT");
                 let return_type = self.context.return_type;
 
                 let drop = self.context.len() as u32;
@@ -506,7 +506,7 @@ impl<'m> Loader<'m> {
         if i.op.code == END || i.op.code == ELSE {
             depth -= 1;
         }
-        info!("{:08x}: V:{} | {:0width$}{}{:?}", i.offset, self.type_stack.len(), "", i.op.text, i.imm, width=depth);
+        info!("{:08x}: V:{} | {:0width$}{}{:?}", self.w.pos(), self.type_stack.len(), "", i.op.text, i.imm, width=depth);
         self.type_check(&i)?;   
 
         let op = i.op.code;
