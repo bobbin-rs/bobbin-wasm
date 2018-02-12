@@ -167,6 +167,11 @@ impl<'a> Module<'a> {
     pub fn elements(&self, index: u32) -> Option<Element> {
         self.section(SectionType::Element).unwrap().elements().nth(index as usize)
     }    
+
+    pub fn body(&self, index: u32) -> Option<Body> {
+        self.section(SectionType::Code).unwrap().bodies().nth(index as usize)
+    }
+    
 }
 
 impl<'a> fmt::Debug for Module<'a> {

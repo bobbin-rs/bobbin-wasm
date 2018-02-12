@@ -1,12 +1,12 @@
 use {Error, Value};
 
-use byteorder::{ByteOrder, LittleEndian};
-
 use module_inst::ModuleInst;
 use reader::Reader;
 use writer::Writer;
 use stack::Stack;
 use opcode::*;
+
+use core::convert::TryFrom;
 
 pub type InterpResult<T> = Result<T, Error>;
 
@@ -53,27 +53,34 @@ impl<'a> Interp<'a> {
         Ok(self.value_stack.pop()?.0)
     }
 
-    pub fn run(&mut self, mi: &ModuleInst, func_index: usize) -> Result<(), Error> {        
-        Ok(())
-    }
+    pub fn run(&mut self, mi: &ModuleInst, func_index: usize) -> Result<(), Error> {
+        // let body = mi.module().body(func_index as u32);
+        let m = mi.module();
+        // let func = m.function(func_index as u32).unwrap();
+        // let func_type = m.signature_type(func.signature_type_index).unwrap();
+        let body = m.body(func_index as u32).unwrap();
 
-    #[cfg(disabled)]
-    pub fn tmp() {
-        while self.pc() < self.code.len() && (count == 0 || self.count < count) {
-            info!("{:08x}", self.pc());
-            let op = self.code.read_u8()?;
-            match op {
+        info!("body: size={}", body.buf.len());
+
+        let mut _count = 0;
+        let mut code = Reader::new(body.buf);
+
+        while code.pos() < code.len() {
+            let opc = code.read_u8()?;
+            let op = Opcode::try_from(opc).unwrap();
+            info!("0x{:08x}: {:02x} {}", code.pos(), opc, op.text);
+            match opc {
                 NOP => {},
                 UNREACHABLE => return Err(Error::Unreachable),
                 BR => {
-                    let offset = self.code.read_u32()?;                    
-                    self.code.set_pos(offset as usize);
+                    let offset = code.read_u32()?;                    
+                    code.set_pos(offset as usize);
                 },
                 BR_IF => {
-                    let offset = self.code.read_u32()?;
+                    let offset = code.read_u32()?;
                     let val = self.pop()?;
                     if val != 0 {             
-                        self.code.set_pos(offset as usize);
+                        code.set_pos(offset as usize);
                     }
                 },                
                 DROP => {
@@ -86,88 +93,88 @@ impl<'a> Interp<'a> {
                     self.push(if cond != 0 { _true } else { _false })?;
                 },                
                 I32_CONST => {
-                    let value = Value(self.code.read_i32()?);
+                    let value = Value(code.read_i32()?);
                     self.value_stack.push(value)?;
                 },
                 GET_LOCAL => {
-                    let depth: u32 = self.code.read_u32()?;
+                    let depth: u32 = code.read_u32()?;
                     let value: i32 = self.value_stack.peek(depth as usize)?.0;
                     self.push(value)?;
                 },
                 SET_LOCAL => {
                     // check: should depth be relative to top of stack at beginning of operation?
-                    let depth: u32 = self.code.read_u32()?;
+                    let depth: u32 = code.read_u32()?;
                     let value: i32 = self.pop()?;
                     self.value_stack.pick((depth - 1) as usize)?.0 = value;
                 },
                 TEE_LOCAL => {
-                    let depth: u32 = self.code.read_u32()?;
+                    let depth: u32 = code.read_u32()?;
                     let value: i32 = self.pop()?;
                     self.value_stack.peek(depth as usize)?.0 = value;
                     self.push(value)?;
                 },                
-                GET_GLOBAL => {
-                    let index = self.code.read_u32()?;
-                    self.check_index(index)?;
+                // GET_GLOBAL => {
+                //     let index = code.read_u32()?;
+                //     self.check_index(index)?;
 
-                    let value: i32 = self.get_global(index)?;
-                    self.push(value)?;
-                },
-                SET_GLOBAL => {
-                    let index = self.code.read_u32()?;
-                    self.check_index(index)?;
+                //     let value: i32 = self.get_global(index)?;
+                //     self.push(value)?;
+                // },
+                // SET_GLOBAL => {
+                //     let index = code.read_u32()?;
+                //     self.check_index(index)?;
 
-                    let value: i32 = self.pop()?;
-                    self.set_global(index, value)?;
-                },
-                // I32 load
-                0x28 ... 0x30 => {
-                    let _flags = self.code.read_u32()?;
-                    let offset = self.code.read_u32()?;
-                    let base: u32 = self.pop()? as u32;
-                    let addr = (offset + base) as u32;
-                    self.check_addr(addr)?;
+                //     let value: i32 = self.pop()?;
+                //     self.set_global(index, value)?;
+                // },
+                // // I32 load
+                // 0x28 ... 0x30 => {
+                //     let _flags = code.read_u32()?;
+                //     let offset = code.read_u32()?;
+                //     let base: u32 = self.pop()? as u32;
+                //     let addr = (offset + base) as u32;
+                //     self.check_addr(addr)?;
 
-                    let res = match op {
-                        I32_LOAD => {
-                            self.get_mem_i32(addr)?
-                        },
-                        I32_LOAD8_S => {
-                            self.get_mem_i8(addr)? as i8 as i32
-                        },
-                        I32_LOAD8_U => {
-                            self.get_mem_u8(addr)? as u8 as i32
-                        },
-                        I32_LOAD16_S => {
-                            self.get_mem_i16(addr)? as i16 as i32
-                        },
-                        I32_LOAD16_U => {
-                            self.get_mem_u16(addr)? as u16 as i32
-                        }                                               
-                        _ => unimplemented!(),
-                    };
-                    self.push(res)?;
-                },
-                // I32 store
-                0x36 | 0x38 | 0x3a | 0x3b => {
-                    let _flags = self.code.read_u32()?;
-                    let offset = self.code.read_u32()?;
-                    let base: u32 = self.pop()? as u32;
-                    let value: i32 = self.pop()?;
-                    let addr = (offset + base) as u32;
-                    self.check_addr(addr)?;
+                //     let res = match op {
+                //         I32_LOAD => {
+                //             self.get_mem_i32(addr)?
+                //         },
+                //         I32_LOAD8_S => {
+                //             self.get_mem_i8(addr)? as i8 as i32
+                //         },
+                //         I32_LOAD8_U => {
+                //             self.get_mem_u8(addr)? as u8 as i32
+                //         },
+                //         I32_LOAD16_S => {
+                //             self.get_mem_i16(addr)? as i16 as i32
+                //         },
+                //         I32_LOAD16_U => {
+                //             self.get_mem_u16(addr)? as u16 as i32
+                //         }                                               
+                //         _ => unimplemented!(),
+                //     };
+                //     self.push(res)?;
+                // },
+                // // I32 store
+                // 0x36 | 0x38 | 0x3a | 0x3b => {
+                //     let _flags = code.read_u32()?;
+                //     let offset = code.read_u32()?;
+                //     let base: u32 = self.pop()? as u32;
+                //     let value: i32 = self.pop()?;
+                //     let addr = (offset + base) as u32;
+                //     self.check_addr(addr)?;
 
-                    match op {
-                        I32_STORE => self.set_mem_i32(addr, value)?,
-                        I32_STORE8 => self.set_mem_i8(addr, value as i8)?,
-                        I32_STORE16 => self.set_mem_i16(addr, value as i16)?,
-                        _ => unimplemented!(),
-                    }
-                },
+                //     match op {
+                //         I32_STORE => self.set_mem_i32(addr, value)?,
+                //         I32_STORE8 => self.set_mem_i8(addr, value as i8)?,
+                //         I32_STORE16 => self.set_mem_i16(addr, value as i16)?,
+                //         _ => unimplemented!(),
+                //     }
+                // },
                 // I32 cmpops
                 0x46 ... 0x50 => {
                     let (rhs, lhs): (i32, i32) = (self.pop()?, self.pop()?);
-                    let res = match op {
+                    let res = match opc {
                         I32_EQ => lhs == rhs,
                         I32_NE => lhs != rhs,
                         I32_LT_U => lhs < rhs,
@@ -186,7 +193,7 @@ impl<'a> Interp<'a> {
                 0x6a ... 0x79 => {
                     let (rhs, lhs): (i32, i32) = (self.pop()?, self.pop()?);
                     info!("lhs: {} rhs: {}", lhs, rhs);
-                    let res = match op {
+                    let res = match opc {
                         I32_ADD => lhs.wrapping_add(rhs),
                         I32_SUB => lhs.wrapping_sub(rhs),
                         I32_MUL => lhs.wrapping_mul(rhs),
@@ -210,7 +217,7 @@ impl<'a> Interp<'a> {
                 // I32 unops                
                 0x45 | 0x67 ... 0x6a => {
                     let val: i32 = self.pop()?;
-                    let res = match op {
+                    let res = match opc {
                         I32_EQZ => if val == 0 { 1 } else { 0 },
                         I32_CLZ => val.leading_zeros(),
                         I32_CTZ => val.trailing_zeros(),
@@ -220,21 +227,21 @@ impl<'a> Interp<'a> {
                     self.push(res as i32)?;
                 },
                 INTERP_ALLOCA => {
-                    let count = self.code.read_u32()?;
+                    let count = code.read_u32()?;
                     for _ in 0..count {
                         self.push(0)?;
                     }
                 },
                 INTERP_BR_UNLESS => {
-                    let offset = self.code.read_u32()?;
+                    let offset = code.read_u32()?;
                     let val = self.pop()?;
                     if val == 0 {             
-                        self.code.set_pos(offset as usize);
+                        code.set_pos(offset as usize);
                     }
                 },                
                 INTERP_DROP_KEEP => {
-                    let drop = self.code.read_u32()?;
-                    let keep = self.code.read_u32()?;
+                    let drop = code.read_u32()?;
+                    let keep = code.read_u32()?;
                     let val = if keep > 0 {
                         Some(self.pop()?)
                     } else {
@@ -249,7 +256,7 @@ impl<'a> Interp<'a> {
                 },
                 _ => return Err(Error::Unimplemented),
             }
-            self.count += 1;
+            _count += 1;
         }
         Ok(())
     }

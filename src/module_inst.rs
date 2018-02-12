@@ -76,6 +76,10 @@ impl<'m, 'a> ModuleInst<'m, 'a> {
         self.name
     }
 
+    pub fn module(&self) -> &'m Module<'m> {
+        self.m
+    }
+
     pub fn types(&self) -> &[Type] {
         self.types.as_ref()
     }
@@ -91,6 +95,10 @@ impl<'m, 'a> ModuleInst<'m, 'a> {
     pub fn type_signature(&self, index: usize) -> &Type {
         &self.types[index]
     }
+
+    // pub fn body(&self, index: usize) -> Option<Body> {
+    //     self.m.body(index as u32)
+    // }
 }
 
 #[derive(Debug)]
