@@ -30,6 +30,13 @@ impl<'a> ModuleInst<'a> {
                         types.push(Type { parameters, returns });
                     }
                 },
+                SectionType::Import => {
+                    for i in section.imports() {
+                        if let ImportDesc::Type(signature_type_index) = i.desc {
+                            functions.push(Function { signature_type_index })
+                        }
+                    }
+                },
                 SectionType::Function => {
                     for t in section.functions() {
                         functions.push(t);
@@ -40,11 +47,7 @@ impl<'a> ModuleInst<'a> {
                         globals.push(t);
                     }
                 },                                
-                SectionType::Import => {
-                    for i in section.imports() {
-                        info!("{:?}", i);
-                    }
-                },
+
                 _ => {},
             }
         }
