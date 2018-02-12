@@ -1,5 +1,5 @@
 use {Error, SectionType};
-// use types::Identifier;
+use types::Initializer;
 use module::*;
 use small_vec::SmallVec;
 use writer::Writer;
@@ -7,8 +7,8 @@ use writer::Writer;
 pub struct ModuleInst<'a> {
     name: &'a str,
     types: SmallVec<'a, Type<'a>>,
-    functions: SmallVec<'a, FuncInst<'a>>,
-    globals: SmallVec<'a, GlobalInst<'a>>,
+    functions: SmallVec<'a, FuncInst>,
+    globals: SmallVec<'a, GlobalInst>,
 }
 
 impl<'a> ModuleInst<'a> {
@@ -31,33 +31,36 @@ impl<'a> ModuleInst<'a> {
                     }
                 },
                 SectionType::Import => {
-                    for i in section.imports() {
+                    for (import_index, i) in section.imports().enumerate() {
                         match i.desc {
-                            ImportDesc::Type(signature_type_index) => {
-                                info!("Import Function");
-                                functions.push(FuncInst::Import(i));
+                            ImportDesc::Type(type_index) => {
+                                let type_index = type_index as usize;
+                                functions.push(FuncInst::Import { type_index, import_index });
                             },
-                            ImportDesc::Table(_t) => {
-                                info!("Import Table");
+                            ImportDesc::Table(_) => {
+                                // info!("Import Table");
                             },
-                            ImportDesc::Memory(_m) => {
-                                info!("Import Memory");
+                            ImportDesc::Memory(_) => {
+                                // info!("Import Memory");
                             },
-                            ImportDesc::Global(g) => {
-                                info!("Import Global");
-                                globals.push(GlobalInst::Import(i));
+                            ImportDesc::Global(global_type) => {
+                                // info!("Import Global");
+                                globals.push(GlobalInst::Import { global_type, import_index});
                             }
                         }
                     }
                 },
                 SectionType::Function => {
                     for (index, function) in section.functions().enumerate() {
-                        functions.push(FuncInst::Local { function, index });
+                        let type_index = function.signature_type_index as usize;
+                        functions.push(FuncInst::Local { type_index, index });
                     }
                 },
                 SectionType::Global => {
                     for (index, global) in section.globals().enumerate() {
-                        globals.push(GlobalInst::Local { global,  index });
+                        let global_type = global.global_type;
+                        let init = global.init;
+                        globals.push(GlobalInst::Local { global_type, index, init });
                     }
                 },
                 _ => {},
@@ -76,11 +79,11 @@ impl<'a> ModuleInst<'a> {
         self.types.as_ref()
     }
 
-    pub fn functions(&self) -> &[FuncInst<'a>] {
+    pub fn functions(&self) -> &[FuncInst] {
         self.functions.as_ref()
     }
 
-    pub fn globals(&self) -> &[GlobalInst<'a>] {
+    pub fn globals(&self) -> &[GlobalInst] {
         self.globals.as_ref()
     }
 
@@ -89,14 +92,16 @@ impl<'a> ModuleInst<'a> {
     }
 }
 
-pub enum FuncInst<'a> {
-    Import(Import<'a>),
-    Local { function: Function, index: usize },
+#[derive(Debug)]
+pub enum FuncInst {
+    Import { type_index: usize, import_index: usize },
+    Local { type_index: usize, index: usize },
 }
 
-pub enum GlobalInst<'a> {
-    Import(Import<'a>),
-    Local { global: Global, index: usize },
+#[derive(Debug)]
+pub enum GlobalInst {
+    Import { global_type: GlobalType, import_index: usize },
+    Local { global_type: GlobalType, index: usize, init: Initializer },
 }
 
 
