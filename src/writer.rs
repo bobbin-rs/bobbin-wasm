@@ -293,7 +293,7 @@ mod tests {
     }
 
     #[test]
-    fn test_alloc_copy() {
+    fn test_copy() {
         let mut buf = [0u8; 256];
         {
             let mut w = Writer::new(&mut buf);
@@ -305,4 +305,40 @@ mod tests {
         assert_eq!(buf[1], 0x12);
 
     }
+
+    #[test]
+    fn test_copy_slice() {
+        let mut buf = [0u8; 256];
+        let mut w = Writer::new(&mut buf);
+
+        let items: [u32; 4] = [0x12, 0x34, 0x56, 0x78];
+
+        let new_items = w.copy_slice(&items).unwrap();
+        for (a, b) in new_items.iter().zip(&items) {
+            assert_eq!(*a, *b);
+        }
+    }
+
+    #[test]
+    fn test_copy_struct() {
+        let mut buf = [0u8; 256];
+        let mut w = Writer::new(&mut buf);
+
+        struct Thing<'a> {
+            a: usize,
+            b: u32,
+            c: u8,
+            d: &'a [u8],
+        }
+
+        let items = w.copy_slice(&[0u8, 1, 2, 3]).unwrap();
+        let t_orig = Thing { a: 1, b: 2, c: 3, d: items };
+        let t = w.copy(t_orig).unwrap();
+        assert_eq!(t.a, 1);
+        assert_eq!(t.b, 2);
+        assert_eq!(t.c, 3);
+        assert_eq!(t.d, &[0u8, 1, 2, 3]);
+
+    }
+
 }
