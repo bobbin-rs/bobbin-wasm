@@ -36,6 +36,27 @@ mod tests {
     }
 
     #[test]
+    fn test_copy_types() {
+        use opcode::I32;
+
+        let mut buf = [0u8; 1024];
+        let mut w = Writer::new(&mut buf);
+
+        let t_new = {
+            let parameters = &[I32 as u8, I32 as u8][..];
+            let returns = &[I32 as u8][..];
+            let t = Type { parameters, returns };
+            Type {
+                parameters: w.copy_slice(t.parameters).unwrap(),
+                returns: w.copy_slice(t.returns).unwrap(),
+            }
+        };
+        assert_eq!(t_new.parameters.len(), 2);
+        assert_eq!(t_new.returns.len(), 1);
+    }
+
+
+    #[test]
     fn test_build_type_list() {
         use opcode::{I32, I64};
         use {Error, TypeValue};
