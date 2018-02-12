@@ -1,4 +1,4 @@
-use {Error, Value};
+use {Error, Value, SectionType};
 
 use module_inst::ModuleInst;
 use reader::Reader;
@@ -58,6 +58,14 @@ impl<'a> Interp<'a> {
         let m = mi.module();
         // let func = m.function(func_index as u32).unwrap();
         // let func_type = m.signature_type(func.signature_type_index).unwrap();
+        let code_section = m.section(SectionType::Code).unwrap();
+        let mut code = Reader::new(code_section.buf);
+
+        for (i, b) in code_section.buf.iter().enumerate() {
+            info!("{:04x}: {:02x}", i, b);
+        }
+
+
         let body = m.body(func_index as u32).unwrap();
 
         info!("body: size={}", body.buf.len());
@@ -67,7 +75,6 @@ impl<'a> Interp<'a> {
         }
         
         let mut _count = 0;
-        let mut code = Reader::new(body.buf);
 
         // Set up locals
 
