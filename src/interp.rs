@@ -61,6 +61,8 @@ impl<'a> Interp<'a> {
         let code_section = m.section(SectionType::Code).unwrap();
         let mut code = Reader::new(code_section.buf);
 
+        info!("code section len: {:08x}", code_section.buf.len());
+
         // for (i, b) in code_section.buf.iter().enumerate() {
         //     info!("{:04x}: {:02x}", i, b);
         // }
@@ -268,6 +270,7 @@ impl<'a> Interp<'a> {
                 },
                 _ => return Err(Error::Unimplemented),
             }
+            info!("{:08x}: END INST {:08x}", code.pos(), code.len());
             _count += 1;
         }
         Ok(())
