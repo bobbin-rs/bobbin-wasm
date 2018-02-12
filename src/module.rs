@@ -95,6 +95,44 @@ impl<'a> Module<'a> {
     }
 
     pub fn function_signature_type(&self, index: u32) -> Option<Type> {
+        info!("function_signature_type: {}", index);
+
+        let mut i = 0;
+
+        for s in self.iter() {
+            match s.section_type {
+                // SectionType::Type => {
+                //     for t in s.types() {
+                //         info!("{:?}", t);
+                //     }
+                // },
+                SectionType::Import => {
+                    for import in s.imports() {                        
+                        // info!("checking import: {:?} {:?}", import.module.0, import.export.0);
+                        if let ImportDesc::Type(t) = import.desc {
+                            if i == index {
+                                // info!("found type: {}", t);
+                                return self.signature_type(t);
+                            }
+                            i += 1;
+                        }
+                    }
+                },
+                SectionType::Function => {
+                    for function in s.functions() {
+                        // info!("checking function");
+                        if i == index {
+                            // info!("found type: {}", function.signature_type_index);
+                            return self.signature_type(function.signature_type_index)
+                        }
+                        i += 1;
+                    }
+                },
+                _ => {},
+            }
+        }
+
+
         self.function(index).and_then(|f| self.signature_type(f.signature_type_index))
     }
 
