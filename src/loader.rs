@@ -413,10 +413,10 @@ impl<'m> Delegate for Loader<'m> {
                 info!("{:08x}: Code Start", self.w.pos());
                 self.w.write_u32(c)?;
             },
-            Body { n, offset: _, size: _, locals } => {
+            Body { n, offset: _, size: _, locals: _ } => {
                 self.context = Context::from(self.module.function_signature_type(n).unwrap());
                 self.body_fixup = self.w.write_code_start()?;
-                self.w.write_u8(locals as u8)?;
+                // self.w.write_u8(locals as u8)?;
 
                 info!("{:08x}: V:{} | func[{}]", self.w.pos(), self.type_stack.len(), n);                
             },

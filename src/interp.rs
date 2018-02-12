@@ -61,19 +61,18 @@ impl<'a> Interp<'a> {
         let code_section = m.section(SectionType::Code).unwrap();
         let mut code = Reader::new(code_section.buf);
 
-        for (i, b) in code_section.buf.iter().enumerate() {
-            info!("{:04x}: {:02x}", i, b);
-        }
-
-
+        // for (i, b) in code_section.buf.iter().enumerate() {
+        //     info!("{:04x}: {:02x}", i, b);
+        // }
         let body = m.body(func_index as u32).unwrap();
 
-        info!("body: size={}", body.buf.len());
+        // info!("body: size={}", body.buf.len());
 
-        for (i, b) in body.buf.iter().enumerate() {
-            info!("{:04x}: {:02x}", i, b);
-        }
-        
+        let body_pos = code_section.buf.as_ptr().offset_to(body.buf.as_ptr()).unwrap() as usize;
+        // info!("body pos: {:08x}", body_pos);
+        code.set_pos(body_pos);
+
+
         let mut _count = 0;
 
         // Set up locals
