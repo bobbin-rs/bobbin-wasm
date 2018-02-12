@@ -7,8 +7,8 @@ use writer::Writer;
 pub struct ModuleInst<'a> {
     name: &'a str,
     types: SmallVec<'a, Type<'a>>,
-    functions: SmallVec<'a, Function>,
-    globals: SmallVec<'a, GlobalType>,
+    functions: SmallVec<'a, FuncInst<'a>>,
+    globals: SmallVec<'a, GlobalInst<'a>>,
 }
 
 impl<'a> ModuleInst<'a> {
@@ -35,7 +35,7 @@ impl<'a> ModuleInst<'a> {
                         match i.desc {
                             ImportDesc::Type(signature_type_index) => {
                                 info!("Import Function");
-                                functions.push(Function { signature_type_index })
+                                functions.push(FuncInst::Import(i));
                             },
                             ImportDesc::Table(_t) => {
                                 info!("Import Table");
@@ -45,22 +45,21 @@ impl<'a> ModuleInst<'a> {
                             },
                             ImportDesc::Global(g) => {
                                 info!("Import Global");
-                                globals.push(g);
+                                globals.push(GlobalInst::Import(i));
                             }
                         }
                     }
                 },
                 SectionType::Function => {
-                    for t in section.functions() {
-                        functions.push(t);
+                    for (index, function) in section.functions().enumerate() {
+                        functions.push(FuncInst::Local { function, index });
                     }
-                },                
+                },
                 SectionType::Global => {
-                    for t in section.globals() {
-                        globals.push(t.global_type);
+                    for (index, global) in section.globals().enumerate() {
+                        globals.push(GlobalInst::Local { global,  index });
                     }
-                },                                
-
+                },
                 _ => {},
             }
         }
@@ -77,17 +76,27 @@ impl<'a> ModuleInst<'a> {
         self.types.as_ref()
     }
 
-    pub fn functions(&self) -> &[Function] {
+    pub fn functions(&self) -> &[FuncInst<'a>] {
         self.functions.as_ref()
     }
 
-    pub fn globals(&self) -> &[GlobalType] {
+    pub fn globals(&self) -> &[GlobalInst<'a>] {
         self.globals.as_ref()
     }
 
     pub fn type_signature(&self, index: usize) -> &Type {
         &self.types[index]
     }
+}
+
+pub enum FuncInst<'a> {
+    Import(Import<'a>),
+    Local { function: Function, index: usize },
+}
+
+pub enum GlobalInst<'a> {
+    Import(Import<'a>),
+    Local { global: Global, index: usize },
 }
 
 
