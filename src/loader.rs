@@ -194,66 +194,25 @@ impl<'m> Loader<'m> {
         self.w.pos()
     }
 
-    fn write_i8(&mut self, value: i8) -> Result<(), Error> {
-        self.w.write_i8(value)
-    }
+    // fn write_i8(&mut self, value: i8) -> Result<(), Error> {
+    //     self.w.write_i8(value)
+    // }
 
-    fn write_u8(&mut self, value: u8) -> Result<(), Error> {
-        self.w.write_u8(value)
-    }
+    // fn write_u8(&mut self, value: u8) -> Result<(), Error> {
+    //     self.w.write_u8(value)
+    // }
 
-    fn write_u32(&mut self, value: u32) -> Result<(), Error> {
-        self.w.write_u32(value)
-    }
+    // fn write_u32(&mut self, value: u32) -> Result<(), Error> {
+    //     self.w.write_u32(value)
+    // }
 
-    fn write_opcode(&mut self, op: u8) -> Result<(), Error> {
-        self.w.write_u8(op)
-    }    
-    fn write_type(&mut self, tv: TypeValue) -> Result<(), Error> {
-        self.w.write_var_i7(tv.into())
-    }
-    fn write_block(&mut self, signature: TypeValue) -> Result<(), Error> {
-        self.w.write_opcode(BLOCK)?;
-        self.write_type(signature)?;
-        Ok(())
-    }        
-    fn write_br(&mut self, depth: usize) -> Result<(), Error> {
-        self.w.write_opcode(BR)?;
-        self.w.write_var_u32(depth as u32)?;
-        Ok(())
-    }
-    fn write_br_if(&mut self, depth: usize) -> Result<(), Error> {
-        self.w.write_opcode(BR_IF)?;
-        self.w.write_var_u32(depth as u32)?;
-        Ok(())
-    }
-    fn write_drop_keep(&mut self, drop_count: u32, keep_count: u32) -> Result<(), Error> {
-        // info!("drop_keep {}, {}", drop_count, keep_count);
-        if drop_count == 1 && keep_count == 0 {
-            self.w.write_opcode(DROP)?;            
-        } else if drop_count > 0 {
-            self.w.write_opcode(INTERP_DROP_KEEP)?;
-            self.w.write_u32(drop_count as u32)?;
-            self.w.write_u32(keep_count as u32)?;
-        }
-        Ok(())
-    }
+    // fn write_i32_const(&mut self, value: i32)-> Result<(), Error> {
+    //     self.w.write_opcode(I32_CONST)?;
+    //     self.w.write_var_i32(value)?;
+    //     Ok(())
+    // }
 
-    fn write_end(&mut self) -> Result<(), Error> { self.w.write_opcode(END) }
-    fn write_i32_const(&mut self, value: i32)-> Result<(), Error> {
-        self.w.write_opcode(I32_CONST)?;
-        self.w.write_var_i32(value)?;
-        Ok(())
-    }
 
-    fn write_alloca(&mut self, count: u32) -> Result<(), Error> {
-        Ok(
-            if count > 0 {
-                self.w.write_opcode(INTERP_ALLOCA)?;
-                self.w.write_u32(count as u32)?;
-            }
-        )
-    }    
 
     fn push_label<T: Into<TypeValue>>(&mut self, opcode: u8, signature: T, offset: u32) -> Result<(), Error> {
         let stack_limit = self.type_stack.len() as u32;
@@ -383,16 +342,16 @@ impl<'m> Delegate for Loader<'m> {
                 self.w.write_u32(c)?;
             },
             TypeParametersStart { c } => {
-                self.write_u8(c as u8)?;
+                self.w.write_u8(c as u8)?;
             },
             TypeParameter { n: _, t } => {
-                self.write_u8(t as u8)?;
+                self.w.write_u8(t as u8)?;
             },
             TypeReturnsStart { c } => {
-                self.write_u8(c as u8)?;
+                self.w.write_u8(c as u8)?;
             },
             TypeReturn { n: _, t } => {
-                self.write_u8(t as u8)?;
+                self.w.write_u8(t as u8)?;
             },
             ImportsStart { c } => {
                 self.w.write_u32(c)?;
@@ -434,7 +393,7 @@ impl<'m> Delegate for Loader<'m> {
             },
             Export { n: _, id, index } => {
                 self.w.write_identifier(id)?;                
-                self.write_u8(index.kind())?;
+                self.w.write_u8(index.kind())?;
                 self.w.write_u32(index.index())?;
             },
             StartFunction { index } => {
@@ -457,7 +416,7 @@ impl<'m> Delegate for Loader<'m> {
             Body { n, offset: _, size: _, locals } => {
                 self.context = Context::from(self.module.function_signature_type(n).unwrap());
                 self.body_fixup = self.write_fixup_u32()?;
-                self.write_u8(locals as u8)?;
+                self.w.write_u8(locals as u8)?;
 
                 // info!("{:08x}: V:{} | func[{}]", offset, self.type_stack.len(), n);                
             },
@@ -467,8 +426,8 @@ impl<'m> Delegate for Loader<'m> {
                 self.context.add_local(n, t);
                 // info!("add_local: {} {}", n, t); 
 
-                self.write_u8(n as u8)?;
-                self.write_i8(t as i8)?;
+                self.w.write_u8(n as u8)?;
+                self.w.write_i8(t as i8)?;
             },
             InstructionsStart => {
                 if !self.cfg.compile { return Ok(()) }
@@ -490,7 +449,7 @@ impl<'m> Delegate for Loader<'m> {
                     self.type_stack.push_type(*local)?;
                     locals_count += 1;
                 }                        
-                self.write_alloca(locals_count as u32)?;
+                self.w.write_alloca(locals_count as u32)?;
 
                 // Push Stack Entry Label
 
@@ -508,7 +467,7 @@ impl<'m> Delegate for Loader<'m> {
                 let drop = self.context.len() as u32;
                 let keep = if return_type == VOID { 0 } else { 1 };
                 self.type_stack.drop_keep(drop as usize, keep as usize)?;
-                self.write_drop_keep(drop as u32, keep as u32)?;
+                self.w.write_drop_keep(drop as u32, keep as u32)?;
         
                 for entry in self.fixups.iter() {
                     if let &Some(entry) = entry {   
@@ -595,9 +554,9 @@ impl<'m> Loader<'m> {
                     let depth = self.type_stack.len() as u32;
                     let return_type = self.context.return_type;
                     if return_type == VOID {
-                        self.write_drop_keep(depth, 0)?;
+                        self.w.write_drop_keep(depth, 0)?;
                     } else {
-                        self.write_drop_keep(depth - 1, 1)?;
+                        self.w.write_drop_keep(depth - 1, 1)?;
                     }
                     self.w.write_opcode(RETURN)?;
                 },                
@@ -606,7 +565,7 @@ impl<'m> Loader<'m> {
             Branch { depth } => {
                 // let label = self.label_stack.peek(depth as usize)?;
                 // let (drop, keep) = self.get_drop_keep(&label)?;
-                // self.write_drop_keep(drop, keep)?;
+                // self.w.write_drop_keep(drop, keep)?;
 
                 self.w.write_opcode(op)?;
                 let pos = self.pos();

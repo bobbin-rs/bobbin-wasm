@@ -1,6 +1,7 @@
 use {Error, SectionType, TypeValue, Cursor};
 use types::{Limits, Identifier};
 use writer::Writer;
+use opcode::*;
 
 use core::{slice, str, fmt};
 
@@ -866,6 +867,12 @@ pub trait ModuleWrite {
     fn write_memory(&mut self, memory: Memory) -> Result<(), Error>;
     fn write_global_type(&mut self, global_type: GlobalType) -> Result<(), Error>;
     fn write_import_desc(&mut self, desc: ImportDesc) -> Result<(), Error>;
+
+    // Code
+
+    fn write_drop_keep(&mut self, drop_count: u32, keep_count: u32) -> Result<(), Error>;
+    fn write_alloca(&mut self, count: u32) -> Result<(), Error>;
+    
 }
 
 impl<'a> ModuleWrite for Writer<'a> {
@@ -947,5 +954,28 @@ impl<'a> ModuleWrite for Writer<'a> {
             }
         })
     }
-    
+
+    // Code
+
+    fn write_drop_keep(&mut self, drop_count: u32, keep_count: u32) -> Result<(), Error> {
+        // info!("drop_keep {}, {}", drop_count, keep_count);
+        if drop_count == 1 && keep_count == 0 {
+            self.write_opcode(DROP)?;            
+        } else if drop_count > 0 {
+            self.write_opcode(INTERP_DROP_KEEP)?;
+            self.write_u32(drop_count as u32)?;
+            self.write_u32(keep_count as u32)?;
+        }
+        Ok(())
+    }
+
+    // fn write_end(&mut self) -> Result<(), Error> { self.w.write_opcode(END) }    
+    fn write_alloca(&mut self, count: u32) -> Result<(), Error> {
+        Ok(
+            if count > 0 {
+                self.write_opcode(INTERP_ALLOCA)?;
+                self.write_u32(count as u32)?;
+            }
+        )
+    }        
 }

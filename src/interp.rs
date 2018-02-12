@@ -338,7 +338,7 @@ impl<'a, 'c> Interp<'a, 'c> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use loader::LoaderWrite;
+    use module::ModuleWrite;
 
     macro_rules! interp_test {
         { $($name:ident: { $w:ident : $w_blk:block, $i:ident : $i_blk:block }),* }  => {
