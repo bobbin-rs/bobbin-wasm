@@ -169,9 +169,17 @@ impl<'a> Writer<'a> {
     //     unsafe { self.alloc().map(|v| { *v = value; v }) }
     // }
 
+    pub fn align_to<T>(&mut self) -> WriteResult<()> {
+        let align_of = mem::align_of::<T>();
+        let cur_ptr = (&self.buf[self.pos..]).as_ptr();
+        let align_offset = cur_ptr.align_offset(align_of);
+        self.pos += align_offset;
+        Ok(())
+    }
+
     pub fn copy<T>(&mut self, value: T) -> WriteResult<&'a mut T> {
         unsafe {
-            assert!(self.pos == 0, "Allocation can only happen with an empty writer.");        
+            assert!(self.pos == 0, "Allocation can only happen with an empty writer.");
             let (size_of, align_of) = (mem::size_of::<T>(), mem::align_of::<T>());
 
             let buf_pos = self.pos();
@@ -189,13 +197,24 @@ impl<'a> Writer<'a> {
                     self.buf = slice::from_raw_parts_mut(new_ptr, new_len as usize);                    
                 }
             }
-
             let val_ptr = val_ptr as *mut T;
-
             ptr::write(val_ptr, value);
-
             Ok(&mut *val_ptr)
         }
+    }
+
+    pub fn copy_slice<'i, T>(&mut self, items: &'i [T]) -> WriteResult<&'a mut [T]> 
+    where T: Copy
+    {
+        self.align_to::<T>()?;
+        self.split::<()>();
+
+        let ptr = self.buf.as_ptr();
+
+        for item in items {
+            self.copy(*item)?;
+        }
+        Ok(unsafe { slice::from_raw_parts_mut(ptr as *mut T, items.len()) })
     }
 
     pub fn into_slice(self) -> &'a mut [u8] {
@@ -260,6 +279,17 @@ mod tests {
         let mut w = Writer::new(&mut buf);
         let s = w.copy_str("Hello There!");
         assert_eq!(s, "Hello There!");
+    }
+
+    #[test]
+    fn test_align_to() {
+        let mut buf = [0u8; 256];
+        let mut w = Writer::new(&mut buf);
+        w.align_to::<u64>().unwrap();
+        let pos = w.pos();
+        w.advance(2);
+        w.align_to::<u64>().unwrap();
+        assert_eq!(w.pos() - pos, 8);
     }
 
     #[test]
