@@ -432,17 +432,6 @@ impl fmt::Debug for Global {
     }
 }
 
-// impl Global {
-//     pub fn init_value(&self) -> Value {
-//         match self.init_opcode {
-//             I32_CONST => Value::from(self.init_parameter),
-//             // F32_CONST => Value::from(self.init_parameter as f32),
-//             GET_GLOBAL => self.module.global(self.init_parameter).unwrap().init_value(),
-//             _ => unimplemented!(),
-//         }
-//     }
-// }
-
 pub struct Export<'a> {
     pub identifier: Identifier<'a>,
     pub export_desc: ExportDesc,
@@ -565,12 +554,9 @@ impl<'a> Iterator for TypeIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            let p_len = self.buf.read_u8();
-            let p_buf = self.buf.slice(p_len as usize);
-            let r_len = self.buf.read_u8();
-            let r_buf = self.buf.slice(r_len as usize);
+
             self.index += 1;
-            Some(Type { parameters: p_buf, returns: r_buf })
+            Some(self.buf.read_type())
         } else {
             None
         }
@@ -608,11 +594,8 @@ impl<'a> Iterator for ImportIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            let module = self.buf.read_identifier();
-            let export = self.buf.read_identifier();
-            let desc = self.buf.read_import_desc();
             self.index += 1;
-            Some(Import { module, export, desc })
+            Some(self.buf.read_import())
         } else {
             None
         }
@@ -631,7 +614,7 @@ impl<'a> Iterator for FunctionIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
             self.index += 1;
-            Some(Function { signature_type_index: self.buf.read_u32() })
+            Some(self.buf.read_function())
         } else {
             None
         }
@@ -685,10 +668,8 @@ impl<'a> Iterator for GlobalIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            let global_type = self.buf.read_global_type();
-            let init = self.buf.read_initializer();
             self.index += 1;
-            Some(Global { global_type, init })
+            Some(self.buf.read_global())
         } else {
             None
         }
@@ -774,17 +755,22 @@ impl<'a> Iterator for DataIter<'a> {
 trait ModuleRead<'a> {
     fn read_identifier(&mut self) -> Identifier<'a>;
     fn read_initializer(&mut self) -> Initializer;
-    fn read_type(&mut self) -> TypeValue;
+    fn read_type_value(&mut self) -> TypeValue;
+    fn read_type_values(&mut self) -> &'a [u8];
     fn read_bytes(&mut self) -> &'a [u8];
     fn read_global_type(&mut self) -> GlobalType;
     fn read_limits(&mut self) -> Limits;
+    fn read_type(&mut self) -> Type<'a>;
+    fn read_function(&mut self) -> Function;
     fn read_table(&mut self) -> Table;
     fn read_memory(&mut self) -> Memory;
     fn read_import_desc(&mut self) -> ImportDesc;
     fn read_export_desc(&mut self) -> ExportDesc;
     fn read_data(&mut self) -> Data<'a>;
     fn read_element(&mut self) -> Element<'a>;
+    fn read_global(&mut self) -> Global;
     fn read_export(&mut self) -> Export<'a>;
+    fn read_import(&mut self) -> Import<'a>;
 }
 
 impl<'a> ModuleRead<'a> for Cursor<'a> {
@@ -799,8 +785,13 @@ impl<'a> ModuleRead<'a> for Cursor<'a> {
         Initializer { opcode, immediate, end }
     }
 
-    fn read_type(&mut self) -> TypeValue {
+    fn read_type_value(&mut self) -> TypeValue {
         TypeValue::from(self.read_i8())
+    }
+
+    fn read_type_values(&mut self) -> &'a [u8] {
+        let data_len = self.read_u8();
+        self.slice(data_len as usize)
     }
 
     fn read_bytes(&mut self) -> &'a [u8] {
@@ -809,7 +800,7 @@ impl<'a> ModuleRead<'a> for Cursor<'a> {
     }
 
     fn read_global_type(&mut self) -> GlobalType {
-        let type_value = self.read_type();
+        let type_value = self.read_type_value();
         let mutability = self.read_u8();
         GlobalType { type_value, mutability }
     }
@@ -825,8 +816,20 @@ impl<'a> ModuleRead<'a> for Cursor<'a> {
         Limits { flags, min, max }
     }
 
+    fn read_type(&mut self) -> Type<'a> {
+        let parameters = self.read_type_values();
+        let returns = self.read_type_values();
+        Type { parameters, returns }
+    }
+
+
+    fn read_function(&mut self) -> Function {
+        let signature_type_index = self.read_u32();
+        Function { signature_type_index } 
+    }
+
     fn read_table(&mut self) -> Table {
-        let element_type = self.read_type();
+        let element_type = self.read_type_value();
         let limits = self.read_limits();
         Table { element_type, limits }
     }
@@ -874,11 +877,24 @@ impl<'a> ModuleRead<'a> for Cursor<'a> {
         Element { table_index, offset, data }
     }
 
+    fn read_global(&mut self) -> Global {
+        let global_type = self.read_global_type();
+        let init = self.read_initializer();
+        Global { global_type, init }
+    }
+
     fn read_export(&mut self) -> Export<'a> {
         let identifier = self.read_identifier();
         let export_desc = self.read_export_desc();
         Export { identifier, export_desc }
     }
+
+    fn read_import(&mut self) -> Import<'a> {
+        let module = self.read_identifier();
+        let export = self.read_identifier();
+        let desc = self.read_import_desc();
+        Import { module, export, desc }    
+    }    
 }
 
 pub trait ModuleWrite {
