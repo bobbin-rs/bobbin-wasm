@@ -357,9 +357,7 @@ impl<'m> Delegate for Loader<'m> {
                 self.w.write_u32(c)?;
             },            
             Import { n: _, module, export, desc } => {
-                self.w.write_identifier(module)?;
-                self.w.write_identifier(export)?;
-                self.w.write_import_desc(desc)?;
+                self.w.write_import(module::Import { module, export, desc })?;
             }
             FunctionsStart { c } => {
                 self.w.write_u32(c)?;

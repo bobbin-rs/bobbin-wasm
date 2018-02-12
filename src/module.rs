@@ -355,8 +355,8 @@ impl<'a> Type<'a> {
 }
 
 pub struct Import<'a> {
-    pub module: &'a [u8],
-    pub export: &'a [u8],
+    pub module: Identifier<'a>,
+    pub export: Identifier<'a>,
     pub desc: ImportDesc,    
 }
 
@@ -365,8 +365,8 @@ impl<'a> fmt::Debug for Import<'a> {
         Ok({
             let indent = "    ";
             writeln!(f, "{}<Import module={:?} export={:?}>", indent, 
-                str::from_utf8(self.module).unwrap(),
-                str::from_utf8(self.export).unwrap(),
+                str::from_utf8(self.module.0).unwrap(),
+                str::from_utf8(self.export.0).unwrap(),
             )?;
             write!(f, "  {:?}", self.desc)?;
             writeln!(f, "{}</Import>", indent)?;
@@ -611,8 +611,8 @@ impl<'a> Iterator for ImportIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            let module = self.buf.slice_identifier();
-            let export = self.buf.slice_identifier();
+            let module = self.buf.read_identifier();
+            let export = self.buf.read_identifier();
             let desc = self.buf.read_import_desc();
             self.index += 1;
             Some(Import { module, export, desc })
@@ -787,7 +787,8 @@ impl<'a> Iterator for DataIter<'a> {
     }
 }
 
-trait ModuleRead {
+trait ModuleRead<'a> {
+    fn read_identifier(&mut self) -> Identifier<'a>;
     fn read_type(&mut self) -> TypeValue;
     fn read_global_type(&mut self) -> GlobalType;
     fn read_limits(&mut self) -> Limits;
@@ -797,7 +798,10 @@ trait ModuleRead {
     fn read_export_desc(&mut self) -> ExportDesc;
 }
 
-impl<'a> ModuleRead for Cursor<'a> {
+impl<'a> ModuleRead<'a> for Cursor<'a> {
+    fn read_identifier(&mut self) -> Identifier<'a> {
+        Identifier(self.slice_identifier())
+    }
     fn read_type(&mut self) -> TypeValue {
         TypeValue::from(self.read_i8())
     }
@@ -865,8 +869,9 @@ pub trait ModuleWrite {
     fn write_limits(&mut self, limits: Limits) -> Result<(), Error>;
     fn write_table(&mut self, table: Table) -> Result<(), Error>;
     fn write_memory(&mut self, memory: Memory) -> Result<(), Error>;
-    fn write_global_type(&mut self, global_type: GlobalType) -> Result<(), Error>;
+    fn write_global_type(&mut self, global_type: GlobalType) -> Result<(), Error>;    
     fn write_import_desc(&mut self, desc: ImportDesc) -> Result<(), Error>;
+    fn write_import(&mut self, import: Import) -> Result<(), Error>;
 
     // Code
 
@@ -954,6 +959,14 @@ impl<'a> ModuleWrite for Writer<'a> {
             }
         })
     }
+    fn write_import(&mut self, import: Import) -> Result<(), Error> {
+        Ok({
+            self.write_identifier(import.module)?;        
+            self.write_identifier(import.export)?;
+            self.write_import_desc(import.desc)?;
+        })
+    }
+    
 
     // Code
 
