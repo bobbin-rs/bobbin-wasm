@@ -4,15 +4,16 @@ use module::*;
 use small_vec::SmallVec;
 use writer::Writer;
 
-pub struct ModuleInst<'a> {
+pub struct ModuleInst<'m, 'a> {
     name: &'a str,
+    m: &'m Module<'m>,
     types: SmallVec<'a, Type<'a>>,
     functions: SmallVec<'a, FuncInst>,
     globals: SmallVec<'a, GlobalInst>,
 }
 
-impl<'a> ModuleInst<'a> {
-    pub fn new(m: &Module, buf: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), Error> {
+impl<'m, 'a> ModuleInst<'m, 'a> {
+    pub fn new(m: &'m Module<'m>, buf: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), Error> {
         let mut w = Writer::new(buf);
         let name = w.copy_str(m.name());
 
@@ -68,7 +69,7 @@ impl<'a> ModuleInst<'a> {
         }
 
 
-        Ok((ModuleInst { name, types, functions, globals }, w.into_slice()))
+        Ok((ModuleInst { name, m, types, functions, globals }, w.into_slice()))
     }
 
     pub fn name(&self) -> &str {

@@ -53,7 +53,7 @@ impl<'a> Interp<'a> {
         Ok(self.value_stack.pop()?.0)
     }
 
-    pub fn run(&mut self, mi: &ModuleInst, func_index: usize) -> Result<(), Error> {
+    pub fn run(&mut self, mi: &ModuleInst, func_index: usize) -> Result<(), Error> {        
         Ok(())
     }
 
