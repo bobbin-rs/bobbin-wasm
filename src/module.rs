@@ -111,7 +111,7 @@ impl<'a> Module<'a> {
                         // info!("checking import: {:?} {:?}", import.module.0, import.export.0);
                         if let ImportDesc::Type(t) = import.desc {
                             if i == index {
-                                // info!("found type: {}", t);
+                                info!("found type: {}", t);
                                 return self.signature_type(t);
                             }
                             i += 1;
@@ -122,7 +122,7 @@ impl<'a> Module<'a> {
                     for function in s.functions() {
                         // info!("checking function");
                         if i == index {
-                            // info!("found type: {}", function.signature_type_index);
+                            info!("found type: {}", function.signature_type_index);
                             return self.signature_type(function.signature_type_index)
                         }
                         i += 1;
