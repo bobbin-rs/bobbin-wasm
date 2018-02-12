@@ -1,4 +1,4 @@
-use {Error};
+// use {Error};
 use module::*;
 use writer::Writer;
 
@@ -7,11 +7,11 @@ pub struct ModuleInst<'a> {
 }
 
 impl<'a> ModuleInst<'a> {
-    pub fn new(m: &Module, buf: &'a mut [u8]) -> Result<Self, Error> {
+    pub fn new(m: &Module, buf: &'a mut [u8]) -> (Self, &'a mut [u8]) {
         let mut w = Writer::new(buf);
         let name = w.copy_str(m.name());
 
-        Ok(ModuleInst { name })
+        (ModuleInst { name }, w.into_slice())
     }
 
     pub fn name(&self) -> &str {
@@ -31,7 +31,45 @@ mod tests {
         let mut m = Module::new();
         m.set_name("hello.wasm");
 
-        let mi = ModuleInst::new(&m, &mut buf).unwrap();
+        let (mi, _buf) = ModuleInst::new(&m, &mut buf);
         assert_eq!(mi.name(), "hello.wasm");
+    }
+
+    #[test]
+    fn test_build_type_list() {
+        use opcode::{I32, I64};
+        use {Error, TypeValue};
+
+        trait WriteTo<W, E> {
+            fn write_to(&self, w: &mut W) -> Result<(), E>; 
+        }
+
+        impl<'a> WriteTo<Writer<'a>, Error> for TypeValue {
+            fn write_to(&self, w: &mut Writer<'a>) -> Result<(), Error> {
+                w.write_i8(*self as i8)
+            }
+        }
+
+        impl<'a, W, T, E> WriteTo<W, E> for &'a [T] where T: WriteTo<W, E> {
+            fn write_to(&self, w: &mut W) -> Result<(), E> {
+                for item in self.iter() {
+                    item.write_to(w)?;
+                }
+                Ok(())
+            }
+        }
+
+        let src = &[I32, I64][..];
+
+        let mut buf = [0u8; 64];
+        let mut w = Writer::new(&mut buf);
+
+        src.write_to(&mut w).unwrap();
+
+        // for t in src {
+        //     (*t).write_to(&mut w).unwrap();
+        // }
+        let _dst: &[i8] = w.split();
+
     }
 }

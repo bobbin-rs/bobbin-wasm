@@ -1,7 +1,9 @@
 use {Error, SectionType, TypeValue, Cursor, FIXUP};
 use types::{Limits, Identifier, Initializer};
 use writer::Writer;
+use module_inst::ModuleInst;
 use opcode::*;
+
 
 use core::{slice, str, fmt};
 
@@ -65,6 +67,9 @@ impl<'a> Module<'a> {
         self.version = version;
     }
 
+    pub fn instantiate<'b>(&self, buf: &'b mut [u8]) -> (ModuleInst<'b>, &'b mut [u8]) {
+        ModuleInst::new(self, buf)
+    }
 
     pub fn extend(&mut self, buf: &'a [u8]) {
         if self.buf.len() == 0 {
