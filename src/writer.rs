@@ -1,7 +1,7 @@
 use wasm_leb128::{write_u1, write_u7, write_i7, write_u32, write_i32};
 use byteorder::{ByteOrder, LittleEndian};
 use core::ops::Deref;
-use core::{mem, slice, str};
+use core::{mem, ptr, slice, str};
 use reader::Reader;
 use stack::Stack;
 use small_vec::SmallVec;
@@ -165,13 +165,13 @@ impl<'a> Writer<'a> {
         self.split_mut()
     }
 
-    pub fn copy<T>(&mut self, value: T) -> WriteResult<&'a mut T> {
-        self.alloc().map(|v| { *v = value; v })
-    }
+    // pub fn copy<T>(&mut self, value: T) -> WriteResult<&'a mut T> {
+    //     unsafe { self.alloc().map(|v| { *v = value; v }) }
+    // }
 
-    pub fn alloc<T>(&mut self) -> WriteResult<&'a mut T> {
-        assert!(self.pos == 0, "Allocation can only happen with an empty writer.");        
+    pub fn copy<T>(&mut self, value: T) -> WriteResult<&'a mut T> {
         unsafe {
+            assert!(self.pos == 0, "Allocation can only happen with an empty writer.");        
             let (size_of, align_of) = (mem::size_of::<T>(), mem::align_of::<T>());
 
             let buf_pos = self.pos();
@@ -190,7 +190,11 @@ impl<'a> Writer<'a> {
                 }
             }
 
-            Ok(&mut *(val_ptr as *mut T))
+            let val_ptr = val_ptr as *mut T;
+
+            ptr::write(val_ptr, value);
+
+            Ok(&mut *val_ptr)
         }
     }
 
