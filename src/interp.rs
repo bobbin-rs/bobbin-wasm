@@ -2,6 +2,7 @@ use {Error, Value};
 
 use byteorder::{ByteOrder, LittleEndian};
 
+use module_inst::ModuleInst;
 use reader::Reader;
 use writer::Writer;
 use stack::Stack;
@@ -10,52 +11,36 @@ use opcode::*;
 pub type InterpResult<T> = Result<T, Error>;
 
 pub struct Config {
-    globals_count: usize,
-    mem_size: usize,
+    value_stack_size: usize,
+    call_stack_size: usize,
 }
 
 impl Default for Config {
     fn default() -> Config {
         Config {
-            globals_count: 32,
-            mem_size: 64,
+            value_stack_size: 64,
+            call_stack_size: 64,
         }
     }
 }
 
 
-pub struct Interp<'a, 'c> {
+pub struct Interp<'a> {
     cfg: Config,
     value_stack: Stack<'a, Value>,
     call_stack: Stack<'a, u32>,
-    globals: &'a mut [i32],
-    mem: &'a mut [u8],
-    code: Reader<'c>,
-    count: usize,
 }
 
-impl<'a, 'c> Interp<'a, 'c> {
-    pub fn new(cfg: Config, code: &'c [u8], buf: &'a mut [u8]) -> Self {
+impl<'a> Interp<'a> {
+    pub fn new(buf: &'a mut [u8]) -> Self {
+        Self::new_with_config(Config::default(), buf)
+    }
+
+    pub fn new_with_config(cfg: Config, buf: &'a mut [u8]) -> Self {
         let mut w = Writer::new(buf);
-        let value_stack = w.alloc_stack(64);
-        let call_stack = w.alloc_stack(64);
-        let globals = w.alloc_slice(cfg.globals_count);
-        let mem = w.alloc_slice(cfg.mem_size);
-        let code = Reader::new(code);
-        let count = 0;
-        Interp { cfg, value_stack, call_stack, globals, mem, code, count }
-    }
-
-    pub fn pc(&self) -> usize {
-        self.code.pos()
-    }
-
-    pub fn count(&self) -> usize {
-        self.count
-    }
-
-    pub fn jump(&mut self, offset: u32) {
-        self.code.set_pos(offset as usize);
+        let value_stack = w.alloc_stack(cfg.value_stack_size);
+        let call_stack = w.alloc_stack(cfg.call_stack_size);
+        Interp { cfg, value_stack, call_stack }
     }
 
     // Value Stack
@@ -68,76 +53,12 @@ impl<'a, 'c> Interp<'a, 'c> {
         Ok(self.value_stack.pop()?.0)
     }
 
-    // Globals 
-
-    fn check_index(&self, index: u32) -> InterpResult<()> {
-        if index as usize <= self.globals.len() {
-            Ok(())
-        } else {
-            Err(Error::OutOfBounds)
-        }        
+    pub fn run(&mut self, mi: &ModuleInst, func_index: usize) -> Result<(), Error> {
+        Ok(())
     }
 
-    pub fn get_global(&self, index: u32) -> InterpResult<i32> {
-        Ok(self.globals[index as usize])
-    }
-
-    pub fn set_global(&mut self, index: u32, value: i32) -> InterpResult<()> {
-        Ok(self.globals[index as usize] = value)
-    }
-
-    // Memory
-
-    fn check_addr(&self, addr: u32) -> InterpResult<()> {
-        if addr as usize <= self.mem.len() {
-            Ok(())
-        } else {
-            Err(Error::OutOfBounds)
-        }
-    }
-
-    pub fn get_mem_i8(&self, addr: u32) -> InterpResult<i8> {
-        Ok(self.mem[addr as usize] as i8)
-    }
-
-    pub fn get_mem_u8(&self, addr: u32) -> InterpResult<u8> {
-        Ok(self.mem[addr as usize])
-    }
-
-    pub fn get_mem_i16(&self, addr: u32) -> InterpResult<i16> {
-        Ok(LittleEndian::read_i16(&self.mem[addr as usize..]))
-    }
-
-    pub fn get_mem_i32(&self, addr: u32) -> InterpResult<i32> {
-        Ok(LittleEndian::read_i32(&self.mem[addr as usize..]))
-    }
-    
-    pub fn get_mem_u16(&self, addr: u32) -> InterpResult<u16> {
-        Ok(LittleEndian::read_u16(&self.mem[addr as usize..]))
-    }
-
-    pub fn get_mem_u32(&self, addr: u32) -> InterpResult<u32> {
-        Ok(LittleEndian::read_u32(&self.mem[addr as usize..]))
-    }
-
-    pub fn set_mem_i8(&mut self, addr: u32, value: i8) -> InterpResult<()> {
-        Ok(self.mem[addr as usize] = value as u8)
-    }
-
-    pub fn set_mem_i16(&mut self, addr: u32, value: i16) -> InterpResult<()>  {
-        Ok(LittleEndian::write_i16(&mut self.mem[addr as usize..], value))
-    }
-
-    pub fn set_mem_i32(&mut self, addr: u32, value: i32) -> InterpResult<()>  {
-        Ok(LittleEndian::write_i32(&mut self.mem[addr as usize..], value))
-    }
-
-    pub fn run(&mut self) -> Result<(), Error> {   
-        self.run_count(0)
-    }
-
-    pub fn run_count(&mut self, count: usize) -> Result<(), Error> {   
-        self.count = 0;      
+    #[cfg(disabled)]
+    pub fn tmp() {
         while self.pc() < self.code.len() && (count == 0 || self.count < count) {
             info!("{:08x}", self.pc());
             let op = self.code.read_u8()?;

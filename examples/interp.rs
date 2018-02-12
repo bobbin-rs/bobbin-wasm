@@ -88,6 +88,24 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     for (i, g) in mi.globals().iter().enumerate() {
         println!("  {}: {:?}", i, g);
     }
+
+    // Interpreter
+
+    use wasm::interp::Interp;
+    let mut buf = [0u8; 1024];
+
+    let mut interp = Interp::new(&mut buf);
+
+    interp.run(&mi, 0).unwrap();
+
+    println!("Stack Dump (top first):");
+
+    let mut i = 0;
+    while let Ok(value) = interp.pop() {
+        println!("{}: {:?}", i, value);
+        i += 1;
+    }
+    println!("---");
     
     Ok(())
 }
