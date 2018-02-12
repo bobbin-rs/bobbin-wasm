@@ -68,10 +68,11 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     
     let mut loader = wasm::loader::Loader::new_with_config(cfg, &mut module_buf[..]);
     BinaryReader::new(&mut loader, r).read(path)?;        
-    let m = loader.module();
+    let (m, buf) = loader.module();
     if matches.is_present("dump") {
         print!("{:?}", m);
     }
-
+    println!("remaining: {}", buf.len());
+    
     Ok(())
 }

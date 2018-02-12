@@ -165,10 +165,15 @@ impl<'m> Loader<'m> {
     pub fn new_with_config(cfg: Config, module_buf: &'m mut [u8]) -> Self {
         let mut w = Writer::new(module_buf);
         let module = module::Module::new();
-        let label_stack = w.alloc_stack(16);
+
+        // These should be not be allocated from module storage
+        let label_stack = w.alloc_stack(16);        
         let type_stack = w.alloc_stack(16);
+        
+        // TODO: Break out into separate struct
         let fixups = [None; 256];
         let fixups_pos = 0;
+
         let section_fixup = 0;
         let body_fixup = 0;
         let context = Context::default();
@@ -186,8 +191,8 @@ impl<'m> Loader<'m> {
         }
     }
 
-    pub fn module(&self) -> &Module {
-        &self.module
+    pub fn module(self) -> (Module<'m>, &'m mut[u8]) {
+        (self.module, self.w.into_slice())
     }
 
     fn pos(&self) -> usize {
