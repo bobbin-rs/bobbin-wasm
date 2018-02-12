@@ -203,6 +203,21 @@ impl<'a> Writer<'a> {
         }
     }
 
+    // pub fn copy_iter<T, I: Iterator<Item=T>>(&mut self, items: I) -> WriteResult<&'a mut [T]> 
+    // where T: Copy {
+    //     self.align_to::<T>()?;
+    //     self.split::<()>();
+
+    //     let ptr = self.buf.as_ptr();
+    //     let mut len = 0;
+
+    //     for item in items {
+    //         self.copy(*item)?;
+    //         len += 1;
+    //     }
+    //     Ok(unsafe { slice::from_raw_parts_mut(ptr as *mut T, len) })        
+    // }
+
     pub fn copy_slice<'i, T>(&mut self, items: &'i [T]) -> WriteResult<&'a mut [T]> 
     where T: Copy
     {
@@ -318,6 +333,25 @@ mod tests {
             assert_eq!(*a, *b);
         }
     }
+
+    #[test]
+    fn test_copy_iter() {
+        let mut buf = [0u8; 256];
+        let mut w = Writer::new(&mut buf);
+
+        let items: [u32; 4] = [0x12, 0x34, 0x56, 0x78];
+
+        let ptr = w.buf.as_ptr();
+        let mut len = 0;
+        for i in items.iter() {
+            w.copy(*i).unwrap();
+            len += 1;
+        }
+        let new_items = unsafe { slice::from_raw_parts(ptr as *const u32, len) };
+        for (a, b) in new_items.iter().zip(&items) {
+            assert_eq!(*a, *b);
+        }
+    }    
 
     #[test]
     fn test_copy_struct() {
