@@ -165,6 +165,35 @@ impl<'a> Writer<'a> {
         self.split_mut()
     }
 
+    pub fn copy<T>(&mut self, value: T) -> WriteResult<&'a mut T> {
+        self.alloc().map(|v| { *v = value; v })
+    }
+
+    pub fn alloc<T>(&mut self) -> WriteResult<&'a mut T> {
+        assert!(self.pos == 0, "Allocation can only happen with an empty writer.");        
+        unsafe {
+            let (size_of, align_of) = (mem::size_of::<T>(), mem::align_of::<T>());
+
+            let buf_pos = self.pos();
+            let buf_len = self.buf.len();
+            let buf_ptr = self.buf.as_mut_ptr();
+
+            let cur_ptr = buf_ptr.offset(buf_pos as isize);
+            let end_ptr = cur_ptr.offset(buf_len as isize);
+            let val_ptr = buf_ptr.offset(buf_ptr.align_offset(align_of) as isize);
+            let new_ptr = val_ptr.offset(size_of as isize);
+            if let Some(new_len) = new_ptr.offset_to(end_ptr) {
+                if new_len < 0 {
+                    return Err(Error::OutOfBounds);
+                } else {
+                    self.buf = slice::from_raw_parts_mut(new_ptr, new_len as usize);                    
+                }
+            }
+
+            Ok(&mut *(val_ptr as *mut T))
+        }
+    }
+
     pub fn into_slice(self) -> &'a mut [u8] {
         self.buf
     }
@@ -227,5 +256,19 @@ mod tests {
         let mut w = Writer::new(&mut buf);
         let s = w.copy_str("Hello There!");
         assert_eq!(s, "Hello There!");
+    }
+
+    #[test]
+    fn test_alloc_copy() {
+        let mut buf = [0u8; 256];
+        {
+            let mut w = Writer::new(&mut buf);
+            let v = w.copy(0).unwrap();
+            assert_eq!(*v, 0);
+            *v = 0x1234;
+        }
+        assert_eq!(buf[0], 0x34);
+        assert_eq!(buf[1], 0x12);
+
     }
 }

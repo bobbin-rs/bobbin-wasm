@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 #![no_std]
-#![feature(try_from, offset_to)]
+#![feature(try_from, offset_to, align_offset)]
 
 // extern crate core;
 extern crate byteorder;
