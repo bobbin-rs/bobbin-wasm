@@ -444,7 +444,7 @@ impl fmt::Debug for Global {
 // }
 
 pub struct Export<'a> {
-    pub identifier: &'a [u8],
+    pub identifier: Identifier<'a>,
     pub export_desc: ExportDesc,
 }
 
@@ -453,7 +453,7 @@ impl<'a> fmt::Debug for Export<'a> {
         Ok({
             let indent = "    ";
             writeln!(f, "{}<Export id={:?} desc: {:?}>", indent, 
-                str::from_utf8(self.identifier).unwrap(),
+                str::from_utf8(self.identifier.0).unwrap(),
                 self.export_desc,
             )?;
         })
@@ -475,8 +475,7 @@ impl fmt::Debug for Start {
 
 pub struct Element<'a> {
     pub table_index: u32,
-    pub opcode: u8,
-    pub immediate: u32,
+    pub offset: Initializer,
     pub data: &'a [u8],
 }
 
@@ -485,7 +484,7 @@ impl<'a> fmt::Debug for Element<'a> {
         Ok({
             let indent = "    ";
             writeln!(f, "{}<Element index={} opcode={:02x} immediate={:02x}>", indent,
-                self.table_index, self.opcode, self.immediate,
+                self.table_index, self.offset.opcode, self.offset.immediate,
             )?;
             write!(f, "{}  ", indent)?;
             for d in self.data {
@@ -707,10 +706,8 @@ impl<'a> Iterator for ExportIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            let identifier = self.buf.slice_identifier();
-            let export_desc = self.buf.read_export_desc();
             self.index += 1;
-            Some(Export { identifier, export_desc })
+            Some(self.buf.read_export())
         } else {
             None
         }
@@ -728,13 +725,8 @@ impl<'a> Iterator for ElementIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            let table_index = self.buf.read_u32();
-            let opcode = self.buf.read_u8();      
-            let immediate = self.buf.read_u32();
-            let data_len = self.buf.read_u32();
-            let data = self.buf.slice(data_len as usize);
             self.index += 1;
-            Some(Element { table_index, opcode, immediate, data })
+            Some(self.buf.read_element())
         } else {
             None
         }
@@ -771,11 +763,8 @@ impl<'a> Iterator for DataIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            let memory_index = self.buf.read_u32();
-            let offset = self.buf.read_initializer();
-            let data = self.buf.read_data();
             self.index += 1;
-            Some(Data { memory_index, offset, data })
+            Some(self.buf.read_data())
         } else {
             None
         }
@@ -786,13 +775,16 @@ trait ModuleRead<'a> {
     fn read_identifier(&mut self) -> Identifier<'a>;
     fn read_initializer(&mut self) -> Initializer;
     fn read_type(&mut self) -> TypeValue;
-    fn read_data(&mut self) -> &'a [u8];
+    fn read_bytes(&mut self) -> &'a [u8];
     fn read_global_type(&mut self) -> GlobalType;
     fn read_limits(&mut self) -> Limits;
     fn read_table(&mut self) -> Table;
     fn read_memory(&mut self) -> Memory;
     fn read_import_desc(&mut self) -> ImportDesc;
     fn read_export_desc(&mut self) -> ExportDesc;
+    fn read_data(&mut self) -> Data<'a>;
+    fn read_element(&mut self) -> Element<'a>;
+    fn read_export(&mut self) -> Export<'a>;
 }
 
 impl<'a> ModuleRead<'a> for Cursor<'a> {
@@ -810,7 +802,8 @@ impl<'a> ModuleRead<'a> for Cursor<'a> {
     fn read_type(&mut self) -> TypeValue {
         TypeValue::from(self.read_i8())
     }
-    fn read_data(&mut self) -> &'a [u8] {
+
+    fn read_bytes(&mut self) -> &'a [u8] {
         let data_len = self.read_u32();
         self.slice(data_len as usize)
     }
@@ -866,7 +859,26 @@ impl<'a> ModuleRead<'a> for Cursor<'a> {
             _ => panic!("Invalid export type: {:02x}", kind),
         }
     }
-    
+
+    fn read_data(&mut self) -> Data<'a> {
+        let memory_index = self.read_u32();
+        let offset = self.read_initializer();
+        let data = self.read_bytes();
+        Data { memory_index, offset, data }
+    }
+
+    fn read_element(&mut self) -> Element<'a> {
+        let table_index = self.read_u32();
+        let offset = self.read_initializer();
+        let data = self.read_bytes();
+        Element { table_index, offset, data }
+    }
+
+    fn read_export(&mut self) -> Export<'a> {
+        let identifier = self.read_identifier();
+        let export_desc = self.read_export_desc();
+        Export { identifier, export_desc }
+    }
 }
 
 pub trait ModuleWrite {

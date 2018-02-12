@@ -401,8 +401,7 @@ impl<'m> Delegate for Loader<'m> {
             },
             Element { n: _, index, offset, data } => {
                 self.w.write_u32(index.0)?;
-                self.w.write_u8(offset.opcode)?;
-                self.w.write_i32(offset.immediate)?;
+                self.w.write_initializer(offset)?;
                 if let Some(data) = data {
                     self.w.write_bytes(data)?;
                 }
