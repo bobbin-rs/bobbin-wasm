@@ -335,7 +335,7 @@ impl<'a, 'c> Interp<'a, 'c> {
 
 }
 
-#[cfg(test)]
+#[cfg(test_disabled)]
 mod tests {
     use super::*;
     use module::ModuleWrite;
