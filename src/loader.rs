@@ -410,6 +410,7 @@ impl<'m> Delegate for Loader<'m> {
                 }
             },
             CodeStart { c } => {
+                info!("{:08x}: Code Start", self.w.pos());
                 self.w.write_u32(c)?;
             },
             Body { n, offset: _, size: _, locals } => {
