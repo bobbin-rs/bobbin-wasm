@@ -1,5 +1,5 @@
 use {Error, SectionType, TypeValue, Cursor};
-use types::{Limits, Identifier};
+use types::{Limits, Identifier, Initializer};
 use writer::Writer;
 use opcode::*;
 
@@ -419,8 +419,7 @@ impl fmt::Debug for Memory {
 
 pub struct Global {
     pub global_type: GlobalType,
-    pub opcode: u8,
-    pub immediate: u32,
+    pub init: Initializer,
 }
 
 impl fmt::Debug for Global {
@@ -428,7 +427,7 @@ impl fmt::Debug for Global {
         Ok({
             let indent = "    ";
             writeln!(f, "{}<Global type={:?} opcode=0x{:02x} immediate=0x{:08x}>", 
-                indent, self.global_type, self.opcode, self.immediate)?;
+                indent, self.global_type, self.init.opcode, self.init.immediate)?;
         })
     }
 }
@@ -514,8 +513,7 @@ impl<'a> fmt::Debug for Body<'a> {
 
 pub struct Data<'a> {
     pub memory_index: u32,
-    pub opcode: u8,
-    pub immediate: u32,
+    pub offset: Initializer,
     pub data: &'a [u8],
 }
 
@@ -525,7 +523,7 @@ impl<'a> fmt::Debug for Data<'a> {
         Ok({
             let indent = "    ";
             writeln!(f, "{}<Data index={} opcode={:02x} immediate={:02x}>", indent,
-                self.memory_index, self.opcode, self.immediate,
+                self.memory_index, self.offset.opcode, self.offset.immediate,
             )?;
             write!(f, "{}  ", indent)?;
             for d in self.data {
@@ -689,10 +687,9 @@ impl<'a> Iterator for GlobalIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
             let global_type = self.buf.read_global_type();
-            let opcode = self.buf.read_u8();
-            let immediate = self.buf.read_u32();
+            let init = self.buf.read_initializer();
             self.index += 1;
-            Some(Global { global_type, opcode, immediate })
+            Some(Global { global_type, init })
         } else {
             None
         }
@@ -775,12 +772,10 @@ impl<'a> Iterator for DataIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
             let memory_index = self.buf.read_u32();
-            let opcode = self.buf.read_u8();            
-            let immediate = self.buf.read_u32();
-            let data_len = self.buf.read_u32();
-            let data = self.buf.slice(data_len as usize);
+            let offset = self.buf.read_initializer();
+            let data = self.buf.read_data();
             self.index += 1;
-            Some(Data { memory_index, opcode, immediate, data })
+            Some(Data { memory_index, offset, data })
         } else {
             None
         }
@@ -789,7 +784,9 @@ impl<'a> Iterator for DataIter<'a> {
 
 trait ModuleRead<'a> {
     fn read_identifier(&mut self) -> Identifier<'a>;
+    fn read_initializer(&mut self) -> Initializer;
     fn read_type(&mut self) -> TypeValue;
+    fn read_data(&mut self) -> &'a [u8];
     fn read_global_type(&mut self) -> GlobalType;
     fn read_limits(&mut self) -> Limits;
     fn read_table(&mut self) -> Table;
@@ -802,8 +799,20 @@ impl<'a> ModuleRead<'a> for Cursor<'a> {
     fn read_identifier(&mut self) -> Identifier<'a> {
         Identifier(self.slice_identifier())
     }
+
+    fn read_initializer(&mut self) -> Initializer {
+        let opcode = self.read_u8();
+        let immediate = self.read_i32();
+        let end = self.read_u8();
+        Initializer { opcode, immediate, end }
+    }
+
     fn read_type(&mut self) -> TypeValue {
         TypeValue::from(self.read_i8())
+    }
+    fn read_data(&mut self) -> &'a [u8] {
+        let data_len = self.read_u32();
+        self.slice(data_len as usize)
     }
 
     fn read_global_type(&mut self) -> GlobalType {
@@ -865,6 +874,7 @@ pub trait ModuleWrite {
     fn write_type(&mut self, t: TypeValue) -> Result<(), Error>;
     fn write_bytes(&mut self, buf: &[u8]) -> Result<(), Error>;
     fn write_identifier(&mut self, id: Identifier) -> Result<(), Error>;
+    fn write_initializer(&mut self, init: Initializer) -> Result<(), Error>;
     fn write_opcode(&mut self, op: u8) -> Result<(), Error>;
     fn write_limits(&mut self, limits: Limits) -> Result<(), Error>;
     fn write_table(&mut self, table: Table) -> Result<(), Error>;
@@ -895,8 +905,17 @@ impl<'a> ModuleWrite for Writer<'a> {
             }
         })
     }
+
     fn write_identifier(&mut self, id: Identifier) -> Result<(), Error> {
         self.write_bytes(id.0)
+    }
+
+    fn write_initializer(&mut self, init: Initializer) -> Result<(), Error> {
+        Ok({
+            self.write_opcode(init.opcode)?;
+            self.write_i32(init.immediate)?;
+            self.write_opcode(init.end)?;
+        })
     }
 
     fn write_opcode(&mut self, op: u8) -> Result<(), Error> {

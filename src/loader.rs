@@ -382,8 +382,7 @@ impl<'m> Delegate for Loader<'m> {
             },
             Global { n: _, t, mutability, init } => {
                 self.w.write_global_type(module::GlobalType { type_value: t, mutability })?;
-                self.w.write_u8(init.opcode)?;
-                self.w.write_i32(init.immediate)?;
+                self.w.write_initializer(init)?;
 
             }
             ExportsStart { c } => {
@@ -487,8 +486,7 @@ impl<'m> Delegate for Loader<'m> {
             }
             DataSegment { n: _, index, offset, data } => {
                 self.w.write_u32(index.0)?;
-                self.w.write_u8(offset.opcode)?;
-                self.w.write_i32(offset.immediate)?;
+                self.w.write_initializer(offset)?;
                 self.w.write_bytes(data)?;
             },            
             _ => {},    

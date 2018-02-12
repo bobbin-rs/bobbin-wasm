@@ -47,4 +47,10 @@ impl<'a> Cursor<'a> {
         self.buf = &self.buf[1..];
         v
     }    
+
+    pub fn read_i32(&mut self) -> i32 {
+        let v = LittleEndian::read_i32(self.buf);
+        self.buf = &self.buf[4..];
+        v
+    }
 }
