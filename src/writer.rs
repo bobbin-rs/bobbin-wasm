@@ -203,8 +203,7 @@ impl<'a> Writer<'a> {
         }
     }
 
-    // pub fn copy_iter<T, I: Iterator<Item=T>>(&mut self, items: I) -> WriteResult<&'a mut [T]> 
-    // where T: Copy {
+    // pub fn copy_iter<T, I: Iterator<Item=T>>(&mut self, items: I) -> WriteResult<&'a mut [T]>  {
     //     self.align_to::<T>()?;
     //     self.split::<()>();
 
@@ -212,7 +211,8 @@ impl<'a> Writer<'a> {
     //     let mut len = 0;
 
     //     for item in items {
-    //         self.copy(*item)?;
+    //         let v: T = *item;
+    //         self.copy(v)?;
     //         len += 1;
     //     }
     //     Ok(unsafe { slice::from_raw_parts_mut(ptr as *mut T, len) })        

@@ -1,21 +1,53 @@
-// use {Error};
+use {Error, SectionType};
+use types::Identifier;
 use module::*;
+use small_vec::SmallVec;
 use writer::Writer;
 
 pub struct ModuleInst<'a> {
     name: &'a str,
+    types: SmallVec<'a, Type<'a>>,
+    imports: SmallVec<'a, Import<'a>>,    
 }
 
 impl<'a> ModuleInst<'a> {
-    pub fn new(m: &Module, buf: &'a mut [u8]) -> (Self, &'a mut [u8]) {
+    pub fn new(m: &Module, buf: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), Error> {
         let mut w = Writer::new(buf);
         let name = w.copy_str(m.name());
+        let mut types = w.alloc_smallvec(16);
+        let mut imports = w.alloc_smallvec(16);
 
-        (ModuleInst { name }, w.into_slice())
+        for section in m.iter() {
+            match section.section_type {
+                SectionType::Type => {
+                    for t in section.types() {
+                        let parameters= w.copy_slice(t.parameters)?;
+                        let returns = w.copy_slice(t.returns)?;
+                        types.push(Type { parameters, returns });
+                    }
+                },
+                SectionType::Import => {
+                    for i in section.imports() {
+                        let module = Identifier(w.copy_slice(i.module.0)?);
+                        let export = Identifier(w.copy_slice(i.export.0)?);
+                        let desc = i.desc;
+                        imports.push(Import { module, export, desc });
+                    }
+                }
+                _ => {},
+            }
+        }
+
+
+        Ok((ModuleInst { name, types, imports }, w.into_slice()))
     }
 
     pub fn name(&self) -> &str {
         self.name
+    }
+
+    pub fn type_signature(&self, index: usize) -> &Type {
+        &self.types[index]
     }
 }
 
@@ -26,12 +58,12 @@ mod tests {
 
     #[test]
     fn test_module_inst() {
-        let mut buf = [0u8; 1024];
+        let mut buf = [0u8; 2048];
 
         let mut m = Module::new();
         m.set_name("hello.wasm");
 
-        let (mi, _buf) = ModuleInst::new(&m, &mut buf);
+        let (mi, _buf) = ModuleInst::new(&m, &mut buf).unwrap();
         assert_eq!(mi.name(), "hello.wasm");
     }
 

@@ -73,7 +73,7 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
         print!("{:?}", m);
     }
     println!("remaining: {}", buf.len());
-    let (mi, _buf) = m.instantiate(buf);
+    let (mi, _buf) = m.instantiate(buf)?;
     println!("mi: {}", mi.name());
     
     Ok(())

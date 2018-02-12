@@ -67,7 +67,7 @@ impl<'a> Module<'a> {
         self.version = version;
     }
 
-    pub fn instantiate<'b>(&self, buf: &'b mut [u8]) -> (ModuleInst<'b>, &'b mut [u8]) {
+    pub fn instantiate<'b>(&self, buf: &'b mut [u8]) -> Result<(ModuleInst<'b>, &'b mut [u8]), Error> {
         ModuleInst::new(self, buf)
     }
 
