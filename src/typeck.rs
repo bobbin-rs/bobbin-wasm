@@ -251,8 +251,10 @@ impl<'m> TypeChecker<'m> {
         info!("on_return()");
         Ok({
             let label = self.get_label(0)?;
-            info!("checking {:?}", label);            
-            self.pop_and_check_signature(&[label.signature])?;
+            info!("checking {:?}", label);         
+            if label.signature != VOID {   
+                self.pop_and_check_signature(&[label.signature])?;
+            }
             self.set_unreachable(true)?;
         })
     }
