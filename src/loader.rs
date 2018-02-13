@@ -4,7 +4,7 @@ use opcode::*;
 use module;
 use module::*;
 use module::ModuleWrite;
-use typeck::TypeChecker;
+use typeck::{TypeChecker, LabelType};
 use writer::Writer;
 use stack::Stack;
 
@@ -288,6 +288,33 @@ impl<'m> Loader<'m> {
         })
     }
 
+    fn get_br_drop_keep_count(&mut self, depth: usize) -> Result<(u32, u32), Error> {        
+        Ok({
+            let label = self.type_checker.get_label(depth)?;
+            let keep = if label.label_type != LabelType::Loop {
+                if label.signature != VOID { 1 } else { 0 }
+            } else { 
+                0 
+            };
+            let drop = if self.type_checker.is_unreachable()? {
+                0
+            } else {
+                self.type_checker.type_stack_size() - label.stack_limit - keep
+            };
+            info!("get_br_drop_keep_count() -> ({}, {})", drop, keep);
+            (drop as u32, keep as u32)
+        })
+    }
+
+    fn get_return_drop_keep_count(&mut self) -> Result<(u32, u32), Error> {
+        Ok({
+            let len = self.label_stack.len();
+            let (drop, keep) = self.get_br_drop_keep_count(len - 1)?;
+            let (drop, keep) = (drop + (self.context.locals_count as u32), keep);
+            info!("get_return_drop_keep_count() -> ({}, {})", drop, keep);
+            (drop, keep)
+        })
+    }
 
     // fn get_drop_keep(&mut self, label: &Label) -> Result<(u32, u32), Error> {
     //     // info!("get_drop_keep: type_stack: {} stack_limit: {}", self.type_stack.len(), label.stack_limit);
@@ -608,17 +635,10 @@ impl<'m> Loader<'m> {
                     // CHECK_RESULT(typechecker_.OnReturn());
                     // CHECK_RESULT(EmitDropKeep(drop_count, keep_count));
                     // CHECK_RESULT(EmitOpcode(Opcode::Return));                    
-                    self.type_checker.on_return()?;
 
-                    // let return_type = self.context.return_type;
-                    // self.type_stack.pop_type_expecting(return_type)?;
-                    // self.set_unreachable(true)?;     
-                    // if return_type == VOID {
-                    //     self.w.write_drop_keep(depth as u32, 0)?;
-                    // } else {
-                    //     self.w.write_drop_keep((depth - 1) as u32, 1)?;
-                    // }
-                                    
+                    let (drop, keep) = self.get_return_drop_keep_count()?;
+                    self.type_checker.on_return()?;
+                    self.w.write_drop_keep(drop, keep)?;                                    
                     self.w.write_opcode(RETURN)?;
                 },                
                 _ => {

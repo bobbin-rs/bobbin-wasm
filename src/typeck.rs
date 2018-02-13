@@ -16,10 +16,10 @@ pub enum LabelType {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Label {
-    label_type: LabelType,
-    signature: TypeValue,
-    stack_limit: usize, 
-    unreachable: bool,
+    pub label_type: LabelType,
+    pub signature: TypeValue,
+    pub stack_limit: usize, 
+    pub unreachable: bool,
 }
 
 pub struct TypeChecker<'m> {
@@ -32,12 +32,12 @@ impl<'m> TypeChecker<'m> {
         TypeChecker { label_stack, type_stack }
     }
 
-    fn get_label(&self, depth: usize) -> Result<Label, Error> {
+    pub fn get_label(&self, depth: usize) -> Result<Label, Error> {
         info!("  get_label({})", depth);
         Ok(self.label_stack.peek(depth)?)
     }
 
-    fn top_label(&self) -> Result<Label, Error> {
+    pub fn top_label(&self) -> Result<Label, Error> {
         self.get_label(0)
     }
 
