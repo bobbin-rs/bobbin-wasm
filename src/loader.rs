@@ -512,7 +512,7 @@ impl<'m> Loader<'m> {
             if i.op.code == END || i.op.code == ELSE {
                 indent -= 1;
             }
-            info!("{:08x}: V:{} | {:0width$}{}{:?} {:02x}" , self.w.pos(), self.type_stack.len(),  "", i.op.text, i.imm, i.op.code, width=indent);
+            info!("{:08x}: V:{} | {:0width$}{}{:?}" , self.w.pos(), self.type_stack.len(),  "", i.op.text, i.imm, width=indent);
         }
         self.type_check(&i)?;   
 
@@ -593,21 +593,20 @@ impl<'m> Loader<'m> {
                     let depth = self.depth;
                     let return_type = self.context.return_type;
                     info!("RETURN {:?} - depth {}", return_type, depth);
-                    if return_type == VOID {
-                        self.type_stack.drop_keep(depth, 0)?;
-                        self.w.write_drop_keep(depth as u32, 0)?;
-                        self.depth -= depth;
-                    } else {
-                        self.type_stack.drop_keep(depth - 1, 1)?;
-                        self.w.write_drop_keep((depth - 1) as u32, 1)?;
-                        self.depth -= depth - 1;
+
+                    self.type_stack.pop_type_expecting(return_type)?;
+
+                    if return_type != VOID {
+                        self.depth -= 1;
                     }
 
-                    self.type_stack.expect_type(return_type)?;
-                    // if return_type != VOID {
-                    //     self.type_stack.pop_type_expecting(return_type)?;
-                    // }
                     self.set_unreachable(true)?;     
+
+                    if return_type == VOID {
+                        self.w.write_drop_keep(depth as u32, 0)?;
+                    } else {
+                        self.w.write_drop_keep((depth - 1) as u32, 1)?;
+                    }
                                     
                     self.w.write_opcode(RETURN)?;
                 },                

@@ -1,0 +1,15 @@
+;;; TOOL: run-interp
+(module
+  (func (export "main") (result i32)
+    i32.const 1
+    if      
+      i32.const 20
+      return
+    end
+    i32.const 10
+    return
+  )
+)
+(;; STDOUT ;;;
+main() => i32:20
+;;; STDOUT ;;)
