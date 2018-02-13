@@ -8,6 +8,10 @@ pub enum LabelType {
     Func,
     Block,
     Loop,
+    If,
+    Else,
+    Try,
+    Catch,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -63,12 +67,20 @@ impl<'m> TypeChecker<'m> {
     }
 
     pub fn push_type(&mut self, t: TypeValue) -> Result<(), Error> {
+        info!("PUSH {}: {:?}", self.type_stack.len(), t);
         Ok(self.type_stack.push(t)?)
     }
 
-    pub fn pop_type(&mut self) -> Result<TypeValue, Error> {
-        Ok(self.type_stack.pop()?)
+    pub fn pop_type(&mut self) -> Result<TypeValue, Error> {        
+        let d = self.type_stack.len();
+        let v = self.type_stack.pop()?;
+        info!("POP  {}: {:?}", d, v);
+        Ok(v)
     }
+
+    pub fn pop_label(&mut self) -> Result<Label, Error> {
+        Ok(self.label_stack.pop()?)
+    }    
 
     pub fn reset_type_stack_to_label(&mut self, label: Label) -> Result<(), Error> {    
         self.type_stack.set_pos(label.stack_limit)?;
@@ -83,10 +95,19 @@ impl<'m> TypeChecker<'m> {
                 self.reset_type_stack_to_label(label)?;
                 return Ok(())
             }
-            return Err(Error::TypeCheck)
+            return Err(Error::TypeCheck("stack_limit + drop_count > len"))
         }
         let len = self.type_stack.len();
         self.type_stack.erase(len - drop_count, len)?;
+        Ok(())
+    }
+
+    pub fn dump_type_stack(&self) -> Result<(), Error> {
+        info!("--- TYPE STACK ---");
+        for i in 0..self.type_stack.len() {
+            info!("{}: {:?}", i, self.type_stack.get(i));
+        }
+        info!("--- END ---");
         Ok(())
     }
 
@@ -95,8 +116,17 @@ impl<'m> TypeChecker<'m> {
         if t == sig {
             Ok(())
         } else {
-            return Err(Error::TypeCheck)?;
+            self.dump_type_stack()?;
+            return Err(Error::TypeCheck("incorrect signature"))?;
         }        
+    }
+
+    pub fn check_type_stack_end(&mut self) -> Result<(), Error> {
+        let label = self.top_label()?;
+        if self.type_stack.len() != label.stack_limit {
+            return Err(Error::TypeCheck("type_stack length != label.stack_limit"))
+        }
+        Ok(())
     }
 
     pub fn check_signature(&mut self, sig: TypeValue) -> Result<(), Error> {
@@ -128,11 +158,26 @@ impl<'m> TypeChecker<'m> {
                 self.pop_and_check_signature(label.signature)?;
                 self.set_unreachable(true)?;
             },
+            END => {
+                let label = self.get_label(0)?;                
+                if let LabelType::If = label.label_type {
+                    if label.signature != VOID {
+                        return Err(Error::TypeCheck("if without else cannot have type signature"))
+                    }
+                }
+                self.pop_and_check_signature(label.signature)?;
+                self.check_type_stack_end()?;
+                self.reset_type_stack_to_label(label)?;
+                self.push_type(label.signature)?;
+                self.pop_label()?;
+
+            }
             I32_CONST => {
                 self.push_type(I32)?;
             },
             _ => {},
         }
+        self.dump_type_stack()?;
         Ok(())
     }    
 }

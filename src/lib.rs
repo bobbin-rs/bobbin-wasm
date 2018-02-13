@@ -54,7 +54,7 @@ pub enum Error {
     ScopesFull,
     FixupsFull,
     OutOfBounds,
-    TypeCheck,
+    TypeCheck(&'static str),
 
     InvalidHeader,
     InvalidSection { id: u32 },
