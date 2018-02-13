@@ -513,14 +513,22 @@ impl<'m> Loader<'m> {
             }
             info!("{:08x}: V:{} | {:0width$}{}{:?}" , self.w.pos(), self.type_checker.type_stack_size(),  "", i.op.text, i.imm, width=indent);
         }
-        
-        self.type_checker.type_check(&i)?;
 
         let op = i.op.code;
         match i.imm {
             None => match op {
                 END => {
-                    let mut label = self.pop_label()?;
+                    //   TypeChecker::Label* label;
+                    //   CHECK_RESULT(typechecker_.GetLabel(0, &label));
+                    //   LabelType label_type = label->label_type;
+                    let mut label = self.pop_label()?;                    
+
+                    //   if (label_type == LabelType::If || label_type == LabelType::Else) {
+                    //     CHECK_RESULT(EmitI32At(TopLabel()->fixup_offset, GetIstreamOffset()));
+                    //   }
+                    //   FixupTopLabel();
+                    //   PopLabel();
+
 
                     // self.type_stack.expect_type(label.signature)?;
 
@@ -533,7 +541,9 @@ impl<'m> Loader<'m> {
                     // self.type_stack.push(label.signature)?;
 
                     self.label_stack.push(label)?;
-                                                            
+
+                    self.type_checker.on_end()?;
+
                     // All fixups go to the next instruction
                     self.fixup()?;
                     let mut _label = self.pop_label()?;
@@ -588,13 +598,16 @@ impl<'m> Loader<'m> {
 
                 },
                 RETURN => {
+                    // Index drop_count, keep_count;
+                    // CHECK_RESULT(GetReturnDropKeepCount(&drop_count, &keep_count));
+                    // CHECK_RESULT(typechecker_.OnReturn());
+                    // CHECK_RESULT(EmitDropKeep(drop_count, keep_count));
+                    // CHECK_RESULT(EmitOpcode(Opcode::Return));                    
+                    self.type_checker.on_return()?;
+
                     // let return_type = self.context.return_type;
-
                     // self.type_stack.pop_type_expecting(return_type)?;
-
-
                     // self.set_unreachable(true)?;     
-
                     // if return_type == VOID {
                     //     self.w.write_drop_keep(depth as u32, 0)?;
                     // } else {
@@ -777,6 +790,7 @@ impl<'m> Loader<'m> {
             //     self.w.write_u32(id as u32)?;                
             // },
             I32Const { value } => {
+                self.type_checker.on_i32_const()?;
                 self.w.write_opcode(op)?;
                 self.w.write_i32(value)?;
             },

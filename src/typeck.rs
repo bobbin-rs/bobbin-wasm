@@ -191,40 +191,53 @@ impl<'m> TypeChecker<'m> {
         Ok(())
     }
 
+    pub fn enter(&self) -> Result<(), Error> {
+        Ok({
+            info!("--- L: {} T: {} ---", self.label_stack.len(), self.type_stack.len());
+        })
+    }
 
-    pub fn type_check(&mut self, i: &Instruction) -> Result<(), Error> {        
-        info!("L: {} T: {} | {}", self.label_stack.len(), self.type_stack.len(), i.op.text);
-        match i.op.code {
-            RETURN => {
-                let label = self.get_label(0)?;
-                info!("checking {:?}", label);
-                self.pop_and_check_signature(label.signature)?;
-                self.set_unreachable(true)?;
-            },
-            END => {
-                let label = self.get_label(0)?;                
-                if let LabelType::If = label.label_type {
-                    if label.signature != VOID {
-                        return Err(Error::TypeCheck("if without else cannot have type signature"))
-                    }
-                }
-                self.pop_and_check_signature(label.signature)?;
-                self.check_type_stack_end()?;
-                self.reset_type_stack_to_label(label)?;
-                if label.signature != VOID {
-                    self.push_type(label.signature)?;
-                }
-                self.pop_label()?;
-
-            }
-            I32_CONST => {
-                self.push_type(I32)?;
-            },
-            _ => {},
-        }
-        self.dump_type_stack()?;
-        Ok(())
+    pub fn exit(&self) -> Result<(), Error> {
+        Ok({
+            self.dump_type_stack()?;
+        })
     }    
+
+    pub fn on_return(&mut self) -> Result<(), Error> {
+        info!("on_return()");
+        Ok({
+            let label = self.get_label(0)?;
+            info!("checking {:?}", label);
+            self.pop_and_check_signature(label.signature)?;
+            self.set_unreachable(true)?;
+        })
+    }
+
+    pub fn on_end(&mut self) -> Result<(), Error> {
+        info!("on_end()");
+        Ok({
+            let label = self.get_label(0)?;                
+            if let LabelType::If = label.label_type {
+                if label.signature != VOID {
+                    return Err(Error::TypeCheck("if without else cannot have type signature"))
+                }
+            }
+            self.pop_and_check_signature(label.signature)?;
+            self.check_type_stack_end()?;
+            self.reset_type_stack_to_label(label)?;
+            if label.signature != VOID {
+                self.push_type(label.signature)?;
+            }
+            self.pop_label()?;            
+        })
+    }
+
+    pub fn on_i32_const(&mut self) -> Result<(), Error> {
+        info!("on_i32_const()");
+        Ok({
+            self.push_type(I32)?;
+        })
+    }
 }
 
 
