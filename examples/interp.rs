@@ -1,3 +1,5 @@
+#![feature(try_from)]
+
 extern crate wasm;
 extern crate clap;
 #[macro_use] extern crate log;
@@ -11,7 +13,7 @@ use std::path::Path;
 // use log::Level;
 use clap::{App, Arg, ArgMatches};
 
-use wasm::{Reader, BinaryReader};
+use wasm::{Reader, BinaryReader, TypeValue, SectionType, ExportDesc};
 
 #[derive(Debug)]
 pub enum Error {
@@ -88,25 +90,48 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     //     println!("  {}: {:?}", i, g);
     // }
 
-    println!("---- RUN ----");
+
+    // println!("---- RUN ----");
 
     // Interpreter
 
     use wasm::interp::Interp;
+    use std::convert::TryFrom;
+
     let mut buf = [0u8; 1024];
 
     let mut interp = Interp::new(&mut buf);
 
-    interp.run(&mi, 0).unwrap();
+    for s in m.iter() {
+        if s.section_type == SectionType::Export {
+            for e in s.exports() {
 
-    println!("---- Stack Dump ----");
+                if let ExportDesc::Function(index) = e.export_desc {
+                    let t = m.function_signature_type(index).unwrap();
+                    let id = std::str::from_utf8(e.identifier.0).unwrap();
+                    interp.run(&mi, index as usize).unwrap();
 
-    let mut i = 0;
-    while let Ok(value) = interp.pop() {
-        println!("{}: {:?}", i, value);
-        i += 1;
+                    if t.returns.len() == 1 {
+                        if interp.stack_len() == 1 {
+                            println!("{}() => {}:{}", id, TypeValue::try_from(t.returns[0] as i8).unwrap(), interp.pop().unwrap());
+                        } else {
+                            println!("---- Stack Dump ----");
+
+                            let mut i = 0;
+                            while let Ok(value) = interp.pop() {
+                                println!("{}: {:?}", i, value);
+                                i += 1;
+                            }
+                            println!("---- END ----");
+                        }
+                    }
+                }
+            }
+            
+        }
     }
-    println!("---- END ----");
+
+
     
     Ok(())
 }

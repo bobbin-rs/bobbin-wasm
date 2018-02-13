@@ -53,6 +53,10 @@ impl<'a> Interp<'a> {
         Ok(self.value_stack.pop()?.0)
     }
 
+    pub fn stack_len(&self) -> usize {
+        self.value_stack.len()
+    }
+
     pub fn run(&mut self, mi: &ModuleInst, func_index: usize) -> Result<(), Error> {
         // let body = mi.module().body(func_index as u32);
         let m = mi.module();
