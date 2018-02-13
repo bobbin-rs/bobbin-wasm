@@ -175,6 +175,16 @@ impl<'m> TypeChecker<'m> {
         Ok(())
     }
 
+    pub fn check_label_type(&mut self, label: Label, label_type: LabelType) -> Result<(), Error> {
+        info!("  check_label_type({:?}, {:?})", label, label_type);
+        if label.label_type == label_type {
+            Ok(())
+        } else {
+
+            Err(Error::TypeCheck("mismatched label type"))
+        }
+    }
+
     pub fn check_signature(&mut self, sig: &[TypeValue]) -> Result<(), Error> {
         info!("  check_signature({:?})", sig);
 
@@ -210,8 +220,11 @@ impl<'m> TypeChecker<'m> {
     }
 
     pub fn end_function(&mut self) -> Result<(), Error> {
+        info!("end_function()");
         Ok({
-
+            let label = self.top_label()?;
+            self.check_label_type(label, LabelType::Func)?;
+            self.on_end_label(label)?;
         })
     }
 
@@ -244,6 +257,19 @@ impl<'m> TypeChecker<'m> {
         })
     }
 
+    pub fn on_end_label(&mut self, label: Label) -> Result<(), Error> {
+        info!("on_end_label({:?})", label);
+        Ok({
+            self.pop_and_check_signature(&[label.signature])?;
+            self.check_type_stack_end()?;
+            self.reset_type_stack_to_label(label)?;
+            if label.signature != VOID {
+                self.push_type(label.signature)?;
+            }
+            self.pop_label()?;               
+        })
+    }
+
     pub fn on_end(&mut self) -> Result<(), Error> {
         info!("on_end()");
         Ok({
@@ -253,13 +279,7 @@ impl<'m> TypeChecker<'m> {
                     return Err(Error::TypeCheck("if without else cannot have type signature"))
                 }
             }
-            self.pop_and_check_signature(&[label.signature])?;
-            self.check_type_stack_end()?;
-            self.reset_type_stack_to_label(label)?;
-            if label.signature != VOID {
-                self.push_type(label.signature)?;
-            }
-            self.pop_label()?;            
+            self.on_end_label(label)?;
         })
     }
 

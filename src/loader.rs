@@ -233,9 +233,9 @@ impl<'m> Loader<'m> {
     }
 
     fn pop_label(&mut self) -> Result<Label, Error> {
-        // let depth = self.label_stack.len();
+        let depth = self.label_stack.len();
         let label = self.label_stack.pop()?;
-        // info!("-- label: {} => {:?}", depth, label);
+        info!("-- label: {} => {:?}", depth, label);
         Ok(label)
     }
 
@@ -311,11 +311,13 @@ impl<'m> Loader<'m> {
     }
 
     fn get_return_drop_keep_count(&mut self) -> Result<(u32, u32), Error> {
+        info!("get_return_drop_keep_count()");
         Ok({
             let len = self.label_stack.len();
+            info!("  len: {}", len);
             let (drop, keep) = self.get_br_drop_keep_count(len - 1)?;
             let (drop, keep) = (drop + (self.context.locals_count as u32), keep);
-            info!("get_return_drop_keep_count() -> ({}, {})", drop, keep);
+            info!("  -> ({}, {})", drop, keep);
             (drop, keep)
         })
     }
@@ -492,7 +494,21 @@ impl<'m> Delegate for Loader<'m> {
             },
             InstructionsEnd => {
                 if !self.cfg.compile { return Ok(()) }
-                info!("{:08x}: V:{} | {} ", self.w.pos(), self.type_checker.type_stack_size(), "EXIT");
+                info!("{:08x}: L: {} V:{} | {} ", self.w.pos(), self.label_stack.len(), self.type_checker.type_stack_size(), "EXIT");
+
+                //   CHECK_RESULT(GetReturnDropKeepCount(&drop_count, &keep_count));
+                //   CHECK_RESULT(typechecker_.EndFunction());
+                //   CHECK_RESULT(EmitDropKeep(drop_count, keep_count));
+                //   CHECK_RESULT(EmitOpcode(Opcode::Return));
+                //   PopLabel();
+
+                self.fixup()?;
+                let (drop, keep) = self.get_return_drop_keep_count()?;
+                self.type_checker.end_function()?;
+                self.w.write_drop_keep(drop, keep)?;                                    
+                self.w.write_opcode(RETURN)?;
+                self.pop_label()?;
+
 
                 // let return_type = self.context.return_type;
 
@@ -505,7 +521,7 @@ impl<'m> Delegate for Loader<'m> {
                 // }
 
                 // self.type_stack.expect_type(return_type)?;
-                self.w.write_opcode(RETURN)?;
+                // self.w.write_opcode(RETURN)?;
         
                 for entry in self.fixups.iter() {
                     if let &Some(entry) = entry {   
@@ -547,7 +563,7 @@ impl<'m> Loader<'m> {
             if i.op.code == END || i.op.code == ELSE {
                 indent -= 1;
             }
-            info!("{:08x}: V:{} | {:0width$}{}{:?}" , self.w.pos(), self.type_checker.type_stack_size(),  "", i.op.text, i.imm, width=indent);
+            info!("{:08x}: L: {} V:{} | {:0width$}{}{:?}" , self.w.pos(), self.label_stack.len(), self.type_checker.type_stack_size(),  "", i.op.text, i.imm, width=indent);
         }
 
         let op = i.op.code;
@@ -565,6 +581,7 @@ impl<'m> Loader<'m> {
                     }
                     self.fixup()?;
                     self.pop_label()?;
+                    info!("end done");
 
                     //   TypeChecker::Label* label;
                     //   CHECK_RESULT(typechecker_.GetLabel(0, &label));
@@ -643,7 +660,7 @@ impl<'m> Loader<'m> {
                     self.label_stack.push(label)?;
 
                 },
-                RETURN => {
+                RETURN => {                    
                     // Index drop_count, keep_count;
                     // CHECK_RESULT(GetReturnDropKeepCount(&drop_count, &keep_count));
                     // CHECK_RESULT(typechecker_.OnReturn());
