@@ -15,6 +15,7 @@ pub mod writer;
 pub mod stack;
 pub mod small_vec;
 pub mod loader;
+pub mod type_checker;
 pub mod interp;
 pub mod memory_inst;
 pub mod module;

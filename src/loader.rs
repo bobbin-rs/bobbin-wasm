@@ -1,15 +1,15 @@
 use {Error, Event, TypeValue, Delegate, DelegateResult};
 
+use opcode::*;
 use module;
 use module::*;
 use module::ModuleWrite;
-use opcode::*;
+use type_checker::TypeChecker;
 use writer::Writer;
 use stack::Stack;
 
 use core::fmt;
 use core::ops::Index;
-use core::convert::TryFrom;
 
 pub const FIXUP_OFFSET: u32 = 0xffff_ffff;
 
@@ -27,18 +27,13 @@ impl fmt::Debug for Fixup {
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
 pub struct Label {
-    opcode: u8,
-    signature: TypeValue,
     offset: u32,
     fixup_offset: u32,
-    stack_limit: u32,
-    unreachable: bool,
 }
 
 impl fmt::Debug for Label {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let opc = Opcode::try_from(self.opcode).unwrap();
-        write!(f, "Label {{ opcode: {} signature: {:?}, offset: 0x{:08x}, fixup_offset: 0x{:08x}, stack_limit: {} }}", opc.text, self.signature, self.offset, self.fixup_offset, self.stack_limit)
+        write!(f, "Label {{ offset: 0x{:08x}, fixup_offset: 0x{:08x} }}", self.offset, self.fixup_offset)
     }
 }
 
@@ -151,7 +146,7 @@ pub struct Loader<'m> {
     w: Writer<'m>,
     module: Module<'m>,
     label_stack: Stack<'m, Label>,
-    type_stack: Stack<'m, TypeValue>,
+    type_checker: TypeChecker<'m>,
     depth: usize,
     fixups: [Option<Fixup>; 256],
     fixups_pos: usize,
@@ -170,7 +165,8 @@ impl<'m> Loader<'m> {
 
         // These should be not be allocated from module storage
         let label_stack = w.alloc_stack(16);        
-        let type_stack = w.alloc_stack(16);
+        let type_checker = TypeChecker::new(w.alloc_stack(16), w.alloc_stack(16));
+
         let depth = 0;
 
         // TODO: Break out into separate struct
@@ -184,8 +180,8 @@ impl<'m> Loader<'m> {
             cfg,
             w, 
             module, 
-            label_stack, 
-            type_stack, 
+            label_stack,
+            type_checker,
             depth,
             fixups, 
             fixups_pos, 
@@ -199,19 +195,14 @@ impl<'m> Loader<'m> {
         (self.module, self.w.into_slice())
     }
 
-    fn push_label<T: Into<TypeValue>>(&mut self, opcode: u8, signature: T, offset: u32) -> Result<(), Error> {
-        self.push_label_fixup(opcode, signature, offset, 0x0000_0000)
+    fn push_label(&mut self, offset: u32) -> Result<(), Error> {
+        self.push_label_fixup(offset, 0x0000_0000)
     }
 
-    fn push_label_fixup<T: Into<TypeValue>>(&mut self, opcode: u8, signature: T, offset: u32, fixup_offset: u32) -> Result<(), Error> {
-        let stack_limit = self.type_stack.len() as u32;
+    fn push_label_fixup(&mut self, offset: u32, fixup_offset: u32) -> Result<(), Error> {
         let label = Label {
-            opcode,
-            signature: signature.into(),
             offset,
             fixup_offset,
-            stack_limit,
-            unreachable: false,
         };
         // info!("-- label: {} <= {:?}", self.label_stack.len(), label);
         Ok(self.label_stack.push(label)?)
@@ -231,16 +222,6 @@ impl<'m> Loader<'m> {
     fn peek_label(&self, offset: usize) -> Result<Label, Error> {
         Ok(self.label_stack.peek(offset)?)
     }
-
-    fn set_unreachable(&mut self, value: bool) -> Result<(), Error> {        
-        // info!("UNREACHABLE: {}", value);
-        Ok(self.label_stack.pick(0)?.unreachable = value)
-    }
-
-    fn is_unreachable(&self) -> Result<bool, Error> {
-        Ok(self.label_stack.peek(0)?.unreachable)
-    }
-
 
     fn add_fixup(&mut self, rel_depth: u32, offset: u32) -> Result<(), Error> {
         let depth = self.label_depth() - rel_depth;
@@ -281,20 +262,23 @@ impl<'m> Loader<'m> {
         Ok(())
     }
 
-    fn get_drop_keep(&mut self, label: &Label) -> Result<(u32, u32), Error> {
-        // info!("get_drop_keep: type_stack: {} stack_limit: {}", self.type_stack.len(), label.stack_limit);
-        let drop = self.type_stack.len() as u32 - label.stack_limit;
-        let drop = if self.is_unreachable()? { 0 } else { drop };
-        Ok(
-            if label.opcode == LOOP {
-                (drop, 0)
-            } else if label.signature == VOID {
-                (drop, 0)
-            } else {
-                (drop - 1, 1)
-            }
-        )
-    }
+
+
+    // fn get_drop_keep(&mut self, label: &Label) -> Result<(u32, u32), Error> {
+    //     // info!("get_drop_keep: type_stack: {} stack_limit: {}", self.type_stack.len(), label.stack_limit);
+        
+    //     let drop = self.type_checker.type_stack_size() as u32 - label.stack_limit;
+    //     let drop = if self.is_unreachable()? { 0 } else { drop };
+    //     Ok(
+    //         if label.opcode == LOOP {
+    //             (drop, 0)
+    //         } else if label.signature == VOID {
+    //             (drop, 0)
+    //         } else {
+    //             (drop - 1, 1)
+    //         }
+    //     )
+    // }
 
 
     fn write_fixup_u32(&mut self) -> Result<usize, Error> {
@@ -403,7 +387,7 @@ impl<'m> Delegate for Loader<'m> {
                 self.body_fixup = self.w.write_code_start()?;
                 // self.w.write_u8(locals as u8)?;
                 assert!(self.depth == 0);
-                info!("{:08x}: V:{} | func[{}]", self.w.pos(), self.type_stack.len(), n);                
+                info!("{:08x}: V:{} | func[{}]", self.w.pos(), self.type_checker.type_stack_size(), n);
             },
             Local { i: _, n, t } => {
                 if !self.cfg.compile { return Ok(()) }
@@ -420,54 +404,54 @@ impl<'m> Delegate for Loader<'m> {
                 let mut locals_count = 0;
                 info!("{:?}", self.context);
 
-                let return_type = self.context.return_type;
+                // let return_type = self.context.return_type;
 
-                self.push_label(0, return_type, FIXUP_OFFSET)?;               
+                self.push_label(FIXUP_OFFSET)?;               
 
                 // Push Parameters
 
-                for p in self.context.parameters() {
-                    self.type_stack.push_type(TypeValue::from(*p as i8))?;
-                    self.depth += 1;
-                }
+                // for p in self.context.parameters() {
+                //     // self.type_checker.push_type(TypeValue::from(*p as i8))?;
+                //     self.depth += 1;
+                // }
 
-                // Push Locals
+                // // Push Locals
 
-                for local in self.context.locals() {
-                    self.type_stack.push_type(*local)?;
-                    self.depth += 1;
-                    locals_count += 1;
-                }                        
+                // for local in self.context.locals() {
+                //     // self.type_stack.push_type(*local)?;
+                //     self.depth += 1;
+                //     locals_count += 1;
+                // }                        
                 info!("ALLOCA {} @ {:08x}", locals_count, self.w.pos());
                 self.w.write_alloca(locals_count as u32)?;                
 
                 // Push Stack Entry Label
-                assert_eq!(self.depth, self.type_stack.len());
+                // assert_eq!(self.depth, self.type_stack.len());
             },
             Instruction(i) => {
                 if !self.cfg.compile { return Ok(()) }
-                assert_eq!(self.depth, self.type_stack.len());
+                // assert_eq!(self.depth, self.type_stack.len());
                 self.dispatch_instruction(i)?;
-                assert_eq!(self.depth, self.type_stack.len());
+                // assert_eq!(self.depth, self.type_stack.len());
             },
             InstructionsEnd => {
                 if !self.cfg.compile { return Ok(()) }
-                info!("{:08x}: V:{} | {} ", self.w.pos(), self.type_stack.len(), "EXIT");
+                info!("{:08x}: V:{} | {} ", self.w.pos(), self.type_checker.type_stack_size(), "EXIT");
 
                 let depth = self.depth;
                 let return_type = self.context.return_type;
                 info!("RETURN {:?} - depth {}", return_type, depth);
                 if return_type == VOID {
-                    self.type_stack.drop_keep(depth, 0)?;
+                    // self.type_stack.drop_keep(depth, 0)?;
                     self.w.write_drop_keep(depth as u32, 0)?;
                     self.depth -= depth;
                 } else {
-                    self.type_stack.drop_keep(depth - 1, 1)?;
+                    // self.type_stack.drop_keep(depth - 1, 1)?;
                     self.w.write_drop_keep((depth - 1) as u32, 1)?;
                     self.depth -= depth - 1;
                 }
 
-                self.type_stack.expect_type(return_type)?;
+                // self.type_stack.expect_type(return_type)?;
                 self.w.write_opcode(RETURN)?;
         
                 for entry in self.fixups.iter() {
@@ -477,13 +461,14 @@ impl<'m> Delegate for Loader<'m> {
                     }
                 }
 
-                self.type_stack.pop_type_expecting(return_type)?;
+                // self.type_stack.pop_type_expecting(return_type)?;
                 self.depth -= 1;
             },
             BodyEnd => {
                 assert!(self.depth == 0);
-                assert!(self.type_stack.len() == 0);
-                assert!(self.label_stack.len() == 0);
+                assert!(self.type_checker.type_stack_size() == 0);
+                assert!(self.type_checker.label_stack_size() == 0);
+                
                 // let fixup = self.body_fixup;
                 // self.apply_fixup_u32(fixup)?;                                
                 self.w.write_code_end(self.body_fixup)?;
@@ -512,9 +497,9 @@ impl<'m> Loader<'m> {
             if i.op.code == END || i.op.code == ELSE {
                 indent -= 1;
             }
-            info!("{:08x}: V:{} | {:0width$}{}{:?}" , self.w.pos(), self.type_stack.len(),  "", i.op.text, i.imm, width=indent);
+            info!("{:08x}: V:{} | {:0width$}{}{:?}" , self.w.pos(), self.type_checker.type_stack_size(),  "", i.op.text, i.imm, width=indent);
         }
-        self.type_check(&i)?;   
+        // self.type_check(&i)?;   
 
         let op = i.op.code;
         match i.imm {
@@ -522,7 +507,7 @@ impl<'m> Loader<'m> {
                 END => {
                     let mut label = self.pop_label()?;
 
-                    self.type_stack.expect_type(label.signature)?;
+                    // self.type_stack.expect_type(label.signature)?;
 
                     // self.type_stack.pop_type_expecting(label.signature)?;
 
@@ -540,32 +525,32 @@ impl<'m> Loader<'m> {
 
                     info!("{:?}", label);
 
-                    // IF without ELSE can only have type signature VOID
-                    if label.opcode == IF && label.signature != VOID {
-                        return Err(Error::InvalidIfSignature)
-                    }
+                    // // IF without ELSE can only have type signature VOID
+                    // if label.opcode == IF && label.signature != VOID {
+                    //     return Err(Error::InvalidIfSignature)
+                    // }
 
                     // Update BR_UNLESS / BR OFFSET for IF/ELSE
-                    if label.opcode == IF || label.opcode == ELSE {
-                        let pos = self.w.pos();
-                        info!("fixup_offset: {:08x} at {:08x}", pos, label.fixup_offset);
-                        self.w.write_u32_at(pos as u32, label.fixup_offset as usize)?;
-                    }
+                    // if label.opcode == IF || label.opcode == ELSE {
+                    //     let pos = self.w.pos();
+                    //     info!("fixup_offset: {:08x} at {:08x}", pos, label.fixup_offset);
+                    //     self.w.write_u32_at(pos as u32, label.fixup_offset as usize)?;
+                    // }
 
                 },                
                 ELSE => {
                     let mut label = self.pop_label()?;                    
-                    self.type_stack.expect_type(label.signature)?;
-                    if label.signature == VOID {
-                        self.type_stack.expect_type_stack_depth(label.stack_limit)?;
-                    } else {
-                        self.type_stack.expect_type_stack_depth(label.stack_limit + 1)?;                    
-                    }
+                    // self.type_stack.expect_type(label.signature)?;
+                    // if label.signature == VOID {
+                    //     self.type_stack.expect_type_stack_depth(label.stack_limit)?;
+                    // } else {
+                    //     self.type_stack.expect_type_stack_depth(label.stack_limit + 1)?;                    
+                    // }
 
                     // Reset Stack to Label
-                    while self.type_stack.len() > label.stack_limit as usize {
-                        self.type_stack.pop()?;
-                    }
+                    // while self.type_stack.len() > label.stack_limit as usize {
+                    //     self.type_stack.pop()?;
+                    // }
                     // if label.signature != VOID {
                     //     self.type_stack.push(label.signature)?;
                     // }
@@ -584,7 +569,7 @@ impl<'m> Loader<'m> {
                     // Set label fixup_offset to BR OFFSET
                     label.fixup_offset = fixup_pos as u32;
                     // Set label opcode to ELSE
-                    label.opcode = ELSE;
+                    // label.opcode = ELSE;
 
                     self.label_stack.push(label)?;
 
@@ -594,13 +579,13 @@ impl<'m> Loader<'m> {
                     let return_type = self.context.return_type;
                     info!("RETURN {:?} - depth {}", return_type, depth);
 
-                    self.type_stack.pop_type_expecting(return_type)?;
+                    // self.type_stack.pop_type_expecting(return_type)?;
 
                     if return_type != VOID {
                         self.depth -= 1;
                     }
 
-                    self.set_unreachable(true)?;     
+                    // self.set_unreachable(true)?;     
 
                     if return_type == VOID {
                         self.w.write_drop_keep(depth as u32, 0)?;
@@ -635,14 +620,14 @@ impl<'m> Loader<'m> {
                     // self.push_label(op, signature, pos as u32)?;                    
                 },
                 IF => {
-                    self.type_stack.pop_type_expecting(I32)?;
+                    // self.type_stack.pop_type_expecting(I32)?;
                     self.depth -= 1;
                     self.w.write_opcode(INTERP_BR_UNLESS)?;                    
                     let pos = self.w.pos();
 
-                    if let Immediate::Block { signature } = i.imm {
+                    if let Immediate::Block { signature: _ } = i.imm {
                         // push label with fixup pointer to BR_UNLESS offset
-                        self.push_label_fixup(op, signature, FIXUP_OFFSET, pos as u32)?; 
+                        self.push_label_fixup(FIXUP_OFFSET, pos as u32)?; 
                     } else {
                         panic!("Wrong immediate type for IF: {:?}", i.imm);                    
                     }
@@ -665,136 +650,136 @@ impl<'m> Loader<'m> {
                 // Emits BR_TABLE LEN [DROP OFFSET; LEN] [DROP OFFSET] KEEP
 
                 // Verify top of stack contains the index
-                self.type_stack.pop_type_expecting(I32)?;
+                // self.type_stack.pop_type_expecting(I32)?;
                 
                 self.w.write_opcode(op)?;
                 self.w.write_u32(count as u32)?;
             },
-            BranchTableDepth { n: _, depth } => {
-                let label = self.label_stack.peek(depth as usize)?;
-                self.type_stack.expect_type(label.signature)?;
-                let (drop, keep) = self.get_drop_keep(&label)?;
+            // BranchTableDepth { n: _, depth } => {
+            //     // let label = self.label_stack.peek(depth as usize)?;
+            //     // self.type_stack.expect_type(label.signature)?;
+            //     let (drop, keep) = self.get_drop_keep(&label)?;
 
-                self.w.write_u32(drop as u32)?;
-                self.w.write_u32(keep as u32)?;
-                let pos = self.w.pos();
-                self.add_fixup(depth, pos as u32)?;
-                self.w.write_u32(FIXUP_OFFSET)?;                
-            },
-            BranchTableDefault { depth } => {
-                let label = self.label_stack.peek(depth as usize)?;
-                self.type_stack.expect_type(label.signature)?;
+            //     self.w.write_u32(drop as u32)?;
+            //     self.w.write_u32(keep as u32)?;
+            //     let pos = self.w.pos();
+            //     self.add_fixup(depth, pos as u32)?;
+            //     self.w.write_u32(FIXUP_OFFSET)?;                
+            // },
+            // BranchTableDefault { depth } => {
+            //     let label = self.label_stack.peek(depth as usize)?;
+            //     // self.type_stack.expect_type(label.signature)?;
 
-                let (drop, keep) = self.get_drop_keep(&label)?;
-                self.w.write_u32(drop as u32)?;
-                self.w.write_u32(keep as u32)?;
-                let pos = self.w.pos();
-                self.add_fixup(depth, pos as u32)?;
-                self.w.write_u32(FIXUP_OFFSET)?;                
-            },
-            Local { index } => {
-                // Emits OP DEPTH_TO_LOCAL
-                let id = index.0;
-                let rel = (self.depth as u32) - id - 1;
-                let abs = self.depth as u32 - rel;
-                info!("id: {} rel: {} depth: {} abs: {}", id, rel, self.depth, abs);
+            //     let (drop, keep) = self.get_drop_keep(&label)?;
+            //     self.w.write_u32(drop as u32)?;
+            //     self.w.write_u32(keep as u32)?;
+            //     let pos = self.w.pos();
+            //     self.add_fixup(depth, pos as u32)?;
+            //     self.w.write_u32(FIXUP_OFFSET)?;                
+            // },
+            // Local { index } => {
+            //     // Emits OP DEPTH_TO_LOCAL
+            //     let id = index.0;
+            //     let rel = (self.depth as u32) - id - 1;
+            //     let abs = self.depth as u32 - rel;
+            //     info!("id: {} rel: {} depth: {} abs: {}", id, rel, self.depth, abs);
 
-                // TODO: Move to Type Check
-                if id >= self.context.len() as u32 {
-                    return Err(Error::InvalidLocal { id: id })
-                }
+            //     // TODO: Move to Type Check
+            //     if id >= self.context.len() as u32 {
+            //         return Err(Error::InvalidLocal { id: id })
+            //     }
 
-                let ty = self.context[id as usize];
-                match op {
-                    GET_LOCAL => {
-                        self.type_stack.push_type(ty)?;
-                        self.depth += 1;
-                    },
-                    SET_LOCAL => {
-                        self.type_stack.pop_type_expecting(ty)?;
-                        self.depth -= 1;
-                    },
-                    TEE_LOCAL => {
-                        self.type_stack.pop_type_expecting(ty)?;
-                        self.type_stack.push_type(ty)?;
-                    }
-                    _ => unreachable!()
-                }
+            //     let ty = self.context[id as usize];
+            //     match op {
+            //         GET_LOCAL => {
+            //             // self.type_stack.push_type(ty)?;
+            //             self.depth += 1;
+            //         },
+            //         SET_LOCAL => {
+            //             // self.type_stack.pop_type_expecting(ty)?;
+            //             self.depth -= 1;
+            //         },
+            //         TEE_LOCAL => {
+            //             // self.type_stack.pop_type_expecting(ty)?;
+            //             // self.type_stack.push_type(ty)?;
+            //         }
+            //         _ => unreachable!()
+            //     }
 
-                self.w.write_opcode(op)?;
-                self.w.write_u32(rel)?;                
-            }
-            Global { index } => {
-                let id = index.0 as u32;
+            //     self.w.write_opcode(op)?;
+            //     self.w.write_u32(rel)?;                
+            // }
+            // Global { index } => {
+            //     let id = index.0 as u32;
 
-                // TODO: Move to type_check
-                let ty = {
-                    let global = if let Some(global) = self.module.global(id) {
-                        global
-                    } else {
-                        return Err(Error::InvalidGlobal { id: id })
-                    };
-                    global.global_type.type_value
-                };
-                match op {
-                    GET_GLOBAL => self.type_stack.push_type(ty)?,
-                    SET_GLOBAL => self.type_stack.pop_type_expecting(ty)?,
-                    _ => unreachable!()
-                }
+            //     // TODO: Move to type_check
+            //     let ty = {
+            //         let global = if let Some(global) = self.module.global(id) {
+            //             global
+            //         } else {
+            //             return Err(Error::InvalidGlobal { id: id })
+            //         };
+            //         global.global_type.type_value
+            //     };
+            //     match op {
+            //         // GET_GLOBAL => self.type_stack.push_type(ty)?,
+            //         // SET_GLOBAL => self.type_stack.pop_type_expecting(ty)?,
+            //         _ => unreachable!()
+            //     }
 
-                self.w.write_opcode(op)?;
-                self.w.write_u32(id as u32)?;                
-            },
-            Call { index } => {
-                let id = index.0 as u32;
-                info!("CALL {}", id);
-                let signature = if let Some(signature) = self.module.function_signature_type(id) {
-                    signature
-                } else {
-                    return Err(Error::InvalidFunction { id: id })
-                };
-                let (parameters, returns) = (signature.parameters, signature.returns);
-                if returns.len() > 1 {
-                    return Err(Error::UnexpectedReturnLength { got: returns.len() as u32})
-                }
-                for p in parameters.iter() {
-                    info!("pop {:?}", TypeValue::from(*p as i8));
-                    self.type_stack.pop_type_expecting(TypeValue::from(*p as i8))?;
-                }
-                for r in returns.iter() {
-                    info!("push {:?}", TypeValue::from(*r as i8));
-                    self.type_stack.push_type(TypeValue::from(*r as i8))?;
-                }
+            //     self.w.write_opcode(op)?;
+            //     self.w.write_u32(id as u32)?;                
+            // },
+            // Call { index } => {
+            //     let id = index.0 as u32;
+            //     info!("CALL {}", id);
+            //     let signature = if let Some(signature) = self.module.function_signature_type(id) {
+            //         signature
+            //     } else {
+            //         return Err(Error::InvalidFunction { id: id })
+            //     };
+            //     let (parameters, returns) = (signature.parameters, signature.returns);
+            //     if returns.len() > 1 {
+            //         return Err(Error::UnexpectedReturnLength { got: returns.len() as u32})
+            //     }
+            //     for p in parameters.iter() {
+            //         info!("pop {:?}", TypeValue::from(*p as i8));
+            //         // self.type_stack.pop_type_expecting(TypeValue::from(*p as i8))?;
+            //     }
+            //     for r in returns.iter() {
+            //         info!("push {:?}", TypeValue::from(*r as i8));
+            //         // self.type_stack.push_type(TypeValue::from(*r as i8))?;
+            //     }
 
-                self.w.write_opcode(op)?;
-                self.w.write_u32(id as u32)?;
-            },
-            CallIndirect { index } => {
-                // Emits OP SIG
+            //     self.w.write_opcode(op)?;
+            //     self.w.write_u32(id as u32)?;
+            // },
+            // CallIndirect { index } => {
+            //     // Emits OP SIG
 
-                let id = index.0 as u32;                
-                let signature = if let Some(signature) = self.module.function_signature_type(id) {
-                    signature
-                } else {
-                    return Err(Error::InvalidFunction { id: id })
-                };
+            //     let id = index.0 as u32;                
+            //     let signature = if let Some(signature) = self.module.function_signature_type(id) {
+            //         signature
+            //     } else {
+            //         return Err(Error::InvalidFunction { id: id })
+            //     };
 
-                let ret_count = signature.returns.len() as u32;
-                if ret_count > 1 {
-                    return Err(Error::UnexpectedReturnLength { got: ret_count })
-                }
-                // Load function index
-                self.type_stack.pop_type_expecting(I32)?;
-                for p in signature.parameters() {
-                    self.type_stack.pop_type_expecting(p)?;
-                }
-                for r in signature.returns() {
-                    self.type_stack.push_type(r)?;
-                }                         
+            //     let ret_count = signature.returns.len() as u32;
+            //     if ret_count > 1 {
+            //         return Err(Error::UnexpectedReturnLength { got: ret_count })
+            //     }
+            //     // // Load function index
+            //     // self.type_stack.pop_type_expecting(I32)?;
+            //     // for p in signature.parameters() {
+            //     //     self.type_stack.pop_type_expecting(p)?;
+            //     // }
+            //     // for r in signature.returns() {
+            //     //     self.type_stack.push_type(r)?;
+            //     // }                         
 
-                self.w.write_opcode(op)?;                    
-                self.w.write_u32(id as u32)?;                
-            },
+            //     self.w.write_opcode(op)?;                    
+            //     self.w.write_u32(id as u32)?;                
+            // },
             I32Const { value } => {
                 self.w.write_opcode(op)?;
                 self.w.write_i32(value)?;
@@ -811,111 +796,112 @@ impl<'m> Loader<'m> {
             Memory { reserved: _ } => {
                 self.w.write_opcode(op)?;
             },
+            _ => unimplemented!()
         } 
         Ok(())
     }
 
-    fn type_check(&mut self, i: &Instruction) -> Result<(), Error> {
-        let opc = i.op.code;
-        match opc {
-            BLOCK => {
-                if let Immediate::Block { signature } = i.imm {
-                    self.push_label(opc, signature, FIXUP_OFFSET)?;
-                } else {
-                    panic!("Wrong immediate for BLOCK: {:?}", i.imm);
-                }
-            },
-            LOOP => {
-                if let Immediate::Block { signature } = i.imm {
-                    let pos = self.w.pos();
-                    self.push_label(opc, signature, pos as u32)?;
-                } else {
-                    panic!("Wrong immediate type for LOOP: {:?}", i.imm);
-                }
-            }
-            IF => {
-                // if let Immediate::Block { signature } = i.imm {
-                //     self.type_stack.pop_type_expecting(I32)?;
-                //     self.push_label(opc, signature, FIXUP_OFFSET)?;
-                // } else {
-                //     panic!("Wrong immediate type for IF: {:?}", i.imm);                    
-                // }
-            },
-            ELSE => {
-                // All fixups go to the BR that will be the next opcode to be emitted
-                // self.fixup()?;
-                // let label = self.pop_label()?;
+    // fn type_check(&mut self, i: &Instruction) -> Result<(), Error> {
+    //     let opc = i.op.code;
+    //     match opc {
+    //         BLOCK => {
+    //             if let Immediate::Block { signature } = i.imm {
+    //                 self.push_label(opc, signature, FIXUP_OFFSET)?;
+    //             } else {
+    //                 panic!("Wrong immediate for BLOCK: {:?}", i.imm);
+    //             }
+    //         },
+    //         LOOP => {
+    //             if let Immediate::Block { signature } = i.imm {
+    //                 let pos = self.w.pos();
+    //                 self.push_label(opc, signature, pos as u32)?;
+    //             } else {
+    //                 panic!("Wrong immediate type for LOOP: {:?}", i.imm);
+    //             }
+    //         }
+    //         IF => {
+    //             // if let Immediate::Block { signature } = i.imm {
+    //             //     self.type_stack.pop_type_expecting(I32)?;
+    //             //     self.push_label(opc, signature, FIXUP_OFFSET)?;
+    //             // } else {
+    //             //     panic!("Wrong immediate type for IF: {:?}", i.imm);                    
+    //             // }
+    //         },
+    //         ELSE => {
+    //             // All fixups go to the BR that will be the next opcode to be emitted
+    //             // self.fixup()?;
+    //             // let label = self.pop_label()?;
                 
-                // self.type_stack.expect_type(label.signature)?;
-                // if label.signature == VOID {
-                //     self.type_stack.expect_type_stack_depth(label.stack_limit)?;
-                // } else {
-                //     self.type_stack.expect_type_stack_depth(label.stack_limit + 1)?;                    
-                // }
+    //             // self.type_stack.expect_type(label.signature)?;
+    //             // if label.signature == VOID {
+    //             //     self.type_stack.expect_type_stack_depth(label.stack_limit)?;
+    //             // } else {
+    //             //     self.type_stack.expect_type_stack_depth(label.stack_limit + 1)?;                    
+    //             // }
 
-                // // Reset Stack to Label
-                // while self.type_stack.len() > label.stack_limit as usize {
-                //     self.type_stack.pop()?;
-                // }
-                // if label.signature != VOID {
-                //     self.type_stack.push(label.signature)?;
-                // }
+    //             // // Reset Stack to Label
+    //             // while self.type_stack.len() > label.stack_limit as usize {
+    //             //     self.type_stack.pop()?;
+    //             // }
+    //             // if label.signature != VOID {
+    //             //     self.type_stack.push(label.signature)?;
+    //             // }
 
-                // self.push_label(opc, label.signature, FIXUP_OFFSET)?;
-            },
-            END => {
-                // // All fixups go to the next instruction
-                // self.fixup()?;
-                // let label = self.pop_label()?;
+    //             // self.push_label(opc, label.signature, FIXUP_OFFSET)?;
+    //         },
+    //         END => {
+    //             // // All fixups go to the next instruction
+    //             // self.fixup()?;
+    //             // let label = self.pop_label()?;
 
-                // // IF without ELSE can only have type signature VOID
-                // if label.opcode == IF && label.signature != VOID {
-                //     return Err(Error::InvalidIfSignature)
-                // }
+    //             // // IF without ELSE can only have type signature VOID
+    //             // if label.opcode == IF && label.signature != VOID {
+    //             //     return Err(Error::InvalidIfSignature)
+    //             // }
 
-                // self.type_stack.expect_type(label.signature)?;
-                // // Reset Stack to Label
-                // while self.type_stack.len() > label.stack_limit as usize {
-                //     self.type_stack.pop()?;
-                // }
-                // if label.signature != VOID {
-                //     self.type_stack.push(label.signature)?;
-                // }
-            },
-            BR => {
-                let label = self.label_stack.top()?;
-                let (drop, keep) = self.get_drop_keep(&label)?;
-                self.type_stack.drop_keep(drop as usize, keep as usize)?;
-                self.set_unreachable(true)?;
-            },
-            BR_IF => {
-                self.type_stack.pop_type_expecting(I32)?;
-                let label = self.label_stack.top()?;
-                let (drop, keep) = self.get_drop_keep(&label)?;
-                self.type_stack.drop_keep(drop as usize, keep as usize)?;
-                self.set_unreachable(true)?;
-            },            
-            RETURN => {
-                // let return_type = self.context.return_type();
-                // self.type_stack.expect_type(return_type)?;
-                // // if return_type != VOID {
-                // //     self.type_stack.pop_type_expecting(return_type)?;
-                // // }
-                // self.set_unreachable(true)?;                
-            },
-            DROP => {
-                self.type_stack.pop_type()?;   
-            }
-            _ => {
-                self.type_stack.pop_type_expecting(i.op.t1)?;
-                self.type_stack.pop_type_expecting(i.op.t2)?;
-                if i.op.tr != TypeValue::None {
-                    self.type_stack.push_type(i.op.tr)?;
-                }
-            }
-        }
-        Ok(())
-    }    
+    //             // self.type_stack.expect_type(label.signature)?;
+    //             // // Reset Stack to Label
+    //             // while self.type_stack.len() > label.stack_limit as usize {
+    //             //     self.type_stack.pop()?;
+    //             // }
+    //             // if label.signature != VOID {
+    //             //     self.type_stack.push(label.signature)?;
+    //             // }
+    //         },
+    //         BR => {
+    //             let label = self.label_stack.top()?;
+    //             let (drop, keep) = self.get_drop_keep(&label)?;
+    //             self.type_stack.drop_keep(drop as usize, keep as usize)?;
+    //             self.set_unreachable(true)?;
+    //         },
+    //         BR_IF => {
+    //             self.type_stack.pop_type_expecting(I32)?;
+    //             let label = self.label_stack.top()?;
+    //             let (drop, keep) = self.get_drop_keep(&label)?;
+    //             self.type_stack.drop_keep(drop as usize, keep as usize)?;
+    //             self.set_unreachable(true)?;
+    //         },            
+    //         RETURN => {
+    //             // let return_type = self.context.return_type();
+    //             // self.type_stack.expect_type(return_type)?;
+    //             // // if return_type != VOID {
+    //             // //     self.type_stack.pop_type_expecting(return_type)?;
+    //             // // }
+    //             // self.set_unreachable(true)?;                
+    //         },
+    //         DROP => {
+    //             self.type_stack.pop_type()?;   
+    //         }
+    //         _ => {
+    //             self.type_stack.pop_type_expecting(i.op.t1)?;
+    //             self.type_stack.pop_type_expecting(i.op.t2)?;
+    //             if i.op.tr != TypeValue::None {
+    //                 self.type_stack.push_type(i.op.tr)?;
+    //             }
+    //         }
+    //     }
+    //     Ok(())
+    // }    
 }
 
 
