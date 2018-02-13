@@ -1,6 +1,6 @@
 use {Error, Value, SectionType};
 
-use module_inst::ModuleInst;
+use module_inst::{ModuleInst, FuncInst};
 use reader::Reader;
 use writer::Writer;
 use stack::Stack;
@@ -89,7 +89,7 @@ impl<'a> Interp<'a> {
         while code.pos() < code.len() {
             let opc = code.read_u8()?;
             let op = Opcode::try_from(opc).unwrap();
-            info!("0x{:08x}: {:02x} {}", code.pos(), opc, op.text);
+            info!("V: {:02} 0x{:08x}: {:02x} {}", self.value_stack.len(), code.pos(), opc, op.text);
             match opc {
                 NOP => {},
                 UNREACHABLE => return Err(Error::Unreachable),
@@ -107,9 +107,45 @@ impl<'a> Interp<'a> {
                 DROP => {
                     self.value_stack.pop()?;
                 },
+                CALL => {
+                    let id = code.read_u32()?;
+
+                    // Lookup Function
+                    info!("Function index: {}", id);
+                    let f = &mi.functions()[id as usize];
+                    info!("FuncInst: {:?}", f);
+                    let offset = match f {
+                        &FuncInst::Local { type_index: _, function_index } => {
+                            info!("Function Index {}", function_index);
+                            // lookup body offset
+                            let body = m.body(function_index as u32).unwrap();
+
+                            // info!("body: size={}", body.buf.len());
+
+                            let body_pos = code_buf.as_ptr().offset_to(body.buf.as_ptr()).unwrap() as usize;
+                            info!("body_pos: {:08x}", body_pos);
+                            body_pos
+                        },
+                        _ => {
+                            return Err(Error::Unimplemented)
+                        }
+                    };
+
+                    let pos = code.pos();
+                    info!("CALL: {:08x} to {:08x}", pos, offset);
+
+                    self.call_stack.push(pos as u32)?;
+                    code.set_pos(offset as usize);
+                }
                 RETURN => {
-                    info!("RETURN");
-                    break;
+                    if self.call_stack.len() > 0 {
+                        let offset = self.call_stack.pop()?;
+                        info!("RETURN: to {:08x}", offset);
+                        code.set_pos(offset as usize);
+                    } else {
+                        info!("RETURN");
+                        break;
+                    }
                 }
                 SELECT => {
                     let cond: i32 = self.pop()?;
@@ -123,6 +159,7 @@ impl<'a> Interp<'a> {
                 },
                 GET_LOCAL => {
                     let depth: u32 = code.read_u32()?;
+                    info!("GET_LOCAL: {}", depth);
                     let value: i32 = self.value_stack.peek(depth as usize)?.0;
                     self.push(value)?;
                 },
@@ -253,6 +290,7 @@ impl<'a> Interp<'a> {
                 },
                 INTERP_ALLOCA => {
                     let count = code.read_u32()?;
+                    info!("INTERP_ALLOCA: {}", count);
                     for _ in 0..count {
                         self.push(0)?;
                     }
@@ -281,7 +319,7 @@ impl<'a> Interp<'a> {
                 },
                 _ => return Err(Error::Unimplemented),
             }
-            info!("{:08x}: END INST {:08x}", code.pos(), code.len());
+            // info!("{:08x}: END INST {:08x}", code.pos(), code.len());
             _count += 1;
         }
         Ok(())

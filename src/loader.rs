@@ -433,7 +433,7 @@ impl<'m> Delegate for Loader<'m> {
                 if !self.cfg.compile { return Ok(()) }
 
                 let mut locals_count = 0;
-                // info!("{:?}", self.context);
+                info!("{:?}", self.context);
 
                 let return_type = self.context.return_type;
 
@@ -441,6 +441,7 @@ impl<'m> Delegate for Loader<'m> {
 
                 for p in self.context.parameters() {
                     self.type_stack.push_type(TypeValue::from(*p as i8))?;
+                    locals_count += 1;
                 }
 
                 // Push Locals
@@ -449,6 +450,7 @@ impl<'m> Delegate for Loader<'m> {
                     self.type_stack.push_type(*local)?;
                     locals_count += 1;
                 }                        
+                info!("ALLOCA {} @ {:08x}", locals_count, self.w.pos());
                 self.w.write_alloca(locals_count as u32)?;
 
                 // Push Stack Entry Label
@@ -624,7 +626,7 @@ impl<'m> Loader<'m> {
                     _ => unreachable!()
                 }
                 // let depth = self.type_stack.len();
-                // info!("id: {} depth: {}", id, depth);
+                info!("id: {} depth: {}", id, depth);
                 let depth = (self.type_stack.len() as u32) - id;
                 self.w.write_opcode(op)?;
                 self.w.write_u32(depth)?;                
