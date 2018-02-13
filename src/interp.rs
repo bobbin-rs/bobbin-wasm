@@ -86,7 +86,12 @@ impl<'a> Interp<'a> {
 
         // Set up locals
 
-        while code.pos() < code.len() {
+        loop {
+            if code.pos() >= code.len() {
+                info!("C: {:02} V: {:02} 0x{:08x}: CODE END {:08x}", self.call_stack.len(), self.value_stack.len(), code.pos(), code.len());
+                break;
+            }
+
             let opc = code.read_u8()?;
             let op = Opcode::try_from(opc).unwrap();
             info!("C: {:02} V: {:02} 0x{:08x}: {:02x} {}", self.call_stack.len(), self.value_stack.len(), code.pos(), opc, op.text);
@@ -330,7 +335,7 @@ impl<'a> Interp<'a> {
                         info!("pushed {:?}", val);
                         self.push(val)?;
                     }
-                    info!("V: {}", self.value_stack.len());
+                    info!("C: {} V: {}", self.call_stack.len(), self.value_stack.len());
                 },
                 _ => return Err(Error::Unimplemented),
             }

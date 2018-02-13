@@ -516,9 +516,9 @@ impl<'m> Loader<'m> {
         match i.imm {
             None => match op {
                 END => {
-                //     // w.write_opcode(op)?;
-                //     // info!("FIXUP {} 0x{:04x}", self.label_depth(), w.pos());
                     info!("END");
+                    self.w.write_opcode(op)?;
+                //     // info!("FIXUP {} 0x{:04x}", self.label_depth(), w.pos());
                 //     // self.fixup()?;
                 //     // self.pop_label()?;
                 },
@@ -662,6 +662,7 @@ impl<'m> Loader<'m> {
             },
             Call { index } => {
                 let id = index.0 as u32;
+                info!("CALL {}", id);
                 let signature = if let Some(signature) = self.module.function_signature_type(id) {
                     signature
                 } else {
@@ -672,9 +673,11 @@ impl<'m> Loader<'m> {
                     return Err(Error::UnexpectedReturnLength { got: returns.len() as u32})
                 }
                 for p in parameters.iter() {
+                    info!("pop {:?}", TypeValue::from(*p as i8));
                     self.type_stack.pop_type_expecting(TypeValue::from(*p as i8))?;
                 }
                 for r in returns.iter() {
+                    info!("push {:?}", TypeValue::from(*r as i8));
                     self.type_stack.push_type(TypeValue::from(*r as i8))?;
                 }
 
