@@ -544,6 +544,27 @@ impl<'m> Loader<'m> {
                     self.w.write_opcode(END)?;
                 },
                 ELSE => {
+                    self.fixup()?;
+                    let label = self.pop_label()?;
+                    
+                    self.type_stack.expect_type(label.signature)?;
+                    if label.signature == VOID {
+                        self.type_stack.expect_type_stack_depth(label.stack_limit)?;
+                    } else {
+                        self.type_stack.expect_type_stack_depth(label.stack_limit + 1)?;                    
+                    }
+
+                    // Reset Stack to Label
+                    while self.type_stack.len() > label.stack_limit as usize {
+                        self.type_stack.pop()?;
+                    }
+                    if label.signature != VOID {
+                        self.type_stack.push(label.signature)?;
+                    }
+
+                    self.push_label(op, label.signature, FIXUP_OFFSET)?;
+
+
                     self.w.write_opcode(BR)?;
                     // self.fixup()?;
                     // let label = self.pop_label()?;
@@ -586,6 +607,12 @@ impl<'m> Loader<'m> {
                 },
                 IF => {
                     // self.push_label(op, signature, FIXUP_OFFSET)?;
+                    if let Immediate::Block { signature } = i.imm {
+                        // self.type_stack.pop_type_expecting(I32)?;
+                        self.push_label(op, signature, FIXUP_OFFSET)?;
+                    } else {
+                        panic!("Wrong immediate type for IF: {:?}", i.imm);                    
+                    }
 
                     self.w.write_opcode(INTERP_BR_UNLESS)?;
                     let pos = self.w.pos();
@@ -769,34 +796,34 @@ impl<'m> Loader<'m> {
                 }
             }
             IF => {
-                if let Immediate::Block { signature } = i.imm {
-                    self.type_stack.pop_type_expecting(I32)?;
-                    self.push_label(opc, signature, FIXUP_OFFSET)?;
-                } else {
-                    panic!("Wrong immediate type for IF: {:?}", i.imm);                    
-                }
+                // if let Immediate::Block { signature } = i.imm {
+                //     self.type_stack.pop_type_expecting(I32)?;
+                //     self.push_label(opc, signature, FIXUP_OFFSET)?;
+                // } else {
+                //     panic!("Wrong immediate type for IF: {:?}", i.imm);                    
+                // }
             },
             ELSE => {
                 // All fixups go to the BR that will be the next opcode to be emitted
-                self.fixup()?;
-                let label = self.pop_label()?;
+                // self.fixup()?;
+                // let label = self.pop_label()?;
                 
-                self.type_stack.expect_type(label.signature)?;
-                if label.signature == VOID {
-                    self.type_stack.expect_type_stack_depth(label.stack_limit)?;
-                } else {
-                    self.type_stack.expect_type_stack_depth(label.stack_limit + 1)?;                    
-                }
+                // self.type_stack.expect_type(label.signature)?;
+                // if label.signature == VOID {
+                //     self.type_stack.expect_type_stack_depth(label.stack_limit)?;
+                // } else {
+                //     self.type_stack.expect_type_stack_depth(label.stack_limit + 1)?;                    
+                // }
 
-                // Reset Stack to Label
-                while self.type_stack.len() > label.stack_limit as usize {
-                    self.type_stack.pop()?;
-                }
-                if label.signature != VOID {
-                    self.type_stack.push(label.signature)?;
-                }
+                // // Reset Stack to Label
+                // while self.type_stack.len() > label.stack_limit as usize {
+                //     self.type_stack.pop()?;
+                // }
+                // if label.signature != VOID {
+                //     self.type_stack.push(label.signature)?;
+                // }
 
-                self.push_label(opc, label.signature, FIXUP_OFFSET)?;
+                // self.push_label(opc, label.signature, FIXUP_OFFSET)?;
             },
             END => {
                 // // All fixups go to the next instruction
