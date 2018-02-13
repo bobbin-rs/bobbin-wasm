@@ -101,13 +101,15 @@ impl<'a> Interp<'a> {
                 NOP => {},
                 UNREACHABLE => return Err(Error::Unreachable),
                 BR => {
-                    let offset = code.read_u32()?;                    
+                    let offset = code.read_u32()?;
+                    info!("  => {:08x}", offset);
                     code.set_pos(offset as usize);
                 },
                 BR_IF => {
                     let offset = code.read_u32()?;
                     let val = self.pop()?;
                     if val != 0 {             
+                        info!("  => {:08x}", offset);
                         code.set_pos(offset as usize);
                     }
                 },                
@@ -176,8 +178,9 @@ impl<'a> Interp<'a> {
                 },
                 GET_LOCAL => {
                     let depth: u32 = code.read_u32()?;
+                    info!("GET_LOCAL: {} ", depth);
                     let value: i32 = self.value_stack.peek(depth as usize)?.0;
-                    info!("GET_LOCAL: {} => {}", depth, value);
+                    info!("   => {}", value);
                     self.push(value)?;
                 },
                 SET_LOCAL => {

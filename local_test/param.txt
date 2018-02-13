@@ -1,0 +1,13 @@
+;;; TOOL: run-interp
+(module
+  (func (export "main") (result i32)
+    i32.const 42
+    call $id
+    return)
+  (func $id (param i32) (result i32)
+    get_local 0
+    return)
+)
+(;; STDOUT ;;;
+main() => i32:42
+;;; STDOUT ;;)
