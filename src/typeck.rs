@@ -44,26 +44,37 @@ impl<'m> TypeChecker<'m> {
     pub fn type_stack_size(&self) -> usize { self.type_stack.len() }
     pub fn label_stack_size(&self) -> usize { self.label_stack.len() }
     
-    pub fn push_label(&mut self, label_type: LabelType, signature: TypeValue) -> Result<(), Error> {
+    pub fn push_label(&mut self, label_type: LabelType, signature: TypeValue) -> Result<(), Error> {        
         Ok({
             let stack_limit = self.type_stack.len();
             let unreachable = false;
-            self.label_stack.push(Label {
+            let label = Label {
                 label_type,
                 signature,
                 stack_limit,
                 unreachable,
-            })?;
+            };
+            let d = self.label_stack.len();
+            info!("PUSH_LABEL: {} {:?}", d, label);
+            self.label_stack.push(label)?;
         })
     }
 
     pub fn set_unreachable(&mut self, value: bool) -> Result<(), Error> {        
-        // info!("UNREACHABLE: {}", value);
-        Ok(self.label_stack.pick(0)?.unreachable = value)
+        info!("set_unreachable({})", value);
+        {
+            let label = self.label_stack.pick(0)?;
+            label.unreachable = value;
+        }
+        let label = self.top_label()?;
+        self.reset_type_stack_to_label(label)?;
+        Ok(())
     }
 
     pub fn is_unreachable(&self) -> Result<bool, Error> {
-        Ok(self.label_stack.peek(0)?.unreachable)
+        let value = self.label_stack.peek(0)?.unreachable;
+        info!("is_unreachable() -> {}", value);
+        Ok(value)
     }
 
     pub fn push_type(&mut self, t: TypeValue) -> Result<(), Error> {
@@ -79,7 +90,10 @@ impl<'m> TypeChecker<'m> {
     }
 
     pub fn pop_label(&mut self) -> Result<Label, Error> {
-        Ok(self.label_stack.pop()?)
+        let d = self.label_stack.len();
+        let label = self.label_stack.pop()?;
+        info!("POP_LABEL:  {} {:?}", d, label);
+        Ok(label)
     }    
 
     pub fn reset_type_stack_to_label(&mut self, label: Label) -> Result<(), Error> {    
@@ -90,6 +104,7 @@ impl<'m> TypeChecker<'m> {
     pub fn drop_types(&mut self, drop_count: usize) -> Result<(), Error> {
         info!("drop_types({})", drop_count);
         let label = self.top_label()?;
+        info!("stack_limit: {} drop_count: {} type_stack: {}", label.stack_limit, drop_count, self.type_stack.len());
         if label.stack_limit + drop_count > self.type_stack.len() {
             if label.unreachable {
                 self.reset_type_stack_to_label(label)?;
@@ -131,13 +146,19 @@ impl<'m> TypeChecker<'m> {
 
     pub fn check_signature(&mut self, sig: TypeValue) -> Result<(), Error> {
         info!("check_signature({:?})", sig);
-        self.peek_and_check_type(0, sig)
+        if sig != VOID {
+            self.peek_and_check_type(0, sig)?;
+        }
+        Ok(())
+
     }
 
     pub fn pop_and_check_signature(&mut self, sig: TypeValue) -> Result<(), Error> {
         info!("pop_and_check_signature({:?})", sig);
         self.check_signature(sig)?;
-        self.drop_types(1)?;        
+        if sig != VOID {
+            self.drop_types(1)?;
+        }
         Ok(())
     }
 
@@ -155,6 +176,7 @@ impl<'m> TypeChecker<'m> {
         match i.op.code {
             RETURN => {
                 let label = self.get_label(0)?;
+                info!("checking {:?}", label);
                 self.pop_and_check_signature(label.signature)?;
                 self.set_unreachable(true)?;
             },
@@ -168,7 +190,9 @@ impl<'m> TypeChecker<'m> {
                 self.pop_and_check_signature(label.signature)?;
                 self.check_type_stack_end()?;
                 self.reset_type_stack_to_label(label)?;
-                self.push_type(label.signature)?;
+                if label.signature != VOID {
+                    self.push_type(label.signature)?;
+                }
                 self.pop_label()?;
 
             }
