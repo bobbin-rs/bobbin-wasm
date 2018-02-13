@@ -37,7 +37,6 @@ impl fmt::Debug for Label {
     }
 }
 
-#[derive(Debug)]
 pub struct Context {
     parameters: [TypeValue; 16],
     parameters_count: usize,
@@ -126,6 +125,31 @@ impl Index<usize> for Context {
         } else {
             &self.locals[i - self.parameters_count]
         }
+    }
+}
+
+impl fmt::Debug for Context {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Context {{ (")?;
+        for i in 0..self.parameters_count {
+            if i > 0 { write!(f, ", ")?; }
+            write!(f, "{:?}", self.parameters[i])?;
+        }
+        write!(f, ") -> ")?;
+        if self.return_type != VOID {
+            write!(f, "{:?}", self.return_type)?;
+        }        
+        if self.locals_count > 0 {
+            write!(f, "locals[")?;
+            for i in 0..self.locals_count {
+                if i > 0 { write!(f, ", ")?; }
+                write!(f, "{:?}", self.locals[i])?;
+            }
+            write!(f, "]")?;
+            
+        }
+        write!(f, " }}")?;
+        Ok(())
     }
 }
 
@@ -382,7 +406,7 @@ impl<'m> Delegate for Loader<'m> {
                 self.context = Context::from(self.module.function_signature_type(n).unwrap());
                 self.body_fixup = self.w.write_code_start()?;
                 // self.w.write_u8(locals as u8)?;
-                info!("{:08x}: V:{} | func[{}]", self.w.pos(), self.type_checker.type_stack_size(), n);
+                info!("{:08x}: V:{} | func[{}] {:?}", self.w.pos(), self.type_checker.type_stack_size(), n, self.context);
             },
             Local { i: _, n, t } => {
                 if !self.cfg.compile { return Ok(()) }
@@ -397,7 +421,6 @@ impl<'m> Delegate for Loader<'m> {
                 if !self.cfg.compile { return Ok(()) }
 
                 let mut locals_count = 0;
-                info!("{:?}", self.context);
 
                 // let return_type = self.context.return_type;
 
@@ -417,7 +440,7 @@ impl<'m> Delegate for Loader<'m> {
                 //     self.depth += 1;
                 //     locals_count += 1;
                 // }                        
-                info!("ALLOCA {} @ {:08x}", locals_count, self.w.pos());
+                // info!("ALLOCA {} @ {:08x}", locals_count, self.w.pos());
                 self.w.write_alloca(locals_count as u32)?;                
 
                 // Push Stack Entry Label

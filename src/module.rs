@@ -95,7 +95,7 @@ impl<'a> Module<'a> {
     }
 
     pub fn function_signature_type(&self, index: u32) -> Option<Type> {
-        info!("function_signature_type: {}", index);
+        // info!("function_signature_type: {}", index);
 
         let mut i = 0;
 
@@ -111,7 +111,7 @@ impl<'a> Module<'a> {
                         // info!("checking import: {:?} {:?}", import.module.0, import.export.0);
                         if let ImportDesc::Type(t) = import.desc {
                             if i == index {
-                                info!("found type: {}", t);
+                                // info!("found type: {}", t);
                                 return self.signature_type(t);
                             }
                             i += 1;
@@ -122,7 +122,7 @@ impl<'a> Module<'a> {
                     for function in s.functions() {
                         // info!("checking function");
                         if i == index {
-                            info!("found type: {}", function.signature_type_index);
+                            // info!("found type: {}", function.signature_type_index);
                             return self.signature_type(function.signature_type_index)
                         }
                         i += 1;
@@ -1103,8 +1103,8 @@ impl<'a> ModuleWrite for Writer<'a> {
     fn write_code_end(&mut self, fixup: usize) -> Result<(), Error> {
         Ok({
             let len = self.pos() - (fixup + 4);
-            info!("code_end pos: {:08x}", self.pos());
-            info!("code_end len: {:08x}", len);
+            // info!("code_end pos: {:08x}", self.pos());
+            // info!("code_end len: {:08x}", len);
             self.write_u32_at(len as u32, fixup)?;
         })
     }
@@ -1112,7 +1112,7 @@ impl<'a> ModuleWrite for Writer<'a> {
     // Code
 
     fn write_drop_keep(&mut self, drop_count: u32, keep_count: u32) -> Result<(), Error> {
-        info!("drop_keep {}, {}", drop_count, keep_count);
+        // info!("drop_keep {}, {}", drop_count, keep_count);
         if drop_count == 1 && keep_count == 0 {
             self.write_opcode(DROP)?;            
         } else if drop_count > 0 {
