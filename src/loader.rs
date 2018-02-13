@@ -437,6 +437,8 @@ impl<'m> Delegate for Loader<'m> {
 
                 let return_type = self.context.return_type;
 
+                self.push_label(0, return_type, FIXUP_OFFSET)?;               
+
                 // Push Parameters
 
                 for p in self.context.parameters() {
@@ -454,7 +456,6 @@ impl<'m> Delegate for Loader<'m> {
 
                 // Push Stack Entry Label
 
-                self.push_label(0, return_type, FIXUP_OFFSET)?;               
             },
             Instruction(i) => {
                 if !self.cfg.compile { return Ok(()) }
@@ -463,12 +464,13 @@ impl<'m> Delegate for Loader<'m> {
             InstructionsEnd => {
                 if !self.cfg.compile { return Ok(()) }
                 info!("{:08x}: V:{} | {} ", self.w.pos(), self.type_stack.len(), "EXIT");
+
                 let return_type = self.context.return_type;
 
-                let drop = self.context.len() as u32;
-                let keep = if return_type == VOID { 0 } else { 1 };
-                self.type_stack.drop_keep(drop as usize, keep as usize)?;
-                self.w.write_drop_keep(drop as u32, keep as u32)?;
+                // let drop = self.context.len() as u32;
+                // let keep = if return_type == VOID { 0 } else { 1 };
+                // self.type_stack.drop_keep(drop as usize, keep as usize)?;
+                // self.w.write_drop_keep(drop as u32, keep as u32)?;
         
                 for entry in self.fixups.iter() {
                     if let &Some(entry) = entry {   
