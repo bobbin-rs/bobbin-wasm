@@ -152,6 +152,7 @@ pub struct Loader<'m> {
     module: Module<'m>,
     label_stack: Stack<'m, Label>,
     type_stack: Stack<'m, TypeValue>,
+    depth: usize,
     fixups: [Option<Fixup>; 256],
     fixups_pos: usize,
     section_fixup: usize,
@@ -170,6 +171,7 @@ impl<'m> Loader<'m> {
         // These should be not be allocated from module storage
         let label_stack = w.alloc_stack(16);        
         let type_stack = w.alloc_stack(16);
+        let depth = 0;
 
         // TODO: Break out into separate struct
         let fixups = [None; 256];
@@ -184,6 +186,7 @@ impl<'m> Loader<'m> {
             module, 
             label_stack, 
             type_stack, 
+            depth,
             fixups, 
             fixups_pos, 
             section_fixup, 
@@ -195,30 +198,6 @@ impl<'m> Loader<'m> {
     pub fn module(self) -> (Module<'m>, &'m mut[u8]) {
         (self.module, self.w.into_slice())
     }
-
-    fn pos(&self) -> usize {
-        self.w.pos()
-    }
-
-    // fn write_i8(&mut self, value: i8) -> Result<(), Error> {
-    //     self.w.write_i8(value)
-    // }
-
-    // fn write_u8(&mut self, value: u8) -> Result<(), Error> {
-    //     self.w.write_u8(value)
-    // }
-
-    // fn write_u32(&mut self, value: u32) -> Result<(), Error> {
-    //     self.w.write_u32(value)
-    // }
-
-    // fn write_i32_const(&mut self, value: i32)-> Result<(), Error> {
-    //     self.w.write_opcode(I32_CONST)?;
-    //     self.w.write_var_i32(value)?;
-    //     Ok(())
-    // }
-
-
 
     fn push_label<T: Into<TypeValue>>(&mut self, opcode: u8, signature: T, offset: u32) -> Result<(), Error> {
         self.push_label_fixup(opcode, signature, offset, 0x0000_0000)
@@ -423,7 +402,7 @@ impl<'m> Delegate for Loader<'m> {
                 self.context = Context::from(self.module.function_signature_type(n).unwrap());
                 self.body_fixup = self.w.write_code_start()?;
                 // self.w.write_u8(locals as u8)?;
-
+                assert!(self.depth == 0);
                 info!("{:08x}: V:{} | func[{}]", self.w.pos(), self.type_stack.len(), n);                
             },
             Local { i: _, n, t } => {
@@ -459,6 +438,7 @@ impl<'m> Delegate for Loader<'m> {
                 }                        
                 info!("ALLOCA {} @ {:08x}", locals_count, self.w.pos());
                 self.w.write_alloca(locals_count as u32)?;
+                self.depth += locals_count;
 
                 // Push Stack Entry Label
 
@@ -466,20 +446,23 @@ impl<'m> Delegate for Loader<'m> {
             Instruction(i) => {
                 if !self.cfg.compile { return Ok(()) }
                 self.dispatch_instruction(i)?;
+                assert!(self.depth == self.type_stack.len());
             },
             InstructionsEnd => {
                 if !self.cfg.compile { return Ok(()) }
                 info!("{:08x}: V:{} | {} ", self.w.pos(), self.type_stack.len(), "EXIT");
 
-                let depth = self.type_stack.len() as u32;
+                let depth = self.depth;
                 let return_type = self.context.return_type;
                 info!("RETURN {:?} - depth {}", return_type, depth);
                 if return_type == VOID {
-                    self.type_stack.drop_keep(depth as usize, 0)?;
-                    self.w.write_drop_keep(depth, 0)?;
+                    self.type_stack.drop_keep(depth, 0)?;
+                    self.w.write_drop_keep(depth as u32, 0)?;
+                    self.depth -= depth;
                 } else {
-                    self.type_stack.drop_keep((depth - 1) as usize, 1)?;
-                    self.w.write_drop_keep(depth - 1, 1)?;
+                    self.type_stack.drop_keep(depth - 1, 1)?;
+                    self.w.write_drop_keep((depth - 1) as u32, 1)?;
+                    self.depth -= depth - 1;
                 }
 
                 self.type_stack.expect_type(return_type)?;
@@ -493,8 +476,10 @@ impl<'m> Delegate for Loader<'m> {
                 }
 
                 self.type_stack.pop_type_expecting(return_type)?;
+                self.depth -= 1;
             },
             BodyEnd => {
+                assert!(self.depth == 0);
                 assert!(self.type_stack.len() == 0);
                 assert!(self.label_stack.len() == 0);
                 // let fixup = self.body_fixup;
@@ -601,15 +586,17 @@ impl<'m> Loader<'m> {
 
                 },
                 RETURN => {
-                    let depth = self.type_stack.len() as u32;
+                    let depth = self.depth;
                     let return_type = self.context.return_type;
                     info!("RETURN {:?} - depth {}", return_type, depth);
                     if return_type == VOID {
-                        self.type_stack.drop_keep(depth as usize, 0)?;
-                        self.w.write_drop_keep(depth, 0)?;
+                        self.type_stack.drop_keep(depth, 0)?;
+                        self.w.write_drop_keep(depth as u32, 0)?;
+                        self.depth -= depth;
                     } else {
-                        self.type_stack.drop_keep((depth - 1) as usize, 1)?;
-                        self.w.write_drop_keep(depth - 1, 1)?;
+                        self.type_stack.drop_keep(depth - 1, 1)?;
+                        self.w.write_drop_keep((depth - 1) as u32, 1)?;
+                        self.depth -= depth - 1;
                     }
 
                     self.type_stack.expect_type(return_type)?;
@@ -622,6 +609,17 @@ impl<'m> Loader<'m> {
                 },                
                 _ => {
                     self.w.write_opcode(op)?;
+
+                    if i.op.t1 != ___ {
+                        self.depth -= 1;
+                    }
+                    if i.op.t2 != ___ {
+                        self.depth -= 1;
+                    }
+                    if i.op.tr != ___ {
+                        self.depth += 1;
+                    }
+
                 }           
                 // _ => {},
             },
@@ -655,7 +653,7 @@ impl<'m> Loader<'m> {
                 // self.w.write_drop_keep(drop, keep)?;
 
                 self.w.write_opcode(op)?;
-                let pos = self.pos();
+                let pos = self.w.pos();
                 self.add_fixup(depth, pos as u32)?;
                 self.w.write_u32(FIXUP_OFFSET)?;                
             },
@@ -789,6 +787,7 @@ impl<'m> Loader<'m> {
             I32Const { value } => {
                 self.w.write_opcode(op)?;
                 self.w.write_i32(value)?;
+                self.depth += 1;
             },
             F32Const { value: _ } => { return Err(Error::Unimplemented) },
             I64Const { value: _ } => { return Err(Error::Unimplemented) },
@@ -894,7 +893,7 @@ impl<'m> Loader<'m> {
                 // self.set_unreachable(true)?;                
             },
             DROP => {
-                self.type_stack.pop_type()?;                
+                self.type_stack.pop_type()?;   
             }
             _ => {
                 self.type_stack.pop_type_expecting(i.op.t1)?;

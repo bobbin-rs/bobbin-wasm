@@ -1,0 +1,7 @@
+;;; TOOL: run-interp
+(module
+  (func (export "main")    
+    return))
+(;; STDOUT ;;;
+main() =>
+;;; STDOUT ;;)
