@@ -1,0 +1,19 @@
+;;; TOOL: run-interp
+(module
+  (func (export "main") (result i32)
+    i32.const 42
+    return)
+  (func (export "hello") (result i32)
+    i32.const 1234
+    return)
+  (func (export "goodbye") (result i32)
+    i32.const 5678
+    return)
+    
+)
+    
+(;; STDOUT ;;;
+main() => i32:42
+hello() => i32:1234
+goodbye() => i32:5678
+;;; STDOUT ;;)
