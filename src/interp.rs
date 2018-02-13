@@ -79,10 +79,10 @@ impl<'a> Interp<'a> {
         // info!("body pos: {:08x}", body_pos);
         code.set_pos(body_pos);
 
-        for (i, b) in code_buf.iter().enumerate() {
-            let here = if i == code.pos() { " <=" } else { "" };
-            info!("{:04x}: {:02x}{}", i, b, here);
-        }
+        // for (i, b) in code_buf.iter().enumerate() {
+        //     let here = if i == code.pos() { " <=" } else { "" };
+        //     info!("{:04x}: {:02x}{}", i, b, here);
+        // }
 
         let mut _count = 0;
 

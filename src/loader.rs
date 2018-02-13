@@ -471,12 +471,19 @@ impl<'m> Delegate for Loader<'m> {
                 if !self.cfg.compile { return Ok(()) }
                 info!("{:08x}: V:{} | {} ", self.w.pos(), self.type_stack.len(), "EXIT");
 
+                let depth = self.type_stack.len() as u32;
                 let return_type = self.context.return_type;
+                info!("RETURN {:?} - depth {}", return_type, depth);
+                if return_type == VOID {
+                    self.type_stack.drop_keep(depth as usize, 0)?;
+                    self.w.write_drop_keep(depth, 0)?;
+                } else {
+                    self.type_stack.drop_keep((depth - 1) as usize, 1)?;
+                    self.w.write_drop_keep(depth - 1, 1)?;
+                }
 
-                // let drop = self.context.len() as u32;
-                // let keep = if return_type == VOID { 0 } else { 1 };
-                // self.type_stack.drop_keep(drop as usize, keep as usize)?;
-                // self.w.write_drop_keep(drop as u32, keep as u32)?;
+                self.type_stack.expect_type(return_type)?;
+                self.w.write_opcode(RETURN)?;
         
                 for entry in self.fixups.iter() {
                     if let &Some(entry) = entry {   
@@ -524,6 +531,20 @@ impl<'m> Loader<'m> {
         match i.imm {
             None => match op {
                 END => {
+                    let mut label = self.pop_label()?;
+
+                    self.type_stack.expect_type(label.signature)?;
+
+                    // self.type_stack.pop_type_expecting(label.signature)?;
+
+                    // // Reset Stack to Label
+                    // while self.type_stack.len() > label.stack_limit as usize {
+                    //     self.type_stack.pop()?;
+                    // }           
+                    // self.type_stack.push(label.signature)?;
+
+                    self.label_stack.push(label)?;
+                                                            
                     // All fixups go to the next instruction
                     self.fixup()?;
                     let mut label = self.pop_label()?;
@@ -542,8 +563,7 @@ impl<'m> Loader<'m> {
                         self.w.write_u32_at(pos as u32, label.fixup_offset as usize)?;
                     }
 
-                    self.type_stack.expect_type(label.signature)?;
-                },
+                },                
                 ELSE => {
                     let mut label = self.pop_label()?;                    
                     self.type_stack.expect_type(label.signature)?;
@@ -592,7 +612,6 @@ impl<'m> Loader<'m> {
                         self.w.write_drop_keep(depth - 1, 1)?;
                     }
 
-                    let return_type = self.context.return_type();
                     self.type_stack.expect_type(return_type)?;
                     // if return_type != VOID {
                     //     self.type_stack.pop_type_expecting(return_type)?;
