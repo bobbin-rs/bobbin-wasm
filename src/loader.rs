@@ -528,6 +528,8 @@ impl<'m> Loader<'m> {
                     self.fixup()?;
                     let mut label = self.pop_label()?;
 
+                    info!("{:?}", label);
+
                     // IF without ELSE can only have type signature VOID
                     if label.opcode == IF && label.signature != VOID {
                         return Err(Error::InvalidIfSignature)
@@ -585,6 +587,8 @@ impl<'m> Loader<'m> {
                     self.w.write_u32_at(pos as u32, label.fixup_offset as usize)?;
                     // Set label fixup_offset to BR OFFSET
                     label.fixup_offset = pos as u32;
+                    // Set label opcode to ELSE
+                    label.opcode = ELSE;
 
                     self.label_stack.push(label)?;
 
