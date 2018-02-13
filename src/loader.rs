@@ -228,6 +228,10 @@ impl<'m> Loader<'m> {
         Ok(self.label_stack.push(label)?)
     }
 
+    fn top_label(&mut self) -> Result<Label, Error> {
+        Ok(self.label_stack.peek(0)?)
+    }
+
     fn pop_label(&mut self) -> Result<Label, Error> {
         // let depth = self.label_stack.len();
         let label = self.label_stack.pop()?;
@@ -550,11 +554,21 @@ impl<'m> Loader<'m> {
         match i.imm {
             None => match op {
                 END => {
+
+                    let ty_label = self.type_checker.get_label(0)?;
+                    let label_type = ty_label.label_type;
+                    if label_type == LabelType::If || label_type == LabelType::Else {
+                        let label = self.top_label()?;
+                        let pos = self.w.pos();
+                        info!("fixup_offset: {:08x} at {:08x}", pos, label.fixup_offset);
+                        self.w.write_u32_at(pos as u32, label.fixup_offset as usize)?;                        
+                    }
+                    self.fixup()?;
+                    self.pop_label()?;
+
                     //   TypeChecker::Label* label;
                     //   CHECK_RESULT(typechecker_.GetLabel(0, &label));
                     //   LabelType label_type = label->label_type;
-                    let mut label = self.pop_label()?;                    
-
                     //   if (label_type == LabelType::If || label_type == LabelType::Else) {
                     //     CHECK_RESULT(EmitI32At(TopLabel()->fixup_offset, GetIstreamOffset()));
                     //   }
@@ -572,13 +586,13 @@ impl<'m> Loader<'m> {
                     // }           
                     // self.type_stack.push(label.signature)?;
 
-                    self.label_stack.push(label)?;
+                    // self.label_stack.push(label)?;
 
-                    self.type_checker.on_end()?;
+                    // self.type_checker.on_end()?;
 
                     // All fixups go to the next instruction
-                    self.fixup()?;
-                    let mut _label = self.pop_label()?;
+                    // self.fixup()?;
+                    // let mut _label = self.pop_label()?;
 
                     // // IF without ELSE can only have type signature VOID
                     // if label.opcode == IF && label.signature != VOID {
