@@ -1103,6 +1103,8 @@ impl<'a> ModuleWrite for Writer<'a> {
     fn write_code_end(&mut self, fixup: usize) -> Result<(), Error> {
         Ok({
             let len = self.pos() - (fixup + 4);
+            info!("code_end pos: {:08x}", self.pos());
+            info!("code_end len: {:08x}", len);
             self.write_u32_at(len as u32, fixup)?;
         })
     }

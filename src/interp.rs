@@ -59,18 +59,25 @@ impl<'a> Interp<'a> {
         // let func = m.function(func_index as u32).unwrap();
         // let func_type = m.signature_type(func.signature_type_index).unwrap();
         let code_section = m.section(SectionType::Code).unwrap();
-        let mut code = Reader::new(code_section.buf);
+        let code_buf = &code_section.buf;
+        let code_buf = unsafe {
+            use core::slice;
+            let new_len = code_buf.len() + 5;
+            let new_ptr = code_buf.as_ptr().offset(-5);
+            slice::from_raw_parts(new_ptr, new_len)
+        };
+        let mut code = Reader::new(&code_buf);
 
-        info!("code section len: {:08x}", code_section.buf.len());
+        info!("code section len: {:08x}", code_buf.len());
 
-        // for (i, b) in code_section.buf.iter().enumerate() {
+        // for (i, b) in code_buf.iter().enumerate() {
         //     info!("{:04x}: {:02x}", i, b);
         // }
         let body = m.body(func_index as u32).unwrap();
 
         // info!("body: size={}", body.buf.len());
 
-        let body_pos = code_section.buf.as_ptr().offset_to(body.buf.as_ptr()).unwrap() as usize;
+        let body_pos = code_buf.as_ptr().offset_to(body.buf.as_ptr()).unwrap() as usize;
         // info!("body pos: {:08x}", body_pos);
         code.set_pos(body_pos);
 
@@ -100,6 +107,10 @@ impl<'a> Interp<'a> {
                 DROP => {
                     self.value_stack.pop()?;
                 },
+                RETURN => {
+                    info!("RETURN");
+                    break;
+                }
                 SELECT => {
                     let cond: i32 = self.pop()?;
                     let _false: i32 = self.pop()?;

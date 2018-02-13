@@ -484,6 +484,7 @@ impl<'m> Delegate for Loader<'m> {
                 // let fixup = self.body_fixup;
                 // self.apply_fixup_u32(fixup)?;                                
                 self.w.write_code_end(self.body_fixup)?;
+                info!("code end: {:08x}", self.w.pos());
             },
             DataSegmentsStart { c } => {
                 self.w.write_u32(c)?;
@@ -507,19 +508,19 @@ impl<'m> Loader<'m> {
         if i.op.code == END || i.op.code == ELSE {
             depth -= 1;
         }
-        info!("{:08x}: V:{} | {:0width$}{}{:?}", self.w.pos(), self.type_stack.len(), "", i.op.text, i.imm, width=depth);
+        info!("{:08x}: V:{} | {:0width$}{}{:?} {:02x}" , self.w.pos(), self.type_stack.len(), "", i.op.text, i.imm, i.op.code, width=depth);
         self.type_check(&i)?;   
 
         let op = i.op.code;
         match i.imm {
             None => match op {
-                END => {
-                    // w.write_opcode(op)?;
-                    // info!("FIXUP {} 0x{:04x}", self.label_depth(), w.pos());
-                    // info!("END");
-                    // self.fixup()?;
-                    // self.pop_label()?;
-                },
+                // END => {
+                //     // w.write_opcode(op)?;
+                //     // info!("FIXUP {} 0x{:04x}", self.label_depth(), w.pos());
+                //     // info!("END");
+                //     // self.fixup()?;
+                //     // self.pop_label()?;
+                // },
                 ELSE => {
                     self.w.write_opcode(BR)?;
                     // self.fixup()?;
@@ -529,10 +530,10 @@ impl<'m> Loader<'m> {
                     self.add_fixup(0, pos as u32)?;
                     self.w.write_u32(FIXUP_OFFSET)?;
                 },
-                DROP => {
+                _ => {
                     self.w.write_opcode(op)?;
                 }           
-                _ => {},
+                // _ => {},
             },
             Block { signature: _ } => match op {
                 BLOCK => {
