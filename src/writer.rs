@@ -125,7 +125,6 @@ impl<'a> Writer<'a> {
     }
 
     pub fn split_mut<T>(&mut self) -> &'a mut [T] {
-        info!("split_mut: pos: {}", self.pos);
         unsafe {
             // First Half
             let a_ptr = self.buf.as_mut_ptr() as *mut T;
@@ -151,7 +150,7 @@ impl<'a> Writer<'a> {
     pub fn alloc_stack<T: Copy>(&mut self, len: usize) -> Stack<'a, T> {
         assert!(self.pos == 0, "Allocation can only happen with an empty writer.");
         self.pos += len * mem::size_of::<T>();
-        info!("alloc_stack: len = {} pos={}", len, self.pos);
+        // info!("alloc_stack: len = {} pos={}", len, self.pos);
         Stack::new(self.split_mut())
     }
 

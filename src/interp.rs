@@ -70,9 +70,7 @@ impl<'a> Interp<'a> {
 
         info!("code section len: {:08x}", code_buf.len());
 
-        for (i, b) in code_buf.iter().enumerate() {
-            info!("{:04x}: {:02x}", i, b);
-        }
+
         let body = m.body(func_index as u32).unwrap();
 
         // info!("body: size={}", body.buf.len());
@@ -81,6 +79,10 @@ impl<'a> Interp<'a> {
         // info!("body pos: {:08x}", body_pos);
         code.set_pos(body_pos);
 
+        for (i, b) in code_buf.iter().enumerate() {
+            let here = if i == code.pos() { " <=" } else { "" };
+            info!("{:04x}: {:02x}{}", i, b, here);
+        }
 
         let mut _count = 0;
 
@@ -91,10 +93,10 @@ impl<'a> Interp<'a> {
                 info!("C: {:02} V: {:02} 0x{:08x}: CODE END {:08x}", self.call_stack.len(), self.value_stack.len(), code.pos(), code.len());
                 break;
             }
-
+            let pos = code.pos();
             let opc = code.read_u8()?;
             let op = Opcode::try_from(opc).unwrap();
-            info!("C: {:02} V: {:02} 0x{:08x}: {:02x} {}", self.call_stack.len(), self.value_stack.len(), code.pos(), opc, op.text);
+            info!("C: {:02} V: {:02} 0x{:08x}: {:02x} {}", self.call_stack.len(), self.value_stack.len(), pos, opc, op.text);
             match opc {
                 NOP => {},
                 UNREACHABLE => return Err(Error::Unreachable),
