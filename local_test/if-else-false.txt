@@ -11,5 +11,5 @@
   )
 )
 (;; STDOUT ;;;
-main() => i32:20
+main() => i32:10
 ;;; STDOUT ;;)
