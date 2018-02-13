@@ -426,8 +426,8 @@ impl<'m> Delegate for Loader<'m> {
                 self.context.add_local(n, t);
                 // info!("add_local: {} {}", n, t); 
 
-                self.w.write_u8(n as u8)?;
-                self.w.write_i8(t as i8)?;
+                // self.w.write_u8(n as u8)?;
+                // self.w.write_i8(t as i8)?;
             },
             InstructionsStart => {
                 if !self.cfg.compile { return Ok(()) }
@@ -516,13 +516,13 @@ impl<'m> Loader<'m> {
         let op = i.op.code;
         match i.imm {
             None => match op {
-                // END => {
+                END => {
                 //     // w.write_opcode(op)?;
                 //     // info!("FIXUP {} 0x{:04x}", self.label_depth(), w.pos());
-                //     // info!("END");
+                    info!("END");
                 //     // self.fixup()?;
                 //     // self.pop_label()?;
-                // },
+                },
                 ELSE => {
                     self.w.write_opcode(BR)?;
                     // self.fixup()?;
@@ -532,6 +532,25 @@ impl<'m> Loader<'m> {
                     self.add_fixup(0, pos as u32)?;
                     self.w.write_u32(FIXUP_OFFSET)?;
                 },
+                RETURN => {
+                    let depth = self.type_stack.len() as u32;
+                    let return_type = self.context.return_type;
+                    info!("RETURN {:?} - depth {}", return_type, depth);
+                    if return_type == VOID {
+                        self.w.write_drop_keep(depth, 0)?;
+                    } else {
+                        self.w.write_drop_keep(depth - 1, 1)?;
+                    }
+
+                    let return_type = self.context.return_type();
+                    self.type_stack.expect_type(return_type)?;
+                    // if return_type != VOID {
+                    //     self.type_stack.pop_type_expecting(return_type)?;
+                    // }
+                    self.set_unreachable(true)?;     
+                                    
+                    self.w.write_opcode(RETURN)?;
+                },                
                 _ => {
                     self.w.write_opcode(op)?;
                 }           
@@ -553,16 +572,6 @@ impl<'m> Loader<'m> {
                     self.add_fixup(0, pos as u32)?;
                     self.w.write_u32(FIXUP_OFFSET)?;                    
                 },
-                RETURN => {
-                    let depth = self.type_stack.len() as u32;
-                    let return_type = self.context.return_type;
-                    if return_type == VOID {
-                        self.w.write_drop_keep(depth, 0)?;
-                    } else {
-                        self.w.write_drop_keep(depth - 1, 1)?;
-                    }
-                    self.w.write_opcode(RETURN)?;
-                },                
                 _ => unreachable!(),
             },
             Branch { depth } => {
@@ -799,12 +808,12 @@ impl<'m> Loader<'m> {
                 self.set_unreachable(true)?;
             },            
             RETURN => {
-                let return_type = self.context.return_type();
-                self.type_stack.expect_type(return_type)?;
-                // if return_type != VOID {
-                //     self.type_stack.pop_type_expecting(return_type)?;
-                // }
-                self.set_unreachable(true)?;                
+                // let return_type = self.context.return_type();
+                // self.type_stack.expect_type(return_type)?;
+                // // if return_type != VOID {
+                // //     self.type_stack.pop_type_expecting(return_type)?;
+                // // }
+                // self.set_unreachable(true)?;                
             },
             DROP => {
                 self.type_stack.pop_type()?;                

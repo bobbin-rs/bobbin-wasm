@@ -1112,7 +1112,7 @@ impl<'a> ModuleWrite for Writer<'a> {
     // Code
 
     fn write_drop_keep(&mut self, drop_count: u32, keep_count: u32) -> Result<(), Error> {
-        // info!("drop_keep {}, {}", drop_count, keep_count);
+        info!("drop_keep {}, {}", drop_count, keep_count);
         if drop_count == 1 && keep_count == 0 {
             self.write_opcode(DROP)?;            
         } else if drop_count > 0 {

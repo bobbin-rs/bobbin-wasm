@@ -89,7 +89,7 @@ impl<'a> Interp<'a> {
         while code.pos() < code.len() {
             let opc = code.read_u8()?;
             let op = Opcode::try_from(opc).unwrap();
-            info!("V: {:02} 0x{:08x}: {:02x} {}", self.value_stack.len(), code.pos(), opc, op.text);
+            info!("C: {:02} V: {:02} 0x{:08x}: {:02x} {}", self.call_stack.len(), self.value_stack.len(), code.pos(), opc, op.text);
             match opc {
                 NOP => {},
                 UNREACHABLE => return Err(Error::Unreachable),
@@ -144,6 +144,16 @@ impl<'a> Interp<'a> {
                         code.set_pos(offset as usize);
                     } else {
                         info!("RETURN");
+                        break;
+                    }
+                },
+                END => {
+                    if self.call_stack.len() > 0 {
+                        let offset = self.call_stack.pop()?;
+                        info!("END: to {:08x}", offset);
+                        code.set_pos(offset as usize);
+                    } else {
+                        info!("END");
                         break;
                     }
                 }
@@ -305,17 +315,22 @@ impl<'a> Interp<'a> {
                 INTERP_DROP_KEEP => {
                     let drop = code.read_u32()?;
                     let keep = code.read_u32()?;
+                    info!("INTERP_DROP_KEEP {} {}", drop, keep);
                     let val = if keep > 0 {
                         Some(self.pop()?)
                     } else {
                         None
                     };
+                    info!("keeping {:?}", val);
                     for _ in 0..drop {
-                        self.pop()?;
+                        let v = self.pop()?;
+                        info!("popped {:?}", v);
                     }
                     if let Some(val) = val {
+                        info!("pushed {:?}", val);
                         self.push(val)?;
                     }
+                    info!("V: {}", self.value_stack.len());
                 },
                 _ => return Err(Error::Unimplemented),
             }
