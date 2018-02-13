@@ -384,6 +384,7 @@ impl<'a> TypeStack for Stack<'a, TypeValue> {
             if top == self.len() {
                 self.set_pos(bottom)?;
             }
+            info!("new len: {}", self.len());
             // for i in bottom..top {            
             //     self.set(i, VOID)?;
             // }

@@ -295,6 +295,7 @@ impl<'m> Loader<'m> {
     fn get_br_drop_keep_count(&mut self, depth: usize) -> Result<(u32, u32), Error> {        
         Ok({
             let label = self.type_checker.get_label(depth)?;
+            info!("{:?}", label);
             let keep = if label.label_type != LabelType::Loop {
                 if label.signature != VOID { 1 } else { 0 }
             } else { 
@@ -314,9 +315,8 @@ impl<'m> Loader<'m> {
         info!("get_return_drop_keep_count()");
         Ok({
             let len = self.label_stack.len();
-            info!("  len: {}", len);
-            let (drop, keep) = self.get_br_drop_keep_count(len - 1)?;
-            let (drop, keep) = (drop + (self.context.locals_count as u32), keep);
+            let (drop, keep) = self.get_br_drop_keep_count(len - 1)?;            
+            let (drop, keep) = (drop + (self.context.len() as u32), keep);
             info!("  -> ({}, {})", drop, keep);
             (drop, keep)
         })
@@ -447,12 +447,14 @@ impl<'m> Delegate for Loader<'m> {
                 info!("{:08x}: V:{} | func[{}] {:?}", self.w.pos(), self.type_checker.type_stack_size(), n, self.context);
 
                 self.type_checker.begin_function(self.context.return_type)?;
+                self.push_label(FIXUP_OFFSET)?;
             },
             Local { i: _, n, t } => {
                 if !self.cfg.compile { return Ok(()) }
 
+                info!("add_local: {} {}", n, t); 
                 self.context.add_local(n, t);
-                // info!("add_local: {} {}", n, t); 
+                
 
                 // self.w.write_u8(n as u8)?;
                 // self.w.write_i8(t as i8)?;
@@ -460,31 +462,8 @@ impl<'m> Delegate for Loader<'m> {
             InstructionsStart => {
                 if !self.cfg.compile { return Ok(()) }
 
-                let mut locals_count = 0;
+                self.w.write_alloca(self.context.locals_count as u32)?;                
 
-                // let return_type = self.context.return_type;
-
-                self.push_label(FIXUP_OFFSET)?;               
-
-                // Push Parameters
-
-                // for p in self.context.parameters() {
-                //     // self.type_checker.push_type(TypeValue::from(*p as i8))?;
-                //     self.depth += 1;
-                // }
-
-                // // Push Locals
-
-                // for local in self.context.locals() {
-                //     // self.type_stack.push_type(*local)?;
-                //     self.depth += 1;
-                //     locals_count += 1;
-                // }                        
-                // info!("ALLOCA {} @ {:08x}", locals_count, self.w.pos());
-                self.w.write_alloca(locals_count as u32)?;                
-
-                // Push Stack Entry Label
-                // assert_eq!(self.depth, self.type_stack.len());
             },
             Instruction(i) => {
                 if !self.cfg.compile { return Ok(()) }

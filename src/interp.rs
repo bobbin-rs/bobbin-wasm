@@ -120,19 +120,19 @@ impl<'a> Interp<'a> {
                     let id = code.read_u32()?;
 
                     // Lookup Function
-                    info!("Function index: {}", id);
+                    // info!("Function index: {}", id);
                     let f = &mi.functions()[id as usize];
-                    info!("FuncInst: {:?}", f);
+                    // info!("FuncInst: {:?}", f);
                     let offset = match f {
                         &FuncInst::Local { type_index: _, function_index } => {
-                            info!("Function Index {}", function_index);
+                            // info!("Function Index {}", function_index);
                             // lookup body offset
                             let body = m.body(function_index as u32).unwrap();
 
                             // info!("body: size={}", body.buf.len());
 
                             let body_pos = code_buf.as_ptr().offset_to(body.buf.as_ptr()).unwrap() as usize;
-                            info!("body_pos: {:08x}", body_pos);
+                            // info!("body_pos: {:08x}", body_pos);
                             body_pos
                         },
                         _ => {
