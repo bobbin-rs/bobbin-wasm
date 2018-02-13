@@ -147,7 +147,6 @@ pub struct Loader<'m> {
     module: Module<'m>,
     label_stack: Stack<'m, Label>,
     type_checker: TypeChecker<'m>,
-    depth: usize,
     fixups: [Option<Fixup>; 256],
     fixups_pos: usize,
     section_fixup: usize,
@@ -167,8 +166,6 @@ impl<'m> Loader<'m> {
         let label_stack = w.alloc_stack(16);        
         let type_checker = TypeChecker::new(w.alloc_stack(16), w.alloc_stack(16));
 
-        let depth = 0;
-
         // TODO: Break out into separate struct
         let fixups = [None; 256];
         let fixups_pos = 0;
@@ -182,7 +179,6 @@ impl<'m> Loader<'m> {
             module, 
             label_stack,
             type_checker,
-            depth,
             fixups, 
             fixups_pos, 
             section_fixup, 
@@ -386,7 +382,6 @@ impl<'m> Delegate for Loader<'m> {
                 self.context = Context::from(self.module.function_signature_type(n).unwrap());
                 self.body_fixup = self.w.write_code_start()?;
                 // self.w.write_u8(locals as u8)?;
-                assert!(self.depth == 0);
                 info!("{:08x}: V:{} | func[{}]", self.w.pos(), self.type_checker.type_stack_size(), n);
             },
             Local { i: _, n, t } => {
@@ -438,18 +433,15 @@ impl<'m> Delegate for Loader<'m> {
                 if !self.cfg.compile { return Ok(()) }
                 info!("{:08x}: V:{} | {} ", self.w.pos(), self.type_checker.type_stack_size(), "EXIT");
 
-                let depth = self.depth;
-                let return_type = self.context.return_type;
-                info!("RETURN {:?} - depth {}", return_type, depth);
-                if return_type == VOID {
-                    // self.type_stack.drop_keep(depth, 0)?;
-                    self.w.write_drop_keep(depth as u32, 0)?;
-                    self.depth -= depth;
-                } else {
-                    // self.type_stack.drop_keep(depth - 1, 1)?;
-                    self.w.write_drop_keep((depth - 1) as u32, 1)?;
-                    self.depth -= depth - 1;
-                }
+                // let return_type = self.context.return_type;
+
+                // if return_type == VOID {
+                //     // self.type_stack.drop_keep(depth, 0)?;
+                //     self.w.write_drop_keep(depth as u32, 0)?;
+                // } else {
+                //     // self.type_stack.drop_keep(depth - 1, 1)?;
+                //     self.w.write_drop_keep((depth - 1) as u32, 1)?;
+                // }
 
                 // self.type_stack.expect_type(return_type)?;
                 self.w.write_opcode(RETURN)?;
@@ -462,10 +454,8 @@ impl<'m> Delegate for Loader<'m> {
                 }
 
                 // self.type_stack.pop_type_expecting(return_type)?;
-                self.depth -= 1;
             },
             BodyEnd => {
-                assert!(self.depth == 0);
                 assert!(self.type_checker.type_stack_size() == 0);
                 assert!(self.type_checker.label_stack_size() == 0);
                 
@@ -575,39 +565,23 @@ impl<'m> Loader<'m> {
 
                 },
                 RETURN => {
-                    let depth = self.depth;
-                    let return_type = self.context.return_type;
-                    info!("RETURN {:?} - depth {}", return_type, depth);
+                    // let return_type = self.context.return_type;
 
                     // self.type_stack.pop_type_expecting(return_type)?;
 
-                    if return_type != VOID {
-                        self.depth -= 1;
-                    }
 
                     // self.set_unreachable(true)?;     
 
-                    if return_type == VOID {
-                        self.w.write_drop_keep(depth as u32, 0)?;
-                    } else {
-                        self.w.write_drop_keep((depth - 1) as u32, 1)?;
-                    }
+                    // if return_type == VOID {
+                    //     self.w.write_drop_keep(depth as u32, 0)?;
+                    // } else {
+                    //     self.w.write_drop_keep((depth - 1) as u32, 1)?;
+                    // }
                                     
                     self.w.write_opcode(RETURN)?;
                 },                
                 _ => {
                     self.w.write_opcode(op)?;
-
-                    if i.op.t1 != ___ {
-                        self.depth -= 1;
-                    }
-                    if i.op.t2 != ___ {
-                        self.depth -= 1;
-                    }
-                    if i.op.tr != ___ {
-                        self.depth += 1;
-                    }
-
                 }           
                 // _ => {},
             },
@@ -621,7 +595,6 @@ impl<'m> Loader<'m> {
                 },
                 IF => {
                     // self.type_stack.pop_type_expecting(I32)?;
-                    self.depth -= 1;
                     self.w.write_opcode(INTERP_BR_UNLESS)?;                    
                     let pos = self.w.pos();
 
@@ -783,7 +756,6 @@ impl<'m> Loader<'m> {
             I32Const { value } => {
                 self.w.write_opcode(op)?;
                 self.w.write_i32(value)?;
-                self.depth += 1;
             },
             F32Const { value: _ } => { return Err(Error::Unimplemented) },
             I64Const { value: _ } => { return Err(Error::Unimplemented) },
@@ -800,172 +772,4 @@ impl<'m> Loader<'m> {
         } 
         Ok(())
     }
-
-    // fn type_check(&mut self, i: &Instruction) -> Result<(), Error> {
-    //     let opc = i.op.code;
-    //     match opc {
-    //         BLOCK => {
-    //             if let Immediate::Block { signature } = i.imm {
-    //                 self.push_label(opc, signature, FIXUP_OFFSET)?;
-    //             } else {
-    //                 panic!("Wrong immediate for BLOCK: {:?}", i.imm);
-    //             }
-    //         },
-    //         LOOP => {
-    //             if let Immediate::Block { signature } = i.imm {
-    //                 let pos = self.w.pos();
-    //                 self.push_label(opc, signature, pos as u32)?;
-    //             } else {
-    //                 panic!("Wrong immediate type for LOOP: {:?}", i.imm);
-    //             }
-    //         }
-    //         IF => {
-    //             // if let Immediate::Block { signature } = i.imm {
-    //             //     self.type_stack.pop_type_expecting(I32)?;
-    //             //     self.push_label(opc, signature, FIXUP_OFFSET)?;
-    //             // } else {
-    //             //     panic!("Wrong immediate type for IF: {:?}", i.imm);                    
-    //             // }
-    //         },
-    //         ELSE => {
-    //             // All fixups go to the BR that will be the next opcode to be emitted
-    //             // self.fixup()?;
-    //             // let label = self.pop_label()?;
-                
-    //             // self.type_stack.expect_type(label.signature)?;
-    //             // if label.signature == VOID {
-    //             //     self.type_stack.expect_type_stack_depth(label.stack_limit)?;
-    //             // } else {
-    //             //     self.type_stack.expect_type_stack_depth(label.stack_limit + 1)?;                    
-    //             // }
-
-    //             // // Reset Stack to Label
-    //             // while self.type_stack.len() > label.stack_limit as usize {
-    //             //     self.type_stack.pop()?;
-    //             // }
-    //             // if label.signature != VOID {
-    //             //     self.type_stack.push(label.signature)?;
-    //             // }
-
-    //             // self.push_label(opc, label.signature, FIXUP_OFFSET)?;
-    //         },
-    //         END => {
-    //             // // All fixups go to the next instruction
-    //             // self.fixup()?;
-    //             // let label = self.pop_label()?;
-
-    //             // // IF without ELSE can only have type signature VOID
-    //             // if label.opcode == IF && label.signature != VOID {
-    //             //     return Err(Error::InvalidIfSignature)
-    //             // }
-
-    //             // self.type_stack.expect_type(label.signature)?;
-    //             // // Reset Stack to Label
-    //             // while self.type_stack.len() > label.stack_limit as usize {
-    //             //     self.type_stack.pop()?;
-    //             // }
-    //             // if label.signature != VOID {
-    //             //     self.type_stack.push(label.signature)?;
-    //             // }
-    //         },
-    //         BR => {
-    //             let label = self.label_stack.top()?;
-    //             let (drop, keep) = self.get_drop_keep(&label)?;
-    //             self.type_stack.drop_keep(drop as usize, keep as usize)?;
-    //             self.set_unreachable(true)?;
-    //         },
-    //         BR_IF => {
-    //             self.type_stack.pop_type_expecting(I32)?;
-    //             let label = self.label_stack.top()?;
-    //             let (drop, keep) = self.get_drop_keep(&label)?;
-    //             self.type_stack.drop_keep(drop as usize, keep as usize)?;
-    //             self.set_unreachable(true)?;
-    //         },            
-    //         RETURN => {
-    //             // let return_type = self.context.return_type();
-    //             // self.type_stack.expect_type(return_type)?;
-    //             // // if return_type != VOID {
-    //             // //     self.type_stack.pop_type_expecting(return_type)?;
-    //             // // }
-    //             // self.set_unreachable(true)?;                
-    //         },
-    //         DROP => {
-    //             self.type_stack.pop_type()?;   
-    //         }
-    //         _ => {
-    //             self.type_stack.pop_type_expecting(i.op.t1)?;
-    //             self.type_stack.pop_type_expecting(i.op.t2)?;
-    //             if i.op.tr != TypeValue::None {
-    //                 self.type_stack.push_type(i.op.tr)?;
-    //             }
-    //         }
-    //     }
-    //     Ok(())
-    // }    
-}
-
-
-pub trait TypeStack {
-    fn push_type<T: Into<TypeValue>>(&mut self, type_value: T) -> Result<(), Error>;
-    fn pop_type(&mut self) -> Result<TypeValue, Error>;
-    fn pop_type_expecting(&mut self, tv: TypeValue) -> Result<(), Error>;
-    fn expect_type(&self, wanted: TypeValue) -> Result<(), Error>;
-    fn expect_type_stack_depth(&self, wanted: u32) -> Result<(), Error>;
-    fn type_drop_keep(&mut self, drop: u32, keep: u32) -> Result<(), Error>;
-}
-
-impl<'a> TypeStack for Stack<'a, TypeValue> {
-    fn push_type<T: Into<TypeValue>>(&mut self, type_value: T) -> Result<(), Error> {
-        let tv = type_value.into();
-        // info!("-- type: {} <= {:?}", self.len(), tv);
-        Ok(self.push(tv)?)
-    }
-
-    fn pop_type(&mut self) -> Result<TypeValue, Error> {
-        // let depth = self.len();
-        let tv = self.pop()?;
-        // info!("-- type: {} => {:?}", depth, tv);
-        Ok(tv)
-    }
-
-    fn pop_type_expecting(&mut self, tv: TypeValue) -> Result<(), Error> {
-        if tv == TypeValue::Void || tv == TypeValue::None {
-           Ok(()) 
-        } else {
-            let t = self.pop_type()?;
-            if t == tv {
-                Ok(())
-            } else {
-                Err(Error::UnexpectedType { wanted: tv, got: t })
-            }
-        }
-    }
-
-    fn expect_type(&self, wanted: TypeValue) -> Result<(), Error> {
-        if wanted == TypeValue::Void || wanted == TypeValue::None {
-            Ok(())
-        } else {
-            let got = self.top()?;
-            if wanted != got {
-                Err(Error::UnexpectedType { wanted, got })
-            } else {
-                Ok(())
-            }
-        }
-    }
-
-    fn expect_type_stack_depth(&self, wanted: u32) -> Result<(), Error> {
-        let got = self.len() as u32;
-        if wanted != got {
-            Err(Error::UnexpectedTypeStackDepth { wanted, got })
-        } else {
-            Ok(())
-        }
-    }
-
-    fn type_drop_keep(&mut self, drop: u32, keep: u32) -> Result<(), Error> {
-        // info!("drop_keep {}, {}", drop,keep);
-        self.drop_keep(drop as usize, keep as usize)?;
-        Ok(())
-    }    
 }
