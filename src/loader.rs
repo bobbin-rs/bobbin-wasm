@@ -4,7 +4,7 @@ use opcode::*;
 use module;
 use module::*;
 use module::ModuleWrite;
-use type_checker::TypeChecker;
+use typeck::TypeChecker;
 use writer::Writer;
 use stack::Stack;
 
@@ -407,6 +407,8 @@ impl<'m> Delegate for Loader<'m> {
                 self.body_fixup = self.w.write_code_start()?;
                 // self.w.write_u8(locals as u8)?;
                 info!("{:08x}: V:{} | func[{}] {:?}", self.w.pos(), self.type_checker.type_stack_size(), n, self.context);
+
+                self.type_checker.begin_function(self.context.return_type)?;
             },
             Local { i: _, n, t } => {
                 if !self.cfg.compile { return Ok(()) }
@@ -511,7 +513,8 @@ impl<'m> Loader<'m> {
             }
             info!("{:08x}: V:{} | {:0width$}{}{:?}" , self.w.pos(), self.type_checker.type_stack_size(),  "", i.op.text, i.imm, width=indent);
         }
-        // self.type_check(&i)?;   
+        
+        self.type_checker.type_check(&i)?;
 
         let op = i.op.code;
         match i.imm {

@@ -15,7 +15,7 @@ pub mod writer;
 pub mod stack;
 pub mod small_vec;
 pub mod loader;
-pub mod type_checker;
+pub mod typeck;
 pub mod interp;
 pub mod memory_inst;
 pub mod module;
@@ -54,6 +54,7 @@ pub enum Error {
     ScopesFull,
     FixupsFull,
     OutOfBounds,
+    TypeCheck,
 
     InvalidHeader,
     InvalidSection { id: u32 },
