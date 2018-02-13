@@ -58,7 +58,7 @@ impl Opcode {
     }
 
     pub fn is_binop(&self) -> bool {
-        self.t1 != TypeValue::Void && self.t2 == TypeValue::Void
+        self.t1 != TypeValue::Void && self.t2 != TypeValue::Void
     }
 
     pub fn immediate_type(&self) -> ImmediateType {

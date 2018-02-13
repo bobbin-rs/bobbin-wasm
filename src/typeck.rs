@@ -209,6 +209,12 @@ impl<'m> TypeChecker<'m> {
         Ok(())
     }
 
+    pub fn end_function(&mut self) -> Result<(), Error> {
+        Ok({
+
+        })
+    }
+
     pub fn enter(&self) -> Result<(), Error> {
         Ok({
             info!("--- L: {} T: {} ---", self.label_stack.len(), self.type_stack.len());
@@ -271,6 +277,19 @@ impl<'m> TypeChecker<'m> {
             self.push_type(I32)?;
         })
     }
+
+    
+    pub fn on_binary(&mut self, op: &Opcode) -> Result<(), Error> {
+        info!("on_binary({})", op.text);
+        Ok({
+            self.peek_and_check_type(0, op.t2)?;
+            self.peek_and_check_type(1, op.t1)?;
+            self.drop_types(2)?;
+            self.push_type(op.tr)?;
+        })
+    }
+
+
 }
 
 

@@ -282,6 +282,11 @@ impl<'m> Loader<'m> {
         Ok(())
     }
 
+    fn translate_local_index(&self, local_index: u32) -> Result<u32, Error> {
+        Ok({
+            (self.type_checker.type_stack_size() + self.context.locals_count - local_index as usize) as u32
+        })
+    }
 
 
     // fn get_drop_keep(&mut self, label: &Label) -> Result<(u32, u32), Error> {
@@ -617,7 +622,14 @@ impl<'m> Loader<'m> {
                     self.w.write_opcode(RETURN)?;
                 },                
                 _ => {
-                    self.w.write_opcode(op)?;
+                    info!("{:?} {}", i.op, i.op.is_binop());
+                    if i.op.is_binop() {
+                        self.type_checker.on_binary(i.op)?;
+                        self.w.write_opcode(op)?;
+                    } else {
+                        panic!("{} not implemented", i.op.text);
+                    }
+                    
                 }           
                 // _ => {},
             },
@@ -689,15 +701,16 @@ impl<'m> Loader<'m> {
             Local { index } => {
                 // Emits OP DEPTH_TO_LOCAL
                 let id = index.0;
-                let depth = self.type_checker.type_stack_size();
-                let rel = (depth as u32) - id - 1;
-                let abs = depth as u32 - rel;
-                info!("id: {} rel: {} depth: {} abs: {}", id, rel, depth, abs);
+                let local_id = self.translate_local_index(id)?;
+                // let depth = self.type_checker.type_stack_size();
+                // let rel = (depth as u32) - id - 1;
+                // let abs = depth as u32 - rel;
+                // info!("id: {} rel: {} depth: {} abs: {}", id, rel, depth, abs);
 
-                // TODO: Move to Type Check
-                if id >= self.context.len() as u32 {
-                    return Err(Error::InvalidLocal { id: id })
-                }
+                // // TODO: Move to Type Check
+                // if id >= self.context.len() as u32 {
+                //     return Err(Error::InvalidLocal { id: id })
+                // }
 
                 let ty = self.context[id as usize];
                 match op {
@@ -716,7 +729,7 @@ impl<'m> Loader<'m> {
                 }
 
                 self.w.write_opcode(op)?;
-                self.w.write_u32(rel)?;                
+                self.w.write_u32(local_id)?;                
             }
             // Global { index } => {
             //     let id = index.0 as u32;
