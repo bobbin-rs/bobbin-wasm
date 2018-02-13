@@ -428,25 +428,27 @@ impl<'m> Delegate for Loader<'m> {
 
                 for p in self.context.parameters() {
                     self.type_stack.push_type(TypeValue::from(*p as i8))?;
+                    self.depth += 1;
                 }
 
                 // Push Locals
 
                 for local in self.context.locals() {
                     self.type_stack.push_type(*local)?;
+                    self.depth += 1;
                     locals_count += 1;
                 }                        
                 info!("ALLOCA {} @ {:08x}", locals_count, self.w.pos());
-                self.w.write_alloca(locals_count as u32)?;
-                self.depth += locals_count;
+                self.w.write_alloca(locals_count as u32)?;                
 
                 // Push Stack Entry Label
-
+                assert_eq!(self.depth, self.type_stack.len());
             },
             Instruction(i) => {
                 if !self.cfg.compile { return Ok(()) }
+                assert_eq!(self.depth, self.type_stack.len());
                 self.dispatch_instruction(i)?;
-                assert!(self.depth == self.type_stack.len());
+                assert_eq!(self.depth, self.type_stack.len());
             },
             InstructionsEnd => {
                 if !self.cfg.compile { return Ok(()) }
@@ -509,7 +511,7 @@ impl<'m> Loader<'m> {
         if i.op.code == END || i.op.code == ELSE {
             depth -= 1;
         }
-        info!("{:08x}: V:{} | {:0width$}{}{:?} {:02x}" , self.w.pos(), self.type_stack.len(), "", i.op.text, i.imm, i.op.code, width=depth);
+        info!("{:08x}: V:{} D:{} | {:0width$}{}{:?} {:02x}" , self.w.pos(), self.type_stack.len(), self.depth, "", i.op.text, i.imm, i.op.code, width=depth);
         self.type_check(&i)?;   
 
         let op = i.op.code;
@@ -691,8 +693,8 @@ impl<'m> Loader<'m> {
             Local { index } => {
                 // Emits OP DEPTH_TO_LOCAL
                 let id = index.0;
-                let depth = (self.type_stack.len() as u32) - id - 1;
-                info!("id: {} depth: {} stack: {}", id, depth, self.type_stack.len());
+                let rel = (depth as u32) - id - 1;
+                info!("id: {} rel: {} depth: {}", id, rel, depth);
 
                 // TODO: Move to Type Check
                 if id >= self.context.len() as u32 {
@@ -701,8 +703,16 @@ impl<'m> Loader<'m> {
 
                 let ty = self.context[id as usize];
                 match op {
-                    GET_LOCAL => self.type_stack.push_type(ty)?,
-                    SET_LOCAL => self.type_stack.pop_type_expecting(ty)?,
+                    GET_LOCAL => {
+                        self.type_stack.push_type(ty)?;
+                        info!("GET_LOCAL: depth was {}", self.depth);
+                        self.depth += 1;
+                        info!("GET_LOCAL: depth = {}", self.depth);
+                    },
+                    SET_LOCAL => {
+                        self.type_stack.pop_type_expecting(ty)?;
+                        self.depth -= 1;
+                    },
                     TEE_LOCAL => {
                         self.type_stack.pop_type_expecting(ty)?;
                         self.type_stack.push_type(ty)?;
@@ -711,7 +721,7 @@ impl<'m> Loader<'m> {
                 }
 
                 self.w.write_opcode(op)?;
-                self.w.write_u32(depth)?;                
+                self.w.write_u32(rel)?;                
             }
             Global { index } => {
                 let id = index.0 as u32;
