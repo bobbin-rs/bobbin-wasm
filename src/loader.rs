@@ -535,6 +535,7 @@ impl<'m> Loader<'m> {
                     }
                     if label.signature != VOID {
                         self.type_stack.push(label.signature)?;
+                        drop -= 1;
                         keep += 1;
                     }
                     self.w.write_drop_keep(drop, keep)?;
