@@ -516,11 +516,29 @@ impl<'m> Loader<'m> {
         match i.imm {
             None => match op {
                 END => {
-                    info!("END");
-                    self.w.write_opcode(op)?;
-                //     // info!("FIXUP {} 0x{:04x}", self.label_depth(), w.pos());
-                //     // self.fixup()?;
-                //     // self.pop_label()?;
+                    // All fixups go to the next instruction
+                    self.fixup()?;
+                    let label = self.pop_label()?;
+
+                    // IF without ELSE can only have type signature VOID
+                    if label.opcode == IF && label.signature != VOID {
+                        return Err(Error::InvalidIfSignature)
+                    }
+
+                    self.type_stack.expect_type(label.signature)?;
+                    // Reset Stack to Label
+                    let mut drop = 0;
+                    let mut keep = 0;
+                    while self.type_stack.len() > label.stack_limit as usize {
+                        self.type_stack.pop()?;
+                        drop += 1;
+                    }
+                    if label.signature != VOID {
+                        self.type_stack.push(label.signature)?;
+                        keep += 1;
+                    }
+                    self.w.write_drop_keep(drop, keep)?;
+                    self.w.write_opcode(END)?;
                 },
                 ELSE => {
                     self.w.write_opcode(BR)?;
@@ -778,23 +796,23 @@ impl<'m> Loader<'m> {
                 self.push_label(opc, label.signature, FIXUP_OFFSET)?;
             },
             END => {
-                // All fixups go to the next instruction
-                self.fixup()?;
-                let label = self.pop_label()?;
+                // // All fixups go to the next instruction
+                // self.fixup()?;
+                // let label = self.pop_label()?;
 
-                // IF without ELSE can only have type signature VOID
-                if label.opcode == IF && label.signature != VOID {
-                    return Err(Error::InvalidIfSignature)
-                }
+                // // IF without ELSE can only have type signature VOID
+                // if label.opcode == IF && label.signature != VOID {
+                //     return Err(Error::InvalidIfSignature)
+                // }
 
-                self.type_stack.expect_type(label.signature)?;
-                // Reset Stack to Label
-                while self.type_stack.len() > label.stack_limit as usize {
-                    self.type_stack.pop()?;
-                }
-                if label.signature != VOID {
-                    self.type_stack.push(label.signature)?;
-                }
+                // self.type_stack.expect_type(label.signature)?;
+                // // Reset Stack to Label
+                // while self.type_stack.len() > label.stack_limit as usize {
+                //     self.type_stack.pop()?;
+                // }
+                // if label.signature != VOID {
+                //     self.type_stack.push(label.signature)?;
+                // }
             },
             BR => {
                 let label = self.label_stack.top()?;
