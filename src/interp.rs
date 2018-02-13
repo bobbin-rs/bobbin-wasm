@@ -70,9 +70,9 @@ impl<'a> Interp<'a> {
 
         info!("code section len: {:08x}", code_buf.len());
 
-        // for (i, b) in code_buf.iter().enumerate() {
-        //     info!("{:04x}: {:02x}", i, b);
-        // }
+        for (i, b) in code_buf.iter().enumerate() {
+            info!("{:04x}: {:02x}", i, b);
+        }
         let body = m.body(func_index as u32).unwrap();
 
         // info!("body: size={}", body.buf.len());

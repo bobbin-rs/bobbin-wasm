@@ -609,6 +609,8 @@ impl<'m> Loader<'m> {
             Local { index } => {
                 // Emits OP DEPTH_TO_LOCAL
                 let id = index.0;
+                info!("id: {} depth: {} stack: {}", id, depth, self.type_stack.len());
+                let depth = (self.type_stack.len() as u32) - id;
 
                 // TODO: Move to Type Check
                 if id >= self.context.len() as u32 {
@@ -626,8 +628,6 @@ impl<'m> Loader<'m> {
                     _ => unreachable!()
                 }
                 // let depth = self.type_stack.len();
-                info!("id: {} depth: {}", id, depth);
-                let depth = (self.type_stack.len() as u32) - id;
                 self.w.write_opcode(op)?;
                 self.w.write_u32(depth)?;                
             }
