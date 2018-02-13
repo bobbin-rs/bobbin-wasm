@@ -469,7 +469,10 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
                 while self.r.pos() < body_end {
                     self.read_instruction()?;
                 }
-                self.dispatch(Event::InstructionsEnd)?;                
+                // self.dispatch(Event::InstructionsEnd)?;
+
+                // TODO: Check that function body ends with the END opcode
+
                 self.dispatch(Event::BodyEnd)?;
             }
             self.dispatch(Event::CodeEnd)?;
@@ -559,7 +562,14 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         };
         let end = self.r.pos();
         let data = self.r.slice(offset as usize..end);
-        self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }))?;
+
+        info!("end: {} len: {}", end, self.r.len());
+        if op.code == END && end == self.r.pos() {
+            info!("END at end of function body => InstructionsEnd");
+            self.d.dispatch(Event::InstructionsEnd)?;
+        } else {
+            self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }))?;
+        }
         Ok(())
     }
 }
