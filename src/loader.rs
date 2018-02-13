@@ -441,7 +441,6 @@ impl<'m> Delegate for Loader<'m> {
 
                 for p in self.context.parameters() {
                     self.type_stack.push_type(TypeValue::from(*p as i8))?;
-                    locals_count += 1;
                 }
 
                 // Push Locals
@@ -619,7 +618,7 @@ impl<'m> Loader<'m> {
                 // Emits OP DEPTH_TO_LOCAL
                 let id = index.0;
                 info!("id: {} depth: {} stack: {}", id, depth, self.type_stack.len());
-                let depth = (self.type_stack.len() as u32) - id;
+                let depth = (self.type_stack.len() as u32) - id - 1;
 
                 // TODO: Move to Type Check
                 if id >= self.context.len() as u32 {
