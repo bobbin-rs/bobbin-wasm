@@ -538,6 +538,7 @@ impl<'m> Loader<'m> {
                     // Update BR_UNLESS / BR OFFSET for IF/ELSE
                     if label.opcode == IF || label.opcode == ELSE {
                         let pos = self.w.pos();
+                        info!("fixup_offset: {:08x} at {:08x}", pos, label.fixup_offset);
                         self.w.write_u32_at(pos as u32, label.fixup_offset as usize)?;
                     }
 
@@ -563,14 +564,16 @@ impl<'m> Loader<'m> {
                     // Add BR OFFSET
 
                     self.w.write_opcode(BR)?;
-
-                    let pos = self.w.pos();                
+                    let fixup_pos = self.w.pos();                
                     self.w.write_u32(FIXUP_OFFSET)?;
 
+                    let br_pos = self.w.pos();
                     // Fixup BR_UNLESS OFFSET
-                    self.w.write_u32_at(pos as u32, label.fixup_offset as usize)?;
+                    info!("fixup_offset: {:08x} at {:08x}", br_pos, label.fixup_offset);
+                    self.w.write_u32_at(br_pos as u32, label.fixup_offset as usize)?;
+
                     // Set label fixup_offset to BR OFFSET
-                    label.fixup_offset = pos as u32;
+                    label.fixup_offset = fixup_pos as u32;
                     // Set label opcode to ELSE
                     label.opcode = ELSE;
 
@@ -582,8 +585,10 @@ impl<'m> Loader<'m> {
                     let return_type = self.context.return_type;
                     info!("RETURN {:?} - depth {}", return_type, depth);
                     if return_type == VOID {
+                        self.type_stack.drop_keep(depth as usize, 0)?;
                         self.w.write_drop_keep(depth, 0)?;
                     } else {
+                        self.type_stack.drop_keep((depth - 1) as usize, 1)?;
                         self.w.write_drop_keep(depth - 1, 1)?;
                     }
 
@@ -621,7 +626,6 @@ impl<'m> Loader<'m> {
                         panic!("Wrong immediate type for IF: {:?}", i.imm);                    
                     }
 
-                    self.add_fixup(0, pos as u32)?;
                     self.w.write_u32(FIXUP_OFFSET)?;                    
                 },
                 _ => unreachable!(),

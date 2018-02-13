@@ -312,6 +312,7 @@ impl<'a> Interp<'a> {
                     let offset = code.read_u32()?;
                     let val = self.pop()?;
                     if val == 0 {             
+                        info!("  => {:08x}", offset);
                         code.set_pos(offset as usize);
                     }
                 },                
