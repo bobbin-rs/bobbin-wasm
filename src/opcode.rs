@@ -33,7 +33,7 @@ pub type Depth = u32;
 pub type BranchCount = u32;
 pub type CallIndirectCount = u32;
 
-pub const ___: TypeValue = TypeValue::None;
+pub const ___: TypeValue = TypeValue::Void;
 pub const I32: TypeValue = TypeValue::I32;
 pub const I64: TypeValue = TypeValue::I64;
 pub const F32: TypeValue = TypeValue::F32;
@@ -54,11 +54,11 @@ pub struct Opcode {
 
 impl Opcode {
     pub fn is_unop(&self) -> bool {
-        self.t1 != TypeValue::None && self.t2 == TypeValue::None
+        self.t1 != TypeValue::Void && self.t2 == TypeValue::Void
     }
 
     pub fn is_binop(&self) -> bool {
-        self.t1 != TypeValue::None && self.t2 == TypeValue::None
+        self.t1 != TypeValue::Void && self.t2 == TypeValue::Void
     }
 
     pub fn immediate_type(&self) -> ImmediateType {

@@ -480,8 +480,8 @@ impl<'m> Delegate for Loader<'m> {
                 // self.type_stack.pop_type_expecting(return_type)?;
             },
             BodyEnd => {
-                assert!(self.type_checker.type_stack_size() == 0);
-                assert!(self.type_checker.label_stack_size() == 0);
+                // assert!(self.type_checker.type_stack_size() == 0);
+                // assert!(self.type_checker.label_stack_size() == 0);
                 
                 // let fixup = self.body_fixup;
                 // self.apply_fixup_u32(fixup)?;                                

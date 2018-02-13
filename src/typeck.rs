@@ -126,18 +126,39 @@ impl<'m> TypeChecker<'m> {
         Ok(())
     }
 
-    pub fn peek_and_check_type(&mut self, depth: usize, sig: TypeValue) -> Result<(), Error> {
-        let t = self.type_stack.peek(depth)?;
-        if t == sig {
+    pub fn peek_type(&mut self, depth: usize) -> Result<TypeValue, Error> {
+        let label = self.top_label()?;
+        if label.stack_limit + depth >= self.type_stack.len() {
+            if label.unreachable {
+                return Ok(TypeValue::Any);
+            } else {
+                return Err(Error::TypeCheck("invalid depth in peek_type"));
+            }
+        }
+        Ok(self.type_stack.peek(depth)?)
+    }
+
+    pub fn check_type(&self, actual: TypeValue, expected: TypeValue) -> Result<(), Error> {
+        info!("check_type({:?}, {:?})", actual, expected);
+        if expected == actual || expected == TypeValue::Any || actual == TypeValue::Any {
             Ok(())
         } else {
-            self.dump_type_stack()?;
-            return Err(Error::TypeCheck("incorrect signature"))?;
-        }        
+            Err(Error::TypeCheck("incorrect signature"))
+        }
+    }
+
+    pub fn peek_and_check_type(&mut self, depth: usize, expected: TypeValue) -> Result<(), Error> {
+        info!("peek_and_check_type({}, {:?})", depth, expected);
+        let t = self.peek_type(depth)?;
+        info!("   type: {:?}", t);
+        self.check_type(t, expected)?;
+        Ok(())
     }
 
     pub fn check_type_stack_end(&mut self) -> Result<(), Error> {
+        info!("check_stack_type_end()");
         let label = self.top_label()?;
+        info!("   type_stack: {} stack_limit: {}", self.type_stack.len(), label.stack_limit);
         if self.type_stack.len() != label.stack_limit {
             return Err(Error::TypeCheck("type_stack length != label.stack_limit"))
         }
@@ -233,7 +254,7 @@ impl<'a> TypeStack for Stack<'a, TypeValue> {
     }
 
     fn pop_type_expecting(&mut self, tv: TypeValue) -> Result<(), Error> {
-        if tv == TypeValue::Void || tv == TypeValue::None {
+        if tv == TypeValue::Void || tv == TypeValue::Any {
            Ok(()) 
         } else {
             let t = self.pop_type()?;
@@ -246,7 +267,7 @@ impl<'a> TypeStack for Stack<'a, TypeValue> {
     }
 
     fn expect_type(&self, wanted: TypeValue) -> Result<(), Error> {
-        if wanted == TypeValue::Void || wanted == TypeValue::None {
+        if wanted == TypeValue::Void || wanted == TypeValue::Any {
             Ok(())
         } else {
             let got = self.top()?;
@@ -273,7 +294,8 @@ impl<'a> TypeStack for Stack<'a, TypeValue> {
         Ok(())
     }    
     fn erase(&mut self, bottom: usize, top: usize) -> Result<(), Error> {
-        for i in bottom..top {
+        info!("erase({},{})", bottom, top);
+        for i in bottom..top {            
             self.set(i, VOID)?;
         }
         Ok(())

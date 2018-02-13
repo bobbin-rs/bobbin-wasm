@@ -155,7 +155,7 @@ pub enum ExternalKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i8)]
 pub enum TypeValue {
-    None = 0x00,
+    Any = 0x00,
     I32 = -0x01,
     I64 = -0x02,
     F32 = -0x03,
@@ -167,14 +167,14 @@ pub enum TypeValue {
 
 impl Default for TypeValue {
     fn default() -> Self {
-        TypeValue::None
+        TypeValue::Any
     }
 }
 
 impl From<i8> for TypeValue {
     fn from(other: i8) -> Self {
         match other {
-             0x00 => TypeValue::None,
+             0x00 => TypeValue::Any,
             -0x01 => TypeValue::I32,
             -0x02 => TypeValue::I64,
             -0x03 => TypeValue::F32,
@@ -197,7 +197,7 @@ impl fmt::Display for TypeValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use TypeValue::*;
         write!(f, "{}", match *self {
-            None => "none",
+            Any => "any",
             I32 => "i32",
             I64 => "i64",
             F32 => "f32",
