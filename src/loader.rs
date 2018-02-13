@@ -507,11 +507,13 @@ impl<'m> Loader<'m> {
     fn dispatch_instruction(&mut self, i: Instruction) -> DelegateResult {
         use opcode::Immediate::*;
 
-        let mut depth = self.label_stack.len();
-        if i.op.code == END || i.op.code == ELSE {
-            depth -= 1;
+        {
+            let mut depth = self.label_stack.len();
+            if i.op.code == END || i.op.code == ELSE {
+                depth -= 1;
+            }
+            info!("{:08x}: V:{} D:{} | {:0width$}{}{:?} {:02x}" , self.w.pos(), self.type_stack.len(), self.depth, "", i.op.text, i.imm, i.op.code, width=depth);
         }
-        info!("{:08x}: V:{} D:{} | {:0width$}{}{:?} {:02x}" , self.w.pos(), self.type_stack.len(), self.depth, "", i.op.text, i.imm, i.op.code, width=depth);
         self.type_check(&i)?;   
 
         let op = i.op.code;
@@ -693,8 +695,9 @@ impl<'m> Loader<'m> {
             Local { index } => {
                 // Emits OP DEPTH_TO_LOCAL
                 let id = index.0;
-                let rel = (depth as u32) - id - 1;
-                info!("id: {} rel: {} depth: {}", id, rel, depth);
+                let rel = (self.depth as u32) - id - 1;
+                let abs = self.depth as u32 - rel;
+                info!("id: {} rel: {} depth: {} abs: {}", id, rel, self.depth, abs);
 
                 // TODO: Move to Type Check
                 if id >= self.context.len() as u32 {
@@ -705,9 +708,7 @@ impl<'m> Loader<'m> {
                 match op {
                     GET_LOCAL => {
                         self.type_stack.push_type(ty)?;
-                        info!("GET_LOCAL: depth was {}", self.depth);
                         self.depth += 1;
-                        info!("GET_LOCAL: depth = {}", self.depth);
                     },
                     SET_LOCAL => {
                         self.type_stack.pop_type_expecting(ty)?;
