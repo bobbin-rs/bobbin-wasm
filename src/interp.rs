@@ -90,13 +90,13 @@ impl<'a> Interp<'a> {
 
         loop {
             if code.pos() >= code.len() {
-                info!("C: {:02} V: {:02} 0x{:08x}: CODE END {:08x}", self.call_stack.len(), self.value_stack.len(), code.pos(), code.len());
+                info!("V: {} 0x{:08x}: CODE END {:08x}", self.value_stack.len(), code.pos(), code.len());
                 break;
             }
             let pos = code.pos();
             let opc = code.read_u8()?;
             let op = Opcode::try_from(opc).unwrap();
-            info!("C: {:02} V: {:02} 0x{:08x}: {:02x} {}", self.call_stack.len(), self.value_stack.len(), pos, opc, op.text);
+            info!("V: {} 0x{:08x}: {}", self.value_stack.len(), pos, op.text);
             match opc {
                 NOP => {},
                 UNREACHABLE => return Err(Error::Unreachable),
@@ -334,7 +334,7 @@ impl<'a> Interp<'a> {
                         info!("pushed {:?}", val);
                         self.push(val)?;
                     }
-                    info!("C: {} V: {}", self.call_stack.len(), self.value_stack.len());
+                    info!("V: {}", self.value_stack.len());
                 },
                 _ => return Err(Error::Unimplemented),
             }

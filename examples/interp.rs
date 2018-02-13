@@ -72,22 +72,23 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     if matches.is_present("dump") {
         print!("{:?}", m);
     }
-    println!("remaining: {}", buf.len());
     let (mi, _buf) = m.instantiate(buf)?;
-    println!("mi: {}", mi.name());
-    println!("types");
+    // println!("mi: {}", mi.name());
+    // println!("types");
 
-    for (i, t) in mi.types().iter().enumerate() {
-        println!("  {}: {:?} -> {:?}", i, t.parameters, t.return_type());
-    }
-    println!("functions");
-    for (i, f) in mi.functions().iter().enumerate() {
-        println!("  {}: {:?}", i, f);
-    }
-    println!("globals");
-    for (i, g) in mi.globals().iter().enumerate() {
-        println!("  {}: {:?}", i, g);
-    }
+    // for (i, t) in mi.types().iter().enumerate() {
+    //     println!("  {}: {:?} -> {:?}", i, t.parameters, t.return_type());
+    // }
+    // println!("functions");
+    // for (i, f) in mi.functions().iter().enumerate() {
+    //     println!("  {}: {:?}", i, f);
+    // }
+    // println!("globals");
+    // for (i, g) in mi.globals().iter().enumerate() {
+    //     println!("  {}: {:?}", i, g);
+    // }
+
+    println!("---- RUN ----");
 
     // Interpreter
 
@@ -98,14 +99,14 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     interp.run(&mi, 0).unwrap();
 
-    println!("Stack Dump (top first):");
+    println!("---- Stack Dump ----");
 
     let mut i = 0;
     while let Ok(value) = interp.pop() {
         println!("{}: {:?}", i, value);
         i += 1;
     }
-    println!("---");
+    println!("---- END ----");
     
     Ok(())
 }

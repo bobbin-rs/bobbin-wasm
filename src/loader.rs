@@ -471,7 +471,6 @@ impl<'m> Delegate for Loader<'m> {
         
                 for entry in self.fixups.iter() {
                     if let &Some(entry) = entry {   
-                        info!("{:?}", entry);
                         panic!("Orphan Fixup: {:?}", entry);
                     }
                 }
@@ -534,9 +533,7 @@ impl<'m> Loader<'m> {
                                                             
                     // All fixups go to the next instruction
                     self.fixup()?;
-                    let mut label = self.pop_label()?;
-
-                    info!("{:?}", label);
+                    let mut _label = self.pop_label()?;
 
                     // // IF without ELSE can only have type signature VOID
                     // if label.opcode == IF && label.signature != VOID {
