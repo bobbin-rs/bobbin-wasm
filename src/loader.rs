@@ -508,11 +508,11 @@ impl<'m> Loader<'m> {
         use opcode::Immediate::*;
 
         {
-            let mut depth = self.label_stack.len();
+            let mut indent = self.label_stack.len();
             if i.op.code == END || i.op.code == ELSE {
-                depth -= 1;
+                indent -= 1;
             }
-            info!("{:08x}: V:{} D:{} | {:0width$}{}{:?} {:02x}" , self.w.pos(), self.type_stack.len(), self.depth, "", i.op.text, i.imm, i.op.code, width=depth);
+            info!("{:08x}: V:{} | {:0width$}{}{:?} {:02x}" , self.w.pos(), self.type_stack.len(),  "", i.op.text, i.imm, i.op.code, width=indent);
         }
         self.type_check(&i)?;   
 
@@ -637,7 +637,8 @@ impl<'m> Loader<'m> {
                 },
                 IF => {
                     self.type_stack.pop_type_expecting(I32)?;
-                    self.w.write_opcode(INTERP_BR_UNLESS)?;
+                    self.depth -= 1;
+                    self.w.write_opcode(INTERP_BR_UNLESS)?;                    
                     let pos = self.w.pos();
 
                     if let Immediate::Block { signature } = i.imm {
