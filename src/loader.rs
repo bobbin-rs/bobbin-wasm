@@ -542,22 +542,6 @@ impl<'m> Loader<'m> {
                     }
 
                     self.type_stack.expect_type(label.signature)?;
-
-
-                    // Reset Stack to Label
-                    let mut drop = 0;
-                    let mut keep = 0;
-                    while self.type_stack.len() > label.stack_limit as usize {
-                        self.type_stack.pop()?;
-                        drop += 1;
-                    }
-                    if label.signature != VOID {
-                        self.type_stack.push(label.signature)?;
-                        drop -= 1;
-                        keep += 1;
-                    }
-                    self.w.write_drop_keep(drop, keep)?;
-                    self.w.write_opcode(END)?;
                 },
                 ELSE => {
                     let mut label = self.pop_label()?;                    

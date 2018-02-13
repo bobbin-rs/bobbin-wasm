@@ -147,24 +147,17 @@ impl<'a> Interp<'a> {
                     code.set_pos(offset as usize);
                 }
                 RETURN => {
-                    if self.call_stack.len() > 0 {
-                        let offset = self.call_stack.pop()?;
-                        info!("RETURN: to {:08x}", offset);
-                        code.set_pos(offset as usize);
-                    } else {
+                    if self.call_stack.len() == 0 {
                         info!("RETURN");
                         break;
                     }
+
+                    let offset = self.call_stack.pop()?;
+                    info!("RETURN: to {:08x}", offset);
+                    code.set_pos(offset as usize);
                 },
                 END => {
-                    if self.call_stack.len() > 0 {
-                        let offset = self.call_stack.pop()?;
-                        info!("END: to {:08x}", offset);
-                        code.set_pos(offset as usize);
-                    } else {
-                        info!("END");
-                        break;
-                    }
+                    panic!("unexpected END");
                 }
                 SELECT => {
                     let cond: i32 = self.pop()?;
