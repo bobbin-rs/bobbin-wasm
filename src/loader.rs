@@ -557,9 +557,9 @@ impl<'m> Loader<'m> {
                     while self.type_stack.len() > label.stack_limit as usize {
                         self.type_stack.pop()?;
                     }
-                    if label.signature != VOID {
-                        self.type_stack.push(label.signature)?;
-                    }
+                    // if label.signature != VOID {
+                    //     self.type_stack.push(label.signature)?;
+                    // }
 
                     // Add BR OFFSET
 
