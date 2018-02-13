@@ -255,6 +255,14 @@ impl<'m> TypeChecker<'m> {
         })
     }
 
+
+    pub fn on_get_local(&mut self, t: TypeValue) -> Result<(), Error> {
+        info!("on_get_local()");
+        Ok({
+            self.push_type(t)?;
+        })
+    }
+
     pub fn on_i32_const(&mut self) -> Result<(), Error> {
         info!("on_i32_const()");
         Ok({

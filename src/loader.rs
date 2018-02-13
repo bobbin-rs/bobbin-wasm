@@ -686,38 +686,38 @@ impl<'m> Loader<'m> {
             //     self.add_fixup(depth, pos as u32)?;
             //     self.w.write_u32(FIXUP_OFFSET)?;                
             // },
-            // Local { index } => {
-            //     // Emits OP DEPTH_TO_LOCAL
-            //     let id = index.0;
-            //     let rel = (self.depth as u32) - id - 1;
-            //     let abs = self.depth as u32 - rel;
-            //     info!("id: {} rel: {} depth: {} abs: {}", id, rel, self.depth, abs);
+            Local { index } => {
+                // Emits OP DEPTH_TO_LOCAL
+                let id = index.0;
+                let depth = self.type_checker.type_stack_size();
+                let rel = (depth as u32) - id - 1;
+                let abs = depth as u32 - rel;
+                info!("id: {} rel: {} depth: {} abs: {}", id, rel, depth, abs);
 
-            //     // TODO: Move to Type Check
-            //     if id >= self.context.len() as u32 {
-            //         return Err(Error::InvalidLocal { id: id })
-            //     }
+                // TODO: Move to Type Check
+                if id >= self.context.len() as u32 {
+                    return Err(Error::InvalidLocal { id: id })
+                }
 
-            //     let ty = self.context[id as usize];
-            //     match op {
-            //         GET_LOCAL => {
-            //             // self.type_stack.push_type(ty)?;
-            //             self.depth += 1;
-            //         },
-            //         SET_LOCAL => {
-            //             // self.type_stack.pop_type_expecting(ty)?;
-            //             self.depth -= 1;
-            //         },
-            //         TEE_LOCAL => {
-            //             // self.type_stack.pop_type_expecting(ty)?;
-            //             // self.type_stack.push_type(ty)?;
-            //         }
-            //         _ => unreachable!()
-            //     }
+                let ty = self.context[id as usize];
+                match op {
+                    GET_LOCAL => {
+                        self.type_checker.push_type(ty)?;
+                    },
+                    SET_LOCAL => {
+                        // self.type_stack.pop_type_expecting(ty)?;
+                        // self.depth -= 1;
+                    },
+                    TEE_LOCAL => {
+                        // self.type_stack.pop_type_expecting(ty)?;
+                        // self.type_stack.push_type(ty)?;
+                    }
+                    _ => unreachable!()
+                }
 
-            //     self.w.write_opcode(op)?;
-            //     self.w.write_u32(rel)?;                
-            // }
+                self.w.write_opcode(op)?;
+                self.w.write_u32(rel)?;                
+            }
             // Global { index } => {
             //     let id = index.0 as u32;
 
