@@ -150,7 +150,7 @@ impl<'m> TypeChecker<'m> {
     pub fn peek_and_check_type(&mut self, depth: usize, expected: TypeValue) -> Result<(), Error> {
         info!("peek_and_check_type({}, {:?})", depth, expected);
         let t = self.peek_type(depth)?;
-        info!("   type: {:?}", t);
+        info!("   -> type: {:?}", t);
         self.check_type(t, expected)?;
         Ok(())
     }
@@ -158,7 +158,7 @@ impl<'m> TypeChecker<'m> {
     pub fn check_type_stack_end(&mut self) -> Result<(), Error> {
         info!("check_stack_type_end()");
         let label = self.top_label()?;
-        info!("   type_stack: {} stack_limit: {}", self.type_stack.len(), label.stack_limit);
+        info!("   -> type_stack: {} stack_limit: {}", self.type_stack.len(), label.stack_limit);
         if self.type_stack.len() != label.stack_limit {
             return Err(Error::TypeCheck("type_stack length != label.stack_limit"))
         }
