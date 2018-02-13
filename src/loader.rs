@@ -30,6 +30,7 @@ pub struct Label {
     opcode: u8,
     signature: TypeValue,
     offset: u32,
+    fixup_offset: u32,
     stack_limit: u32,
     unreachable: bool,
 }
@@ -37,7 +38,7 @@ pub struct Label {
 impl fmt::Debug for Label {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let opc = Opcode::try_from(self.opcode).unwrap();
-        write!(f, "Label {{ opcode: {} signature: {:?}, offset: 0x{:08x}, stack_limit: {} }}", opc.text, self.signature, self.offset, self.stack_limit)
+        write!(f, "Label {{ opcode: {} signature: {:?}, offset: 0x{:08x}, fixup_offset: 0x{:08x}, stack_limit: {} }}", opc.text, self.signature, self.offset, self.fixup_offset, self.stack_limit)
     }
 }
 
@@ -220,11 +221,16 @@ impl<'m> Loader<'m> {
 
 
     fn push_label<T: Into<TypeValue>>(&mut self, opcode: u8, signature: T, offset: u32) -> Result<(), Error> {
+        self.push_label_fixup(opcode, signature, offset, 0x0000_0000)
+    }
+
+    fn push_label_fixup<T: Into<TypeValue>>(&mut self, opcode: u8, signature: T, offset: u32, fixup_offset: u32) -> Result<(), Error> {
         let stack_limit = self.type_stack.len() as u32;
         let label = Label {
             opcode,
             signature: signature.into(),
             offset,
+            fixup_offset,
             stack_limit,
             unreachable: false,
         };
@@ -520,14 +526,22 @@ impl<'m> Loader<'m> {
                 END => {
                     // All fixups go to the next instruction
                     self.fixup()?;
-                    let label = self.pop_label()?;
+                    let mut label = self.pop_label()?;
 
                     // IF without ELSE can only have type signature VOID
                     if label.opcode == IF && label.signature != VOID {
                         return Err(Error::InvalidIfSignature)
                     }
 
+                    // Update BR_UNLESS / BR OFFSET for IF/ELSE
+                    if label.opcode == IF || label.opcode == ELSE {
+                        let pos = self.w.pos();
+                        self.w.write_u32_at(pos as u32, label.fixup_offset as usize)?;
+                    }
+
                     self.type_stack.expect_type(label.signature)?;
+
+
                     // Reset Stack to Label
                     let mut drop = 0;
                     let mut keep = 0;
@@ -544,9 +558,7 @@ impl<'m> Loader<'m> {
                     self.w.write_opcode(END)?;
                 },
                 ELSE => {
-                    self.fixup()?;
-                    let label = self.pop_label()?;
-                    
+                    let mut label = self.pop_label()?;                    
                     self.type_stack.expect_type(label.signature)?;
                     if label.signature == VOID {
                         self.type_stack.expect_type_stack_depth(label.stack_limit)?;
@@ -562,16 +574,20 @@ impl<'m> Loader<'m> {
                         self.type_stack.push(label.signature)?;
                     }
 
-                    self.push_label(op, label.signature, FIXUP_OFFSET)?;
-
+                    // Add BR OFFSET
 
                     self.w.write_opcode(BR)?;
-                    // self.fixup()?;
-                    // let label = self.pop_label()?;
-                    // self.push_label(op, label.signature, FIXUP_OFFSET)?;    
+
                     let pos = self.w.pos();                
-                    self.add_fixup(0, pos as u32)?;
                     self.w.write_u32(FIXUP_OFFSET)?;
+
+                    // Fixup BR_UNLESS OFFSET
+                    self.w.write_u32_at(pos as u32, label.fixup_offset as usize)?;
+                    // Set label fixup_offset to BR OFFSET
+                    label.fixup_offset = pos as u32;
+
+                    self.label_stack.push(label)?;
+
                 },
                 RETURN => {
                     let depth = self.type_stack.len() as u32;
@@ -606,16 +622,17 @@ impl<'m> Loader<'m> {
                     // self.push_label(op, signature, pos as u32)?;                    
                 },
                 IF => {
-                    // self.push_label(op, signature, FIXUP_OFFSET)?;
+                    self.type_stack.pop_type_expecting(I32)?;
+                    self.w.write_opcode(INTERP_BR_UNLESS)?;
+                    let pos = self.w.pos();
+
                     if let Immediate::Block { signature } = i.imm {
-                        // self.type_stack.pop_type_expecting(I32)?;
-                        self.push_label(op, signature, FIXUP_OFFSET)?;
+                        // push label with fixup pointer to BR_UNLESS offset
+                        self.push_label_fixup(op, signature, FIXUP_OFFSET, pos as u32)?; 
                     } else {
                         panic!("Wrong immediate type for IF: {:?}", i.imm);                    
                     }
 
-                    self.w.write_opcode(INTERP_BR_UNLESS)?;
-                    let pos = self.w.pos();
                     self.add_fixup(0, pos as u32)?;
                     self.w.write_u32(FIXUP_OFFSET)?;                    
                 },
