@@ -739,30 +739,36 @@ impl<'m> Loader<'m> {
             //     self.w.write_opcode(op)?;
             //     self.w.write_u32(id as u32)?;                
             // },
-            // Call { index } => {
-            //     let id = index.0 as u32;
-            //     info!("CALL {}", id);
-            //     let signature = if let Some(signature) = self.module.function_signature_type(id) {
-            //         signature
-            //     } else {
-            //         return Err(Error::InvalidFunction { id: id })
-            //     };
-            //     let (parameters, returns) = (signature.parameters, signature.returns);
-            //     if returns.len() > 1 {
-            //         return Err(Error::UnexpectedReturnLength { got: returns.len() as u32})
-            //     }
-            //     for p in parameters.iter() {
-            //         info!("pop {:?}", TypeValue::from(*p as i8));
-            //         // self.type_stack.pop_type_expecting(TypeValue::from(*p as i8))?;
-            //     }
-            //     for r in returns.iter() {
-            //         info!("push {:?}", TypeValue::from(*r as i8));
-            //         // self.type_stack.push_type(TypeValue::from(*r as i8))?;
-            //     }
+            Call { index } => {
+                let id = index.0 as u32;
+                info!("CALL {}", id);
+                let signature = if let Some(signature) = self.module.function_signature_type(id) {
+                    signature
+                } else {
+                    return Err(Error::InvalidFunction { id: id })
+                };
+                let (parameters, returns) = (signature.parameters, signature.returns);
+                if returns.len() > 1 {
+                    return Err(Error::UnexpectedReturnLength { got: returns.len() as u32})
+                }
 
-            //     self.w.write_opcode(op)?;
-            //     self.w.write_u32(id as u32)?;
-            // },
+                let mut p_arr = [TypeValue::Any; 16];
+                let mut r_arr = [TypeValue::Any; 1];
+                for i in 0..parameters.len() {
+                    p_arr[i] = TypeValue::from(parameters[i] as i8);
+                }
+                for i in 0..returns.len() {
+                    r_arr[i] = TypeValue::from(returns[i] as i8);
+                }
+                let p_slice = &p_arr[..parameters.len()];
+                let r_slice = &r_arr[..returns.len()];
+
+                self.type_checker.on_call(p_slice, r_slice)?;
+
+
+                self.w.write_opcode(op)?;
+                self.w.write_u32(id as u32)?;
+            },
             // CallIndirect { index } => {
             //     // Emits OP SIG
 

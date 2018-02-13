@@ -82,6 +82,14 @@ impl<'m> TypeChecker<'m> {
         Ok(self.type_stack.push(t)?)
     }
 
+    pub fn push_types(&mut self, types: &[TypeValue]) -> Result<(), Error> {
+        Ok({
+            for t in types {
+                self.push_type(*t)?;
+            }
+        })
+    }
+
     pub fn pop_type(&mut self) -> Result<TypeValue, Error> {        
         let d = self.type_stack.len();
         let v = self.type_stack.pop()?;
@@ -165,22 +173,30 @@ impl<'m> TypeChecker<'m> {
         Ok(())
     }
 
-    pub fn check_signature(&mut self, sig: TypeValue) -> Result<(), Error> {
+    pub fn check_signature(&mut self, sig: &[TypeValue]) -> Result<(), Error> {
         info!("check_signature({:?})", sig);
-        if sig != VOID {
-            self.peek_and_check_type(0, sig)?;
+
+        for i in 0..sig.len() {
+            self.peek_and_check_type(i, sig[i])?;
         }
         Ok(())
 
     }
 
-    pub fn pop_and_check_signature(&mut self, sig: TypeValue) -> Result<(), Error> {
+    pub fn pop_and_check_signature(&mut self, sig: &[TypeValue]) -> Result<(), Error> {
         info!("pop_and_check_signature({:?})", sig);
-        self.check_signature(sig)?;
-        if sig != VOID {
-            self.drop_types(1)?;
-        }
+        self.check_signature(sig)?;        
+        self.drop_types(sig.len())?;
         Ok(())
+    }
+
+    pub fn pop_and_check_call(&mut self, parameters: &[TypeValue], returns: &[TypeValue]) -> Result<(), Error> {
+        info!("pop_and_check_call({:?}, {:?})", parameters, returns);
+        Ok({
+            self.check_signature(parameters)?;
+            self.drop_types(parameters.len())?;            
+            self.push_types(returns)?;
+        })
     }
 
     pub fn begin_function(&mut self, sig: TypeValue) -> Result<(), Error> {
@@ -203,12 +219,19 @@ impl<'m> TypeChecker<'m> {
         })
     }    
 
+    pub fn on_call(&mut self, parameters: &[TypeValue], result_types: &[TypeValue]) -> Result<(), Error> {
+        info!("on_call({:?}, {:?})", parameters, result_types);
+        Ok({
+            self.pop_and_check_call(parameters, result_types)?;
+        })
+    }
+
     pub fn on_return(&mut self) -> Result<(), Error> {
         info!("on_return()");
         Ok({
             let label = self.get_label(0)?;
-            info!("checking {:?}", label);
-            self.pop_and_check_signature(label.signature)?;
+            info!("checking {:?}", label);            
+            self.pop_and_check_signature(&[label.signature])?;
             self.set_unreachable(true)?;
         })
     }
@@ -222,7 +245,7 @@ impl<'m> TypeChecker<'m> {
                     return Err(Error::TypeCheck("if without else cannot have type signature"))
                 }
             }
-            self.pop_and_check_signature(label.signature)?;
+            self.pop_and_check_signature(&[label.signature])?;
             self.check_type_stack_end()?;
             self.reset_type_stack_to_label(label)?;
             if label.signature != VOID {
