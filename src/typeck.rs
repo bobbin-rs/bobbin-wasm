@@ -574,7 +574,13 @@ impl<'m> TypeChecker<'m> {
         self.check_opcode2(op)
     }
 
+    pub fn on_current_memory(&mut self) -> Result<(), Error> {
+        self.push_type(TypeValue::I32)
+    }
 
+    pub fn on_grow_memory(&mut self, op: &Opcode) -> Result<(), Error> {
+        self.check_opcode1(op)
+    }
 }
 
 

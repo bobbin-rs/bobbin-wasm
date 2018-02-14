@@ -905,31 +905,7 @@ impl<'m> Loader<'m> {
 
                     self.w.write_opcode(CALL_INDIRECT)?;
                     self.w.write_u32(index.0)?;                    
-                }
-                // // Emits OP SIG
-
-                // let id = index.0 as u32;                
-                // let signature = if let Some(signature) = self.module.function_signature_type(id) {
-                //     signature
-                // } else {
-                //     return Err(Error::InvalidFunction { id: id })
-                // };
-
-                // let ret_count = signature.returns.len() as u32;
-                // if ret_count > 1 {
-                //     return Err(Error::UnexpectedReturnLength { got: ret_count })
-                // }
-                // // // Load function index
-                // // self.type_stack.pop_type_expecting(I32)?;
-                // // for p in signature.parameters() {
-                // //     self.type_stack.pop_type_expecting(p)?;
-                // // }
-                // // for r in signature.returns() {
-                // //     self.type_stack.push_type(r)?;
-                // // }                         
-
-                // self.w.write_opcode(op)?;                    
-                // self.w.write_u32(id as u32)?;                
+                }            
             },
             I32Const { value } => {
                 self.type_checker.on_const(I32)?;
@@ -967,8 +943,16 @@ impl<'m> Loader<'m> {
                 self.w.write_u32(offset)?;
             },
             Memory { reserved: _ } => {
-                unimplemented!();
-                // self.w.write_opcode(op)?;
+                match op {
+                    MEM_SIZE => {
+                        self.type_checker.on_current_memory()?;
+                    },
+                    MEM_GROW => {
+                        self.type_checker.on_grow_memory(i.op)?;
+                    },
+                    _ => unimplemented!()
+                }
+                self.w.write_opcode(op)?;
             },
         } 
         Ok(())
