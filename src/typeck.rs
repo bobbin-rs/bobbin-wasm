@@ -25,11 +25,13 @@ pub struct Label {
 pub struct TypeChecker<'m> {
     label_stack: Stack<'m, Label>,
     type_stack: Stack<'m, TypeValue>,
+    br_table_sig: Option<TypeValue>,
 }
 
 impl<'m> TypeChecker<'m> {
     pub fn new(label_stack: Stack<'m, Label>, type_stack: Stack<'m, TypeValue>) -> Self {
-        TypeChecker { label_stack, type_stack }
+        let br_table_sig = None;
+        TypeChecker { label_stack, type_stack, br_table_sig }
     }
 
     pub fn get_label(&self, depth: usize) -> Result<Label, Error> {
@@ -424,6 +426,68 @@ impl<'m> TypeChecker<'m> {
             //   }
         })
     }
+
+    pub fn begin_br_table(&mut self) -> Result<(), Error> {
+        info!("begin_br_table()");
+        Ok({
+            self.br_table_sig = Some(TypeValue::Any);
+            self.pop_and_check_one_type(TypeValue::I32)?;
+        })
+    }
+
+    pub fn on_br_table_target(&mut self, depth: usize) -> Result<(), Error> {
+        info!("on_br_table_target()");
+        Ok({
+            let label = self.get_label(depth)?;
+            let label_sig = if label.label_type == LabelType::Loop {
+                TypeValue::Void
+            } else {
+                label.signature
+            };
+            if label.signature != TypeValue::Void {
+                self.check_signature(&[label.signature])?;
+            }
+            if let Some(br_table_sig) = self.br_table_sig {
+                if self.check_type(br_table_sig, label_sig).is_err() {
+                    return Err(Error::TypeCheck("br_table labels have inconsistent types"));
+                }
+            } else {
+                panic!("br_table_target without begin_br_table call");
+            }
+            self.br_table_sig = Some(label_sig);
+
+            // CHECK_RESULT(GetLabel(depth, &label));
+            //   Type label_sig;
+            //   if (label->label_type == LabelType::Loop) {
+            //     label_sig = Type::Void;
+            //   } else {
+            //     assert(label->sig.size() <= 1);
+            //     label_sig = label->sig.size() == 0 ? Type::Void : label->sig[0];
+
+            //     result |= CheckSignature(label->sig);
+            //     PrintStackIfFailed(result, "br_table", label_sig);
+            //   }
+
+            //   // Make sure this label's signature is consistent with the previous labels'
+            //   // signatures.
+            //   if (Failed(CheckType(br_table_sig_, label_sig))) {
+            //     result |= Result::Error;
+            //     PrintError("br_table labels have inconsistent types: expected %s, got %s",
+            //                GetTypeName(br_table_sig_), GetTypeName(label_sig));
+            //   }
+            //   br_table_sig_ = label_sig;
+
+        })
+    }
+
+    pub fn end_br_table(&mut self) -> Result<(), Error> {
+        info!("end_br_table()");
+        Ok({
+            self.set_unreachable(true)?;
+            self.br_table_sig = None;
+        })
+    }
+
     pub fn on_get_local(&mut self, t: TypeValue) -> Result<(), Error> {
         info!("on_get_local({})", t);
         Ok({

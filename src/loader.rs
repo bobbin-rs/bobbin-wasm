@@ -325,6 +325,31 @@ impl<'m> Loader<'m> {
         })
     }
 
+    fn write_br_offset(&mut self, depth: u32, offset: u32) -> Result<(), Error> {
+        info!("write_br_offset({}, {})", depth, offset);
+        Ok({
+            if offset == FIXUP_OFFSET {
+                self.add_fixup(depth, offset)?;
+            }
+            self.w.write_u32(offset)?;
+        })
+    }
+
+    fn write_br_table_offset(&mut self, depth: u32) -> Result<(), Error> {
+        info!("write_br_table_offset({})", depth);
+        Ok({
+            let (drop, keep) = self.get_br_drop_keep_count(depth as usize)?;
+            self.w.write_opcode(BR)?;
+            self.w.write_u32(drop)?;
+            self.w.write_u32(keep)?;
+
+//   CHECK_RESULT(GetBrDropKeepCount(depth, &drop_count, &keep_count));
+//   CHECK_RESULT(EmitBrOffset(depth, GetLabel(depth)->offset));
+//   CHECK_RESULT(EmitI32(drop_count));
+//   CHECK_RESULT(EmitI8(keep_count));            
+        })
+    }
+
     fn write_fixup_u32(&mut self) -> Result<usize, Error> {
         let pos = self.w.pos();
         self.w.write_u32(FIXUP_OFFSET)?;
@@ -679,39 +704,41 @@ impl<'m> Loader<'m> {
                 // self.add_fixup(depth, pos as u32)?;
                 // self.w.write_u32(FIXUP_OFFSET)?;                
             },
-            BranchTable { count: _ } => {
-                unimplemented!();
-                // Emits BR_TABLE LEN [DROP OFFSET; LEN] [DROP OFFSET] KEEP
+            BranchTable { count } => {
+                // BR_TABLE LEN 
+                // DATA SIZE
+                // [OFFSET DROP KEEP]
+                // OFFSET_DROP_KEEP
 
-                // Verify top of stack contains the index
-                // self.type_stack.pop_type_expecting(I32)?;
+                const BR_TABLE_ENTRY_SIZE: u32 = 12;
+
+                self.type_checker.begin_br_table()?;
+                self.w.write_opcode(BR_TABLE)?;
+                self.w.write_u32(count as u32)?;
+
+                // Write offset of branch table
+                let table_pos = self.w.pos();
+                self.w.write_u32(FIXUP_OFFSET)?;
                 
-                // self.w.write_opcode(op)?;
-                // self.w.write_u32(count as u32)?;
-            },
-            BranchTableDepth { n: _, depth: _ } => {
-                unimplemented!();
-                // // let label = self.label_stack.peek(depth as usize)?;
-                // // self.type_stack.expect_type(label.signature)?;
-                // let (drop, keep) = self.get_drop_keep(&label)?;
+                // Write INTERP_DATA + SIZE
+                self.w.write_opcode(INTERP_DATA)?;
+                self.w.write_u32((count + 1) * BR_TABLE_ENTRY_SIZE)?;
 
-                // self.w.write_u32(drop as u32)?;
-                // self.w.write_u32(keep as u32)?;
-                // let pos = self.w.pos();
-                // self.add_fixup(depth, pos as u32)?;
-                // self.w.write_u32(FIXUP_OFFSET)?;                
-            },
-            BranchTableDefault { depth: _ } => {
-                unimplemented!();
-                // let label = self.label_stack.peek(depth as usize)?;
-                // // self.type_stack.expect_type(label.signature)?;
+                // Fixup branch table offset
+                let pos = self.w.pos();
+                self.w.write_u32_at(pos as u32, table_pos)?;
 
-                // let (drop, keep) = self.get_drop_keep(&label)?;
-                // self.w.write_u32(drop as u32)?;
-                // self.w.write_u32(keep as u32)?;
-                // let pos = self.w.pos();
-                // self.add_fixup(depth, pos as u32)?;
-                // self.w.write_u32(FIXUP_OFFSET)?;                
+                // Branch Table Starts Here
+            },
+            BranchTableDepth { n: _, depth } => {
+                self.type_checker.on_br_table_target(depth as usize)?;
+                self.write_br_table_offset(depth)?;
+            },
+            BranchTableDefault { depth } => {
+                self.type_checker.on_br_table_target(depth as usize)?;
+                self.write_br_table_offset(depth)?;
+
+                self.type_checker.end_br_table()?;              
             },
             Local { index } => {
                 // Emits OP DEPTH_TO_LOCAL
