@@ -1,0 +1,26 @@
+;;; TOOL: run-interp
+(module
+  ;; i32
+  (func (export "i32_eqz_100") (result i32) 
+    i32.const 100
+    i32.eqz)
+  (func (export "i32_eqz_0") (result i32)
+    i32.const 0 
+    i32.eqz)
+  (func (export "i32_clz") (result i32)
+    i32.const 128 
+    i32.clz)
+  (func (export "i32_ctz") (result i32)
+    i32.const 128 
+    i32.ctz)
+  (func (export "i32_popcnt") (result i32) 
+    i32.const 128
+    i32.popcnt)
+)
+(;; STDOUT ;;;
+i32_eqz_100() => i32:0
+i32_eqz_0() => i32:1
+i32_clz() => i32:24
+i32_ctz() => i32:7
+i32_popcnt() => i32:1
+;;; STDOUT ;;)
