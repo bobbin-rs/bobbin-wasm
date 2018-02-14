@@ -532,7 +532,8 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
             },
             CallIndirect => {
                 let index = self.read_type_index()?;
-                Immediate::CallIndirect { index }
+                let reserved = self.read_var_u32()?;
+                Immediate::CallIndirect { index, reserved }
             },
             I32 => {
                 let value = self.read_var_i32()?;

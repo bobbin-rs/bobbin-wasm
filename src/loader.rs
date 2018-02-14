@@ -172,6 +172,7 @@ pub struct Loader<'m> {
     module: Module<'m>,
     label_stack: Stack<'m, Label>,
     type_checker: TypeChecker<'m>,
+    functions: SmallVec<'m, u32>,
     table: SmallVec<'m, u32>,
     fixups: [Option<Fixup>; 256],
     fixups_pos: usize,
@@ -191,7 +192,10 @@ impl<'m> Loader<'m> {
         // These should be not be allocated from module storage
         let label_stack = w.alloc_stack(16);        
         let type_checker = TypeChecker::new(w.alloc_stack(16), w.alloc_stack(16));
+
+        let functions = w.alloc_smallvec(16);
         let table = w.alloc_smallvec(16);
+
         // TODO: Break out into separate struct
         let fixups = [None; 256];
         let fixups_pos = 0;
@@ -205,6 +209,7 @@ impl<'m> Loader<'m> {
             module, 
             label_stack,
             type_checker,
+            functions,
             table,
             fixups, 
             fixups_pos, 
@@ -403,12 +408,19 @@ impl<'m> Delegate for Loader<'m> {
                 self.w.write_u32(c)?;
             },            
             Import { n: _, module, export, desc } => {
+                match desc {
+                    ImportDesc::Type(index) => {
+                        self.functions.push(index);
+                    },
+                    _ => {},
+                }
                 self.w.write_import(module::Import { module, export, desc })?;
             }
             FunctionsStart { c } => {
                 self.w.write_u32(c)?;
             },
             Function { n: _, index } => {
+                self.functions.push(index.0);
                 self.w.write_u32(index.0)?;
             },
             TablesStart { c } => {
@@ -862,7 +874,7 @@ impl<'m> Loader<'m> {
                 self.w.write_opcode(op)?;
                 self.w.write_u32(id as u32)?;
             },
-            CallIndirect { index: _ } => {
+            CallIndirect { index, reserved: _ } => {
                 //   if (module_->table_index == kInvalidIndex) {
                 //     PrintError("found call_indirect operator, but no table");
                 //     return wabt::Result::Error;
@@ -874,8 +886,28 @@ impl<'m> Loader<'m> {
                 //   CHECK_RESULT(EmitOpcode(Opcode::CallIndirect));
                 //   CHECK_RESULT(EmitI32(module_->table_index));
                 //   CHECK_RESULT(EmitI32(TranslateSigIndexToEnv(sig_index)));
+                info!("CALL_INDIRECT: {}", index.0);
+                let sig = self.functions[index.0 as usize];
+                info!("  => sig: {}", sig);
+                if let Some(sig_type) = self.module.signature_type(sig) {
+                    let (parameters, returns) = (sig_type.parameters, sig_type.returns);
 
-                unimplemented!();
+                    let mut p_arr = [TypeValue::Any; 16];
+                    let mut r_arr = [TypeValue::Any; 1];
+                    for i in 0..parameters.len() {
+                        p_arr[i] = TypeValue::from(parameters[i] as i8);
+                    }
+                    for i in 0..returns.len() {
+                        r_arr[i] = TypeValue::from(returns[i] as i8);
+                    }
+                    let p_slice = &p_arr[..parameters.len()];
+                    let r_slice = &r_arr[..returns.len()];
+                    info!("  => {:?} => {:?}", p_slice, r_slice);
+                    self.type_checker.on_call_indirect(p_slice, r_slice)?;
+
+                    self.w.write_opcode(CALL_INDIRECT)?;
+                    self.w.write_u32(index.0)?;                    
+                }
                 // // Emits OP SIG
 
                 // let id = index.0 as u32;                
