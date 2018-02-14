@@ -858,14 +858,35 @@ impl<'m> Loader<'m> {
             I64Const { value: _ } => { return Err(Error::Unimplemented) },
             F64Const { value: _ } => { return Err(Error::Unimplemented) },
             LoadStore { align, offset } => {
-                unimplemented!();
+                match op {
+                    I32_LOAD | I32_LOAD8_S | I32_LOAD8_U | I32_LOAD16_S | I32_LOAD16_U => {
+                        // CHECK_RESULT(CheckHasMemory(opcode));
+                        // CHECK_RESULT(CheckAlign(alignment_log2, opcode.GetMemorySize()));
+                        // CHECK_RESULT(typechecker_.OnLoad(opcode));
+                        // CHECK_RESULT(EmitOpcode(opcode));
+                        // CHECK_RESULT(EmitI32(module_->memory_index));
+                        // CHECK_RESULT(EmitI32(offset));
+
+                        self.type_checker.on_load(i.op)?;
+                    },
+                    I32_STORE | I32_STORE8 | I32_STORE16 => {
+                        //   CHECK_RESULT(CheckHasMemory(opcode));
+                        //   CHECK_RESULT(CheckAlign(alignment_log2, opcode.GetMemorySize()));
+                        //   CHECK_RESULT(typechecker_.OnStore(opcode));
+                        //   CHECK_RESULT(EmitOpcode(opcode));
+                        //   CHECK_RESULT(EmitI32(module_->memory_index));
+                        //   CHECK_RESULT(EmitI32(offset));
+                        self.type_checker.on_store(i.op)?;
+                    },
+                    _ => unimplemented!(),
+                }
                 self.w.write_opcode(op)?;
                 self.w.write_u32(align)?;
                 self.w.write_u32(offset)?;
             },
             Memory { reserved: _ } => {
                 unimplemented!();
-                self.w.write_opcode(op)?;
+                // self.w.write_opcode(op)?;
             },
         } 
         Ok(())

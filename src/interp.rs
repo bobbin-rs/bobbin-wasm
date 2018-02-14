@@ -237,50 +237,50 @@ impl<'a> Interp<'a> {
                 //     let value: i32 = self.pop()?;
                 //     self.set_global(index, value)?;
                 // },
-                // // I32 load
-                // 0x28 ... 0x30 => {
-                //     let _flags = code.read_u32()?;
-                //     let offset = code.read_u32()?;
-                //     let base: u32 = self.pop()? as u32;
-                //     let addr = (offset + base) as u32;
-                //     self.check_addr(addr)?;
+                // I32 load
+                0x28 ... 0x30 => {
+                    let _flags = code.read_u32()?;
+                    let offset = code.read_u32()?;
+                    let base: u32 = self.pop()? as u32;
+                    let addr = (offset + base) as usize;
+                    let mem = mi.memory_inst();
 
-                //     let res = match op {
-                //         I32_LOAD => {
-                //             self.get_mem_i32(addr)?
-                //         },
-                //         I32_LOAD8_S => {
-                //             self.get_mem_i8(addr)? as i8 as i32
-                //         },
-                //         I32_LOAD8_U => {
-                //             self.get_mem_u8(addr)? as u8 as i32
-                //         },
-                //         I32_LOAD16_S => {
-                //             self.get_mem_i16(addr)? as i16 as i32
-                //         },
-                //         I32_LOAD16_U => {
-                //             self.get_mem_u16(addr)? as u16 as i32
-                //         }                                               
-                //         _ => unimplemented!(),
-                //     };
-                //     self.push(res)?;
-                // },
-                // // I32 store
-                // 0x36 | 0x38 | 0x3a | 0x3b => {
-                //     let _flags = code.read_u32()?;
-                //     let offset = code.read_u32()?;
-                //     let base: u32 = self.pop()? as u32;
-                //     let value: i32 = self.pop()?;
-                //     let addr = (offset + base) as u32;
-                //     self.check_addr(addr)?;
+                    let res = match opc {
+                        I32_LOAD => {
+                            mem.load(addr)?
+                        },
+                        I32_LOAD8_S => {
+                            mem.load8_s(addr)?
+                        },
+                        I32_LOAD8_U => {
+                            mem.load8_u(addr)?
+                        },
+                        I32_LOAD16_S => {
+                            mem.load16_s(addr)?
+                        },
+                        I32_LOAD16_U => {
+                            mem.load16_u(addr)?
+                        }                                               
+                        _ => unimplemented!(),
+                    };
+                    self.push(res)?;
+                },
+                // I32 store
+                0x36 | 0x38 | 0x3a | 0x3b => {
+                    let _flags = code.read_u32()?;
+                    let offset = code.read_u32()?;
+                    let base: u32 = self.pop()? as u32;
+                    let value: i32 = self.pop()?;
+                    let addr = (offset + base) as usize;
+                    let mem = mi.memory_inst();
 
-                //     match op {
-                //         I32_STORE => self.set_mem_i32(addr, value)?,
-                //         I32_STORE8 => self.set_mem_i8(addr, value as i8)?,
-                //         I32_STORE16 => self.set_mem_i16(addr, value as i16)?,
-                //         _ => unimplemented!(),
-                //     }
-                // },
+                    match opc {
+                        I32_STORE => mem.store(addr, value)?,
+                        I32_STORE8 => mem.store8(addr, value)?,
+                        I32_STORE16 => mem.store16(addr, value)?,
+                        _ => unimplemented!(),
+                    }
+                },
                 // I32 cmpops
                 0x46 ... 0x50 => {
                     let (rhs, lhs): (i32, i32) = (self.pop()?, self.pop()?);

@@ -1,0 +1,32 @@
+;;; TOOL: run-interp
+(module
+  (memory 1)
+  (data (i32.const 0) "\ff\ff\ff\ff")
+  (data (i32.const 4) "\00\00\ce\41")
+  (data (i32.const 8) "\00\00\00\00\00\ff\8f\40")
+  (data (i32.const 16) "\ff\ff\ff\ff\ff\ff\ff\ff")
+
+  (func (export "i32_load8_s") (result i32)
+    i32.const 0 
+    i32.load8_s)
+  (func (export "i32_load16_s") (result i32)
+    i32.const 0
+    i32.load16_s)
+  (func (export "i32_load") (result i32)
+    i32.const 0 
+    i32.load)
+
+  (func (export "i32_load8_u") (result i32)
+    i32.const 0 
+    i32.load8_u)
+  (func (export "i32_load16_u") (result i32)
+    i32.const 0 
+    i32.load16_u)
+)
+(;; STDOUT ;;;
+i32_load8_s() => i32:4294967295
+i32_load16_s() => i32:4294967295
+i32_load() => i32:4294967295
+i32_load8_u() => i32:255
+i32_load16_u() => i32:65535
+;;; STDOUT ;;)
