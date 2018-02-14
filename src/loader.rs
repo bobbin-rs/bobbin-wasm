@@ -826,11 +826,13 @@ impl<'m> Loader<'m> {
             I64Const { value: _ } => { return Err(Error::Unimplemented) },
             F64Const { value: _ } => { return Err(Error::Unimplemented) },
             LoadStore { align, offset } => {
+                unimplemented!();
                 self.w.write_opcode(op)?;
                 self.w.write_u32(align)?;
                 self.w.write_u32(offset)?;
             },
             Memory { reserved: _ } => {
+                unimplemented!();
                 self.w.write_opcode(op)?;
             },
         } 
