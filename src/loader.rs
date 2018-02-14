@@ -292,7 +292,7 @@ impl<'m> Loader<'m> {
 
     fn translate_local_index(&self, local_index: u32) -> Result<u32, Error> {
         Ok({
-            (self.type_checker.type_stack_size() + self.context.locals_count - local_index as usize) as u32
+            (self.type_checker.type_stack_size() + self.context.len() - local_index as usize) as u32
         })
     }
 
