@@ -116,7 +116,36 @@ impl<'a> Interp<'a> {
                         info!("  => {:08x}", offset);
                         code.set_pos(offset as usize);
                     }
-                },                
+                },
+                BR_TABLE => {
+                    // BR_TABLE COUNT:u32 TABLE_OFFSET:u32
+                    // INTERP_DATA SIZE:u32
+                    // [OFFSET:u32 DROP:u32 KEEP:u32]
+                    // OFFSET:u32 DROP:u32 KEEP:u32
+
+                    let count = code.read_u32()?;
+                    let table_offset = code.read_u32()?;
+                    info!("  => count: {} table_offset: {:08x}", count, table_offset);
+                    let mut val = self.pop()?;
+                    info!("  => value: {}", val);
+
+                    let index = if val < 0 || val > count as i32 {
+                        count
+                    } else {
+                        val as u32
+                    };
+                    info!("  => index: {}", index);
+                    let entry_offset = table_offset + (index * BR_TABLE_ENTRY_SIZE);
+                    info!("  => entry_offset: {:08x}", entry_offset);
+                    code.set_pos(entry_offset as usize);
+                    let dst = code.read_u32()?;
+                    let drop = code.read_u32()?;
+                    let keep = code.read_u32()?;
+                    info!("  => dst: {:08x} drop: {} keep: {}", dst, drop, keep);
+                    self.value_stack.drop_keep(drop as usize, keep as usize)?;
+                    code.set_pos(dst as usize);
+                    info!("  => done");
+                },                             
                 DROP => {
                     self.value_stack.pop()?;
                 },

@@ -3,6 +3,7 @@ use {TypeValue, FuncIndex, LocalIndex, GlobalIndex, TypeIndex};
 use ::core::fmt;
 use ::core::convert::TryFrom;
 
+pub const BR_TABLE_ENTRY_SIZE: u32 = 12;
 
 macro_rules! opcodes {
     ( $( ($tr:ident, $t1:ident, $t2:ident, $m:expr, $code:expr, $name:ident, $text:expr), )*) => {

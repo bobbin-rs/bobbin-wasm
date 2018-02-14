@@ -254,7 +254,7 @@ impl<'m> Loader<'m> {
     fn add_fixup(&mut self, rel_depth: u32, offset: u32) -> Result<(), Error> {
         let depth = self.label_depth() - rel_depth;
         let fixup = Fixup { depth: depth, offset: offset };
-        // info!("add_fixup: {:?}", fixup);
+        info!("add_fixup: {:?}", fixup);
         for entry in self.fixups.iter_mut() {
             if entry.is_none() {
                 *entry = Some(fixup);
@@ -268,15 +268,15 @@ impl<'m> Loader<'m> {
         let depth = self.label_depth();        
         let offset = self.peek_label(0)?.offset;
         let offset = if offset == FIXUP_OFFSET { self.w.pos() } else { offset as usize};
-        // info!("fixup: {} -> 0x{:08x}", depth, offset);
+        info!("fixup: {} -> 0x{:08x}", depth, offset);
         for entry in self.fixups.iter_mut() {
             let del = if let &mut Some(entry) = entry {
                 if entry.depth == depth {
-                    // info!(" {:?}", entry);
+                    info!(" {:?}", entry);
                     self.w.write_u32_at(offset as u32, entry.offset as usize)?;
                     true
                 } else {
-                    // info!(" ! {} 0x{:04x}", entry.depth, entry.offset);                    
+                    info!(" ! {} 0x{:04x}", entry.depth, entry.offset);                    
                     false
                 }
             } else {
@@ -286,7 +286,7 @@ impl<'m> Loader<'m> {
                 *entry = None;
             }
         }
-        // info!("fixup done");
+        info!("fixup done");
         Ok(())
     }
 
@@ -326,20 +326,22 @@ impl<'m> Loader<'m> {
     }
 
     fn write_br_offset(&mut self, depth: u32, offset: u32) -> Result<(), Error> {
-        info!("write_br_offset({}, {})", depth, offset);
+        info!("write_br_offset({}, {:08x}) @ {:08x}", depth, offset, self.w.pos());
         Ok({
             if offset == FIXUP_OFFSET {
-                self.add_fixup(depth, offset)?;
+                let pos = self.w.pos();
+                self.add_fixup(depth, pos as u32)?;
             }
             self.w.write_u32(offset)?;
         })
     }
 
     fn write_br_table_offset(&mut self, depth: u32) -> Result<(), Error> {
-        info!("write_br_table_offset({})", depth);
+        info!("write_br_table_offset({}) @ {:08x}", depth, self.w.pos());
         Ok({
             let (drop, keep) = self.get_br_drop_keep_count(depth as usize)?;
-            self.w.write_opcode(BR)?;
+            let label = self.peek_label(depth as usize)?;
+            self.write_br_offset(depth, label.offset)?;
             self.w.write_u32(drop)?;
             self.w.write_u32(keep)?;
 
@@ -547,6 +549,7 @@ impl<'m> Loader<'m> {
                     self.w.write_opcode(op)?;
                 },                
                 END => {
+                    info!("END");
                     let ty_label = self.type_checker.get_label(0)?;
                     let label_type = ty_label.label_type;
                     self.type_checker.on_end()?;
@@ -556,7 +559,9 @@ impl<'m> Loader<'m> {
                         info!("fixup_offset: {:08x} at {:08x}", pos, label.fixup_offset);
                         self.w.write_u32_at(pos as u32, label.fixup_offset as usize)?;                        
                     }
+                    info!("FIXUP");
                     self.fixup()?;
+                    info!("POP_LABEL");
                     self.pop_label()?;
                     info!("end done");
 
@@ -705,12 +710,10 @@ impl<'m> Loader<'m> {
                 // self.w.write_u32(FIXUP_OFFSET)?;                
             },
             BranchTable { count } => {
-                // BR_TABLE LEN 
-                // DATA SIZE
-                // [OFFSET DROP KEEP]
-                // OFFSET_DROP_KEEP
-
-                const BR_TABLE_ENTRY_SIZE: u32 = 12;
+                // BR_TABLE COUNT:u32 TABLE_OFFSET:u32
+                // INTERP_DATA SIZE:u32
+                // [OFFSET:u32 DROP:u32 KEEP:u32]
+                // OFFSET:u32 DROP:u32 KEEP:u32
 
                 self.type_checker.begin_br_table()?;
                 self.w.write_opcode(BR_TABLE)?;
@@ -735,10 +738,12 @@ impl<'m> Loader<'m> {
                 self.write_br_table_offset(depth)?;
             },
             BranchTableDefault { depth } => {
+                info!("branch table default");
                 self.type_checker.on_br_table_target(depth as usize)?;
                 self.write_br_table_offset(depth)?;
 
                 self.type_checker.end_br_table()?;              
+                info!("branch table default done");
             },
             Local { index } => {
                 // Emits OP DEPTH_TO_LOCAL

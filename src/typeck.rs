@@ -390,6 +390,7 @@ impl<'m> TypeChecker<'m> {
                 }
             }
             self.on_end_label(label)?;
+            info!("on_end() done");
         })
     }
     pub fn on_br(&mut self, depth: usize) -> Result<(), Error> {
@@ -455,6 +456,7 @@ impl<'m> TypeChecker<'m> {
                 panic!("br_table_target without begin_br_table call");
             }
             self.br_table_sig = Some(label_sig);
+            info!("  => done");
 
             // CHECK_RESULT(GetLabel(depth, &label));
             //   Type label_sig;
