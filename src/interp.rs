@@ -178,6 +178,38 @@ impl<'a> Interp<'a> {
 
                     self.call_stack.push(pos as u32)?;
                     code.set_pos(offset as usize);
+                },
+                CALL_INDIRECT => {
+                    // func_sig = function_type(func_index)
+                    // sig_type = type(sig)
+                    // func_type = type(func_sig)
+                    // check sig_type == func_type
+                    // get body offset
+                    // jump
+
+                    let sig = code.read_u32()?;
+                    let sig_type = &mi.types()[sig as usize];
+
+                    let func_index = self.value_stack.pop()?;
+                    let func_inst = &mi.functions()[func_index.0 as usize];
+                    match func_inst {
+                        &FuncInst::Import { type_index: _, import_index: _ } => {
+                            unimplemented!()
+                        }
+                        &FuncInst::Local { type_index, function_index } => {
+                            let func_type = &mi.types()[type_index];
+                            info!("Local Function: {}", function_index);
+                            info!("Sig: {:?} Func: {:?}", sig_type, func_type);
+
+                            let body = m.body(function_index as u32).unwrap();
+                            let offset = code_buf.as_ptr().offset_to(body.buf.as_ptr()).unwrap() as usize;
+                            let pos = code.pos();
+                            info!("CALL_INDIRECT: {:08x} to {:08x}", pos, offset);
+
+                            self.call_stack.push(pos as u32)?;
+                            code.set_pos(offset as usize);
+                        }
+                    }
                 }
                 RETURN => {
                     if self.call_stack.len() == 0 {
