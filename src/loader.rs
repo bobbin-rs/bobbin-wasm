@@ -536,21 +536,26 @@ impl<'m> Loader<'m> {
 
                 },                
                 ELSE => {
+                //   CHECK_RESULT(typechecker_.OnElse());
+                //   Label* label = TopLabel();
+                //   IstreamOffset fixup_cond_offset = label->fixup_offset;
+                //   CHECK_RESULT(EmitOpcode(Opcode::Br));
+                //   label->fixup_offset = GetIstreamOffset();
+                //   CHECK_RESULT(EmitI32(kInvalidIstreamOffset));
+                //   CHECK_RESULT(EmitI32At(fixup_cond_offset, GetIstreamOffset()));                    
                     self.type_checker.on_else()?;
-
                     let mut label = self.top_label()?;
-
+                    let fixup_cond_offset = label.fixup_offset;
                     self.w.write_opcode(BR)?;
-                    let fixup_pos = self.w.pos();                
-                    self.w.write_u32(FIXUP_OFFSET)?;
 
+                    label.fixup_offset = self.w.pos() as u32;           
+                    self.w.write_u32(FIXUP_OFFSET)?;
                     let br_pos = self.w.pos();
                     // Fixup BR_UNLESS OFFSET
                     info!("fixup_offset: {:08x} at {:08x}", br_pos, label.fixup_offset);
-                    self.w.write_u32_at(br_pos as u32, label.fixup_offset as usize)?;
+                    self.w.write_u32_at(br_pos as u32, fixup_cond_offset as usize)?;
 
                     // Set label fixup_offset to BR OFFSET
-                    label.fixup_offset = fixup_pos as u32;
                 },
                 RETURN => {                    
                     // Index drop_count, keep_count;

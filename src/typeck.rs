@@ -37,6 +37,11 @@ impl<'m> TypeChecker<'m> {
         Ok(self.label_stack.peek(depth)?)
     }
 
+    pub fn get_label_ref(&mut self, depth: usize) -> Result<&mut Label, Error> {
+        info!("  get_label_ref({})", depth);
+        Ok(self.label_stack.pick(depth)?)
+    }
+
     pub fn top_label(&self) -> Result<Label, Error> {
         self.get_label(0)
     }
@@ -331,13 +336,15 @@ impl<'m> TypeChecker<'m> {
     pub fn on_else(&mut self) -> Result<(), Error> {
         info!("on_else()");
         Ok({
-            let mut label = self.get_label(0)?;                
+            let label = self.get_label(0)?;                
             self.check_label_type(label, LabelType::If)?;
             if label.signature != VOID {
                 self.pop_and_check_signature(&[label.signature])?;
             }
             self.check_type_stack_end()?;
             self.reset_type_stack_to_label(label)?;
+
+            let label = self.get_label_ref(0)?;                
             label.label_type = LabelType::Else;
             label.unreachable = false;
 
@@ -355,7 +362,8 @@ impl<'m> TypeChecker<'m> {
         Ok({
             let label = self.get_label(0)?;                
             if let LabelType::If = label.label_type {
-                if label.signature != VOID {
+                info!("IF signature: {:?}", label.signature);
+                if label.signature != VOID {                    
                     return Err(Error::TypeCheck("if without else cannot have type signature"))
                 }
             }
