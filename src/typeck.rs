@@ -370,7 +370,29 @@ impl<'m> TypeChecker<'m> {
             self.on_end_label(label)?;
         })
     }
-
+    pub fn on_br(&mut self, depth: usize) -> Result<(), Error> {
+        info!("on_br({})", depth);
+        Ok({
+            //   CHECK_RESULT(GetLabel(depth, &label));
+            //   if (label->label_type != LabelType::Loop) {
+            //     result |= CheckSignature(label->sig);
+            //   }
+            //   PrintStackIfFailed(result, "br", label->sig);
+            //   CHECK_RESULT(SetUnreachable());
+        })
+    }
+    pub fn on_br_if(&mut self, depth: usize) -> Result<(), Error> {
+        info!("on_br_if({})", depth);
+        Ok({
+            //   Result result = PopAndCheck1Type(Type::I32, "br_if");
+            //   Label* label;
+            //   CHECK_RESULT(GetLabel(depth, &label));
+            //   if (label->label_type != LabelType::Loop) {
+            //     result |= PopAndCheckSignature(label->sig, "br_if");
+            //     PushTypes(label->sig);
+            //   }
+        })
+    }
     pub fn on_get_local(&mut self, t: TypeValue) -> Result<(), Error> {
         info!("on_get_local()");
         Ok({

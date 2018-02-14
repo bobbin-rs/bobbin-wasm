@@ -595,16 +595,14 @@ impl<'m> Loader<'m> {
                 }           
                 // _ => {},
             },
-            Block { signature: sig } => match op {
-                
+            Block { signature: sig } => match op {                
                 BLOCK => {
-                    unimplemented!();
-                    // self.push_label(op, signature, FIXUP_OFFSET)?;                    
+                    self.type_checker.on_block(sig)?;
+                    self.push_label(FIXUP_OFFSET)?;                    
                 },
                 LOOP => {
-                    unimplemented!();
-                    // let pos = self.w.pos();
-                    // self.push_label(op, signature, pos as u32)?;                    
+                    self.type_checker.on_loop(sig)?;
+                    self.push_label(FIXUP_OFFSET)?;                    
                 },
                 IF => {
                     // CHECK_RESULT(typechecker_.OnIf(&sig));
@@ -622,8 +620,25 @@ impl<'m> Loader<'m> {
                 },
                 _ => unreachable!(),
             },
-            Branch { depth: _ } => {
-                unimplemented!();
+            Branch { depth: _ } => match op {
+                BR => {
+                    unimplemented!();
+                    // CHECK_RESULT(GetBrDropKeepCount(depth, &drop_count, &keep_count));
+                    // CHECK_RESULT(typechecker_.OnBr(depth));
+                    // CHECK_RESULT(EmitBr(depth, drop_count, keep_count));                    
+                },
+                BR_IF => {
+                    unimplemented!();
+                //   CHECK_RESULT(typechecker_.OnBrIf(depth));
+                    //   CHECK_RESULT(GetBrDropKeepCount(depth, &drop_count, &keep_count));
+                    //   /* flip the br_if so if <cond> is true it can drop values from the stack */
+                    //   CHECK_RESULT(EmitOpcode(Opcode::InterpBrUnless));
+                    //   IstreamOffset fixup_br_offset = GetIstreamOffset();
+                    //   CHECK_RESULT(EmitI32(kInvalidIstreamOffset));
+                    //   CHECK_RESULT(EmitBr(depth, drop_count, keep_count));
+                    //   CHECK_RESULT(EmitI32At(fixup_br_offset, GetIstreamOffset()));                    
+                },  
+                _ => unimplemented!(),              
                 // let label = self.label_stack.peek(depth as usize)?;
                 // let (drop, keep) = self.get_drop_keep(&label)?;
                 // self.w.write_drop_keep(drop, keep)?;
