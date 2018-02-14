@@ -73,6 +73,14 @@ impl<'a> MemoryInst<'a> {
         if index + len <= self.len() { Ok(()) } else { Err(Error::OutOfBounds) }
     }
 
+    pub fn get(&self, index: usize) -> u8 {
+        self.as_ref()[index]
+    }
+
+    pub fn set(&mut self, index: usize, value: u8) {
+        self.as_mut()[index] = value
+    }
+
     pub fn load(&self, index: usize) -> Result<i32, Error> {
         Ok({
             self.check_access(index, 4)?;
@@ -128,7 +136,6 @@ impl<'a> MemoryInst<'a> {
             self.as_mut()[index] = value as u8;
         })
     }
-
 }
 
 impl<'a> fmt::Debug for MemoryInst<'a> {
