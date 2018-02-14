@@ -284,7 +284,10 @@ impl<'a> Interp<'a> {
                 },
                 MEM_GROW => {
                     let pages = self.pop()?;
-                    info!("Grow Pages: {}", pages);
+                    info!("MEM_GROW: {}", pages);
+                    let ret = mi.memory_inst().grow_memory(pages);
+                    info!("  => {}", ret);
+                    self.push(ret)?;
                 },
                 MEM_SIZE => {
                     let size = mi.memory_inst().num_pages();

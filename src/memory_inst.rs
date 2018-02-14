@@ -50,7 +50,7 @@ impl<'a> MemoryInst<'a> {
         self.num_pages.get() as i32
     }
 
-    pub fn grow_memory(&mut self, pages: i32) -> i32 {
+    pub fn grow_memory(&self, pages: i32) -> i32 {
         let prev = self.current_memory();
         let next = prev + pages;
         if next <= self.max_pages as i32 {
