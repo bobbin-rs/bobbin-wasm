@@ -1,4 +1,4 @@
-use {Error, Event, TypeValue, Delegate, DelegateResult};
+use {Error, Event, Value, TypeValue, Delegate, DelegateResult};
 
 use opcode::*;
 use module;
@@ -7,6 +7,7 @@ use module::ModuleWrite;
 use typeck::{TypeChecker, LabelType};
 use writer::Writer;
 use stack::Stack;
+use small_vec::SmallVec;
 
 use core::fmt;
 use core::ops::Index;
@@ -171,6 +172,7 @@ pub struct Loader<'m> {
     module: Module<'m>,
     label_stack: Stack<'m, Label>,
     type_checker: TypeChecker<'m>,
+    table: SmallVec<'m, u32>,
     fixups: [Option<Fixup>; 256],
     fixups_pos: usize,
     section_fixup: usize,
@@ -189,7 +191,7 @@ impl<'m> Loader<'m> {
         // These should be not be allocated from module storage
         let label_stack = w.alloc_stack(16);        
         let type_checker = TypeChecker::new(w.alloc_stack(16), w.alloc_stack(16));
-
+        let table = w.alloc_smallvec(16);
         // TODO: Break out into separate struct
         let fixups = [None; 256];
         let fixups_pos = 0;
@@ -203,6 +205,7 @@ impl<'m> Loader<'m> {
             module, 
             label_stack,
             type_checker,
+            table,
             fixups, 
             fixups_pos, 
             section_fixup, 
@@ -443,10 +446,23 @@ impl<'m> Delegate for Loader<'m> {
                 self.w.write_u32(c)?;
             },
             Element { n: _, index, offset, data } => {
+                info!("Initializing Table {}", index.0);
+                let Value(elt_offset) = offset.value()?;
+
                 self.w.write_u32(index.0)?;
                 self.w.write_initializer(offset)?;
                 if let Some(data) = data {
                     self.w.write_bytes(data)?;
+
+                    let mut i = 0;
+                    let mut o = elt_offset as usize;
+                    while i < data.len() {
+                        let d = data[i] as u32;
+                        info!("   {:08x}: {:08x}", o, d);
+                        self.table[o] = d;
+                        o += 1;
+                        i += 1;
+                    }            
                 }
             },
             CodeStart { c } => {

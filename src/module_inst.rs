@@ -84,7 +84,7 @@ impl<'m, 'a, 'mem> ModuleInst<'m, 'a, 'mem> {
                 },                
                 SectionType::Element => {
                     for Element { table_index, offset, data } in section.elements() {
-                        use byteorder::{ByteOrder, LittleEndian};
+                        // use byteorder::{ByteOrder, LittleEndian};
 
                         info!("Initializing table {}", table_index);
                         let table = &mut tables[table_index as usize];
@@ -92,11 +92,12 @@ impl<'m, 'a, 'mem> ModuleInst<'m, 'a, 'mem> {
                         let mut i = 0;
                         let mut o = offset as usize;
                         while i < data.len() {
-                            let d = LittleEndian::read_u32(&data[i..]);
+                            // let d = LittleEndian::read_u32(&data[i..]);
+                            let d = data[i] as u32;
                             info!("{:08x}: {:08x}", o, d);
                             table[o] = d;
                             o += 1;
-                            i += 4;
+                            i += 1;
                         }              
                     }
                 },
