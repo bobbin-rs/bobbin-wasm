@@ -139,6 +139,10 @@ impl<'m, 'a, 'mem> ModuleInst<'m, 'a, 'mem> {
         self.globals.as_ref()
     }
 
+    pub fn table(&self, index: usize) -> &[u32] {
+        self.tables[index].as_ref()
+    }
+
     pub fn type_signature(&self, index: usize) -> &Type {
         &self.types[index]
     }
