@@ -477,11 +477,6 @@ impl<'m> Delegate for Loader<'m> {
                 }
             },
             BodyEnd => {
-                // assert!(self.type_checker.type_stack_size() == 0);
-                // assert!(self.type_checker.label_stack_size() == 0);
-                
-                // let fixup = self.body_fixup;
-                // self.apply_fixup_u32(fixup)?;                                
                 self.w.write_code_end(self.body_fixup)?;
                 info!("code end: {:08x}", self.w.pos());
             },
@@ -518,6 +513,7 @@ impl<'m> Loader<'m> {
 
                     let ty_label = self.type_checker.get_label(0)?;
                     let label_type = ty_label.label_type;
+                    self.type_checker.on_end()?;
                     if label_type == LabelType::If || label_type == LabelType::Else {
                         let label = self.top_label()?;
                         let pos = self.w.pos();
@@ -540,41 +536,21 @@ impl<'m> Loader<'m> {
 
                 },                
                 ELSE => {
-                    unimplemented!()
-                    // let mut label = self.pop_label()?;                    
-                    // // self.type_stack.expect_type(label.signature)?;
-                    // // if label.signature == VOID {
-                    // //     self.type_stack.expect_type_stack_depth(label.stack_limit)?;
-                    // // } else {
-                    // //     self.type_stack.expect_type_stack_depth(label.stack_limit + 1)?;                    
-                    // // }
+                    self.type_checker.on_else()?;
 
-                    // // Reset Stack to Label
-                    // // while self.type_stack.len() > label.stack_limit as usize {
-                    // //     self.type_stack.pop()?;
-                    // // }
-                    // // if label.signature != VOID {
-                    // //     self.type_stack.push(label.signature)?;
-                    // // }
+                    let mut label = self.top_label()?;
 
-                    // // Add BR OFFSET
+                    self.w.write_opcode(BR)?;
+                    let fixup_pos = self.w.pos();                
+                    self.w.write_u32(FIXUP_OFFSET)?;
 
-                    // self.w.write_opcode(BR)?;
-                    // let fixup_pos = self.w.pos();                
-                    // self.w.write_u32(FIXUP_OFFSET)?;
+                    let br_pos = self.w.pos();
+                    // Fixup BR_UNLESS OFFSET
+                    info!("fixup_offset: {:08x} at {:08x}", br_pos, label.fixup_offset);
+                    self.w.write_u32_at(br_pos as u32, label.fixup_offset as usize)?;
 
-                    // let br_pos = self.w.pos();
-                    // // Fixup BR_UNLESS OFFSET
-                    // info!("fixup_offset: {:08x} at {:08x}", br_pos, label.fixup_offset);
-                    // self.w.write_u32_at(br_pos as u32, label.fixup_offset as usize)?;
-
-                    // // Set label fixup_offset to BR OFFSET
-                    // label.fixup_offset = fixup_pos as u32;
-                    // // Set label opcode to ELSE
-                    // // label.opcode = ELSE;
-
-                    // self.label_stack.push(label)?;
-
+                    // Set label fixup_offset to BR OFFSET
+                    label.fixup_offset = fixup_pos as u32;
                 },
                 RETURN => {                    
                     // Index drop_count, keep_count;
@@ -603,7 +579,7 @@ impl<'m> Loader<'m> {
                 }           
                 // _ => {},
             },
-            Block { signature: _ } => match op {
+            Block { signature: sig } => match op {
                 
                 BLOCK => {
                     unimplemented!();
@@ -615,19 +591,18 @@ impl<'m> Loader<'m> {
                     // self.push_label(op, signature, pos as u32)?;                    
                 },
                 IF => {
-                    unimplemented!();
-                    // self.type_stack.pop_type_expecting(I32)?;
-                    // self.w.write_opcode(INTERP_BR_UNLESS)?;                    
-                    // let pos = self.w.pos();
-
-                    // if let Immediate::Block { signature: _ } = i.imm {
-                    //     // push label with fixup pointer to BR_UNLESS offset
-                    //     self.push_label_fixup(FIXUP_OFFSET, pos as u32)?; 
-                    // } else {
-                    //     panic!("Wrong immediate type for IF: {:?}", i.imm);                    
-                    // }
-
-                    // self.w.write_u32(FIXUP_OFFSET)?;                    
+                    // CHECK_RESULT(typechecker_.OnIf(&sig));
+                    // CHECK_RESULT(EmitOpcode(Opcode::InterpBrUnless));
+                    // IstreamOffset fixup_offset = GetIstreamOffset();
+                    // CHECK_RESULT(EmitI32(kInvalidIstreamOffset));
+                    // PushLabel(kInvalidIstreamOffset, fixup_offset);
+                                        
+                    self.type_checker.on_if(sig)?;
+                    self.w.write_opcode(INTERP_BR_UNLESS)?;                    
+                    let pos = self.w.pos();
+                    // push label with fixup pointer to BR_UNLESS offset
+                    self.w.write_u32(FIXUP_OFFSET)?;                    
+                    self.push_label_fixup(FIXUP_OFFSET, pos as u32)?; 
                 },
                 _ => unreachable!(),
             },

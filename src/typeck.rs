@@ -180,7 +180,6 @@ impl<'m> TypeChecker<'m> {
         if label.label_type == label_type {
             Ok(())
         } else {
-
             Err(Error::TypeCheck("mismatched label type"))
         }
     }

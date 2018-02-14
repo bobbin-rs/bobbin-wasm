@@ -564,7 +564,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         let data = self.r.slice(offset as usize..end);
 
         info!("end: {} len: {}", end, self.r.len());
-        if op.code == END && end == self.r.pos() {
+        if op.code == END && end == self.r.len() {
             info!("END at end of function body => InstructionsEnd");
             self.d.dispatch(Event::InstructionsEnd)?;
         } else {
