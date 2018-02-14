@@ -211,6 +211,33 @@ impl<'m> TypeChecker<'m> {
         })
     }
 
+    pub fn pop_and_check_one_type(&mut self, expected: TypeValue) -> Result<(), Error> {
+        info!("  pop_and_check_one_type({:?})", expected);
+        Ok({
+            self.peek_and_check_type(0, expected)?;
+            self.drop_types(1)?;
+        })
+    }
+
+    pub fn pop_and_check_two_types(&mut self, expected1: TypeValue, expected2: TypeValue) -> Result<(), Error> {
+        info!("  pop_and_check_two_types({:?}, {:?})", expected1, expected2);
+        Ok({
+            self.peek_and_check_type(0, expected2)?;
+            self.peek_and_check_type(1, expected1)?;
+            self.drop_types(2)?;
+        })
+    }    
+
+    pub fn pop_and_check_three_types(&mut self, expected1: TypeValue, expected2: TypeValue, expected3: TypeValue) -> Result<(), Error> {
+        info!("  pop_and_check_two_types({:?}, {:?}, {:?})", expected1, expected2, expected3);
+        Ok({
+            self.peek_and_check_type(0, expected3)?;
+            self.peek_and_check_type(1, expected2)?;
+            self.peek_and_check_type(2, expected1)?;
+            self.drop_types(3)?;
+        })
+    }    
+
     pub fn begin_function(&mut self, sig: TypeValue) -> Result<(), Error> {
         info!("begin_function({:?})", sig);
         self.type_stack.reset()?;
@@ -239,6 +266,28 @@ impl<'m> TypeChecker<'m> {
             self.dump_type_stack()?;
         })
     }    
+
+    pub fn on_drop(&mut self) -> Result<(), Error> {
+        info!("on_drop()");
+        Ok({
+            self.drop_types(1)?;
+        })
+    }
+
+
+    pub fn on_block(&mut self, sig: TypeValue) -> Result<(), Error> {
+        info!("on_block({:?})", sig);
+        Ok({
+            self.push_label(LabelType::Block, sig)?;
+        })
+    }
+
+    pub fn on_loop(&mut self, sig: TypeValue) -> Result<(), Error> {
+        info!("on_loop({:?})", sig);
+        Ok({
+            self.push_label(LabelType::Loop, sig)?;
+        })
+    }
 
     pub fn on_call(&mut self, parameters: &[TypeValue], result_types: &[TypeValue]) -> Result<(), Error> {
         info!("on_call({:?}, {:?})", parameters, result_types);
@@ -272,6 +321,36 @@ impl<'m> TypeChecker<'m> {
         })
     }
 
+    pub fn on_if(&mut self, sig: TypeValue) -> Result<(), Error> {
+        info!("on_if()");
+        Ok({
+            self.pop_and_check_one_type(I32)?;
+            self.push_label(LabelType::If, sig)?;
+        })
+    }
+
+    pub fn on_else(&mut self) -> Result<(), Error> {
+        info!("on_else()");
+        Ok({
+            let mut label = self.get_label(0)?;                
+            self.check_label_type(label, LabelType::If)?;
+            if label.signature != VOID {
+                self.pop_and_check_signature(&[label.signature])?;
+            }
+            self.check_type_stack_end()?;
+            self.reset_type_stack_to_label(label)?;
+            label.label_type = LabelType::Else;
+            label.unreachable = false;
+
+            //   result |= CheckLabelType(label, LabelType::If);
+            //   result |= PopAndCheckSignature(label->sig, "if true branch");
+            //   result |= CheckTypeStackEnd("if true branch");
+            //   ResetTypeStackToLabel(label);
+            //   label->label_type = LabelType::Else;
+            //   label->unreachable = false;
+        })
+    }
+
     pub fn on_end(&mut self) -> Result<(), Error> {
         info!("on_end()");
         Ok({
@@ -285,7 +364,6 @@ impl<'m> TypeChecker<'m> {
         })
     }
 
-
     pub fn on_get_local(&mut self, t: TypeValue) -> Result<(), Error> {
         info!("on_get_local()");
         Ok({
@@ -293,10 +371,26 @@ impl<'m> TypeChecker<'m> {
         })
     }
 
-    pub fn on_i32_const(&mut self) -> Result<(), Error> {
-        info!("on_i32_const()");
+    pub fn on_get_global(&mut self, t: TypeValue) -> Result<(), Error> {
+        info!("on_get_global()");
         Ok({
-            self.push_type(I32)?;
+            self.push_type(t)?;
+        })
+    }
+
+    pub fn on_const(&mut self, t: TypeValue) -> Result<(), Error> {
+        info!("on_const({:?})", t);
+        Ok({
+            self.push_type(t)?;
+        })
+    }
+    
+    pub fn on_unary(&mut self, op: &Opcode) -> Result<(), Error> {
+        info!("on_unary({})", op.text);
+        Ok({
+            self.peek_and_check_type(0, op.t1)?;
+            self.drop_types(2)?;
+            self.push_type(op.tr)?;
         })
     }
 

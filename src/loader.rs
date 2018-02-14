@@ -593,6 +593,9 @@ impl<'m> Loader<'m> {
                     if i.op.is_binop() {
                         self.type_checker.on_binary(i.op)?;
                         self.w.write_opcode(op)?;
+                    } else if i.op.is_unop() {
+                        self.type_checker.on_unary(i.op)?;
+                        self.w.write_opcode(op)?;
                     } else {
                         panic!("{} not implemented", i.op.text);
                     }
@@ -775,7 +778,7 @@ impl<'m> Loader<'m> {
                 // self.w.write_u32(id as u32)?;                
             },
             I32Const { value } => {
-                self.type_checker.on_i32_const()?;
+                self.type_checker.on_const(I32)?;
                 self.w.write_opcode(op)?;
                 self.w.write_i32(value)?;
             },
