@@ -620,16 +620,33 @@ impl<'m> Loader<'m> {
                 },
                 _ => unreachable!(),
             },
-            Branch { depth: _ } => match op {
+            Branch { depth } => match op {
                 BR => {
-                    unimplemented!();
+                    let (drop, keep) = self.get_br_drop_keep_count(depth as usize)?;
+                    self.type_checker.on_br(depth as usize)?;
+                    self.w.write_drop_keep(drop, keep)?;
+
+                    self.w.write_opcode(op)?;
+                    let pos = self.w.pos();
+                    self.add_fixup(depth, pos as u32)?;
+                    self.w.write_u32(FIXUP_OFFSET)?;    
+
                     // CHECK_RESULT(GetBrDropKeepCount(depth, &drop_count, &keep_count));
                     // CHECK_RESULT(typechecker_.OnBr(depth));
                     // CHECK_RESULT(EmitBr(depth, drop_count, keep_count));                    
                 },
                 BR_IF => {
-                    unimplemented!();
-                //   CHECK_RESULT(typechecker_.OnBrIf(depth));
+                    self.type_checker.on_br_if(depth as usize)?;
+                    let (drop, keep) = self.get_br_drop_keep_count(depth as usize)?;
+                    self.w.write_opcode(INTERP_BR_UNLESS)?;
+                    let fixup_br_offset = self.w.pos();
+                    self.w.write_u32(FIXUP_OFFSET)?;    
+                    self.w.write_drop_keep(drop, keep)?;
+                    self.w.write_opcode(BR)?;
+                    let pos = self.w.pos();
+                    self.w.write_u32_at(pos as u32, fixup_br_offset)?;
+                    
+                    //   CHECK_RESULT(typechecker_.OnBrIf(depth));
                     //   CHECK_RESULT(GetBrDropKeepCount(depth, &drop_count, &keep_count));
                     //   /* flip the br_if so if <cond> is true it can drop values from the stack */
                     //   CHECK_RESULT(EmitOpcode(Opcode::InterpBrUnless));
@@ -686,17 +703,16 @@ impl<'m> Loader<'m> {
                 // Emits OP DEPTH_TO_LOCAL
                 let id = index.0;
                 let local_id = self.translate_local_index(id)?;
-
                 let ty = self.context[id as usize];
                 match op {
-                    GET_LOCAL => {
-                        self.type_checker.push_type(ty)?;
+                    GET_LOCAL => {                        
+                        self.type_checker.on_get_local(ty)?;
                     },
                     SET_LOCAL => {
-                        unimplemented!()
+                        self.type_checker.on_set_local(ty)?;
                     },
                     TEE_LOCAL => {
-                        unimplemented!()
+                        self.type_checker.on_tee_local(ty)?;
                     }
                     _ => unreachable!()
                 }

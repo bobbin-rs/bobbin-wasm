@@ -315,7 +315,9 @@ impl<'m> TypeChecker<'m> {
     pub fn on_end_label(&mut self, label: Label) -> Result<(), Error> {
         info!("on_end_label({:?})", label);
         Ok({
-            self.pop_and_check_signature(&[label.signature])?;
+            if label.signature != VOID {
+                self.pop_and_check_signature(&[label.signature])?;
+            }
             self.check_type_stack_end()?;
             self.reset_type_stack_to_label(label)?;
             if label.signature != VOID {
@@ -373,6 +375,11 @@ impl<'m> TypeChecker<'m> {
     pub fn on_br(&mut self, depth: usize) -> Result<(), Error> {
         info!("on_br({})", depth);
         Ok({
+            let label = self.get_label(depth)?;
+            if label.label_type != LabelType::Loop && label.signature != TypeValue::Void {
+                self.check_signature(&[label.signature])?;
+            }
+            self.set_unreachable(true)?;
             //   CHECK_RESULT(GetLabel(depth, &label));
             //   if (label->label_type != LabelType::Loop) {
             //     result |= CheckSignature(label->sig);
@@ -384,6 +391,12 @@ impl<'m> TypeChecker<'m> {
     pub fn on_br_if(&mut self, depth: usize) -> Result<(), Error> {
         info!("on_br_if({})", depth);
         Ok({
+            let label = self.get_label(depth)?;
+            if label.label_type != LabelType::Loop && label.signature != TypeValue::Void {
+                self.pop_and_check_signature(&[label.signature])?;
+                self.push_type(label.signature)?;
+            }
+            self.set_unreachable(true)?;            
             //   Result result = PopAndCheck1Type(Type::I32, "br_if");
             //   Label* label;
             //   CHECK_RESULT(GetLabel(depth, &label));
@@ -394,11 +407,26 @@ impl<'m> TypeChecker<'m> {
         })
     }
     pub fn on_get_local(&mut self, t: TypeValue) -> Result<(), Error> {
-        info!("on_get_local()");
+        info!("on_get_local({})", t);
         Ok({
             self.push_type(t)?;
         })
     }
+
+    pub fn on_set_local(&mut self, t: TypeValue) -> Result<(), Error> {
+        info!("on_set_local({})", t);
+        Ok({
+            self.pop_and_check_one_type(t)?;
+        })
+    }
+
+    pub fn on_tee_local(&mut self, t: TypeValue) -> Result<(), Error> {
+        info!("on_tee_local({})", t);
+        Ok({
+            self.pop_and_check_one_type(t)?;
+            self.push_type(t)?;
+        })
+    }    
 
     pub fn on_get_global(&mut self, t: TypeValue) -> Result<(), Error> {
         info!("on_get_global()");
