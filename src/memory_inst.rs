@@ -77,7 +77,7 @@ impl<'a> MemoryInst<'a> {
         self.as_ref()[index]
     }
 
-    pub fn set(&mut self, index: usize, value: u8) {
+    pub fn set(&self, index: usize, value: u8) {
         self.as_mut()[index] = value
     }
 

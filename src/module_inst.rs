@@ -1,4 +1,4 @@
-use {Error, SectionType};
+use {Error, SectionType, Value};
 use types::Initializer;
 use module::*;
 use memory_inst::MemoryInst;
@@ -66,6 +66,17 @@ impl<'m, 'a, 'mem> ModuleInst<'m, 'a, 'mem> {
                         globals.push(GlobalInst::Local { global_type, global_index, init });
                     }
                 },
+                SectionType::Data => {
+                    for Data{ memory_index: _, offset, data } in section.data() {
+                        let Value(offset) = offset.value()?;
+                        for i in 0..data.len() {
+                            let d = data[i];
+                            let o = offset as usize + i;
+                            // info!("{:08x}: {:02x}", o, d);
+                            memory_inst.set(o, d);
+                        }
+                    }
+                }
                 _ => {},
             }
         }

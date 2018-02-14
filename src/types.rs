@@ -1,3 +1,6 @@
+use {Error, Value};
+use opcode::*;
+
 #[derive(Debug)]
 pub struct Identifier<'a>(pub &'a [u8]);
 
@@ -57,4 +60,13 @@ pub struct Initializer {
     pub opcode: u8,
     pub immediate: i32,
     pub end: u8,
+}
+
+impl Initializer {
+    pub fn value(&self) -> Result<Value, Error> {
+        match self.opcode {
+            I32_CONST => Ok(Value(self.immediate)),
+            _ => unimplemented!(),
+        }
+    }
 }
