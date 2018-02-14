@@ -513,12 +513,15 @@ impl<'m> Loader<'m> {
         let op = i.op.code;
         match i.imm {
             None => match op {
+                SELECT => {
+                    self.type_checker.on_select()?;
+                    self.w.write_opcode(op)?;
+                },
                 DROP => {
                     self.type_checker.on_drop()?;
                     self.w.write_opcode(op)?;
-                }
+                },                
                 END => {
-
                     let ty_label = self.type_checker.get_label(0)?;
                     let label_type = ty_label.label_type;
                     self.type_checker.on_end()?;
@@ -653,7 +656,7 @@ impl<'m> Loader<'m> {
                     let pos = self.w.pos();
                     self.add_fixup(depth, pos as u32)?;
                     self.w.write_u32(FIXUP_OFFSET)?;    
-                    
+
                     let pos = self.w.pos();
                     self.w.write_u32_at(pos as u32, fixup_br_offset)?;
                     

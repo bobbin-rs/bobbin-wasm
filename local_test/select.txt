@@ -1,0 +1,19 @@
+;;; TOOL: run-interp
+(module
+  (func $i32 (param i32) (result i32)
+    i32.const 1
+    i32.const 2
+    get_local 0
+    select)
+
+  (func (export "test_i32_l") (result i32)
+    i32.const 0 
+    call $i32)
+  (func (export "test_i32_r") (result i32) 
+    i32.const 1
+    call $i32)
+)
+(;; STDOUT ;;;
+test_i32_l() => i32:2
+test_i32_r() => i32:1
+;;; STDOUT ;;)

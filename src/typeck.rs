@@ -271,6 +271,24 @@ impl<'m> TypeChecker<'m> {
         })
     }    
 
+    pub fn on_select(&mut self) -> Result<(), Error> {
+        info!("on_select()");
+        Ok({            
+        //   Type type = Type::Any;
+        //   result |= PeekAndCheckType(0, Type::I32);
+        //   result |= PeekType(1, &type);
+        //   result |= PeekAndCheckType(2, type);
+        //   PrintStackIfFailed(result, "select", Type::I32, type, type);
+        //   result |= DropTypes(3);
+        //   PushType(type);            
+            self.peek_and_check_type(0, TypeValue::I32)?;
+            let t = self.peek_type(1)?;
+            self.peek_and_check_type(2, t)?;
+            self.drop_types(3)?;
+            self.push_type(t)?;
+        })
+    }
+
     pub fn on_drop(&mut self) -> Result<(), Error> {
         info!("on_drop()");
         Ok({
