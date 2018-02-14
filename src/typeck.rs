@@ -320,6 +320,14 @@ impl<'m> TypeChecker<'m> {
         })
     }
 
+    pub fn on_call_indirect(&mut self, parameters: &[TypeValue], result_types: &[TypeValue]) -> Result<(), Error> {
+        info!("on_call_indirect({:?}, {:?})", parameters, result_types);
+        Ok({
+            self.pop_and_check_one_type(TypeValue::I32)?;
+            self.pop_and_check_call(parameters, result_types)?;
+        })
+    }
+
     pub fn on_return(&mut self) -> Result<(), Error> {
         info!("on_return()");
         Ok({

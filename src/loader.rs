@@ -847,6 +847,18 @@ impl<'m> Loader<'m> {
                 self.w.write_u32(id as u32)?;
             },
             CallIndirect { index: _ } => {
+                //   if (module_->table_index == kInvalidIndex) {
+                //     PrintError("found call_indirect operator, but no table");
+                //     return wabt::Result::Error;
+                //   }
+                //   FuncSignature* sig = GetSignatureByModuleIndex(sig_index);
+                //   CHECK_RESULT(
+                //       typechecker_.OnCallIndirect(&sig->param_types, &sig->result_types));
+
+                //   CHECK_RESULT(EmitOpcode(Opcode::CallIndirect));
+                //   CHECK_RESULT(EmitI32(module_->table_index));
+                //   CHECK_RESULT(EmitI32(TranslateSigIndexToEnv(sig_index)));
+
                 unimplemented!();
                 // // Emits OP SIG
 
