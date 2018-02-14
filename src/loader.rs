@@ -232,6 +232,10 @@ impl<'m> Loader<'m> {
         Ok(self.label_stack.peek(0)?)
     }
 
+    fn top_label_ref(&mut self) -> Result<&mut Label, Error> {
+        Ok(self.label_stack.pick(0)?)
+    }
+
     fn pop_label(&mut self) -> Result<Label, Error> {
         let depth = self.label_stack.len();
         let label = self.label_stack.pop()?;
@@ -545,17 +549,24 @@ impl<'m> Loader<'m> {
                 //   CHECK_RESULT(EmitI32At(fixup_cond_offset, GetIstreamOffset()));                    
                     self.type_checker.on_else()?;
                     let mut label = self.top_label()?;
+
+                    // Get offset of BR_UNLESS OFFSET
                     let fixup_cond_offset = label.fixup_offset;
+
+                    // Write BR to end of block
                     self.w.write_opcode(BR)?;
-
-                    label.fixup_offset = self.w.pos() as u32;           
+                    // Write BR OFFSET fixup 
+                    let br_offset = self.w.pos() as u32;
+                    {
+                        let mut label = self.top_label_ref()?;
+                        label.fixup_offset = br_offset;
+                    }
                     self.w.write_u32(FIXUP_OFFSET)?;
-                    let br_pos = self.w.pos();
-                    // Fixup BR_UNLESS OFFSET
-                    info!("fixup_offset: {:08x} at {:08x}", br_pos, label.fixup_offset);
-                    self.w.write_u32_at(br_pos as u32, fixup_cond_offset as usize)?;
 
-                    // Set label fixup_offset to BR OFFSET
+                    // Fixup BR_UNLESS OFFSET
+                    let br_pos = self.w.pos();
+                    info!("fixup_offset: {:08x} at {:08x}", br_pos, fixup_cond_offset);
+                    self.w.write_u32_at(br_pos as u32, fixup_cond_offset as usize)?;
                 },
                 RETURN => {                    
                     // Index drop_count, keep_count;
