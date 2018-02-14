@@ -187,20 +187,6 @@ impl<'a> Interp<'a> {
                     // get body offset
                     // jump
 
-                    // Display Types
-                    // info!("module types");
-                    // for (i, t) in mi.module().section(SectionType::Type).unwrap().types().enumerate() {
-                    //     info!("{}: {:?}", i, t);                        
-                    // }
-                    // info!("mi types");
-                    // for (i, t) in mi.types().iter().enumerate() {
-                    //     info!("{}: {:?}", i, t);
-                    // }
-                    // info!("functions");
-                    // for (i, f) in mi.module().section(SectionType::Function).unwrap().functions().enumerate() {
-                    //     info!("{}: {:?}", i, f);
-                    // }
-
                     let sig = code.read_u32()?;
                     info!("CALL_INDIRECT {}", sig);
                     let sig_type = &mi.types()[sig as usize];
