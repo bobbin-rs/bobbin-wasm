@@ -223,20 +223,16 @@ impl<'a> Interp<'a> {
                     self.value_stack.peek((depth - 1) as usize)?.0 = value;
                     self.push(value)?;
                 },                
-                // GET_GLOBAL => {
-                //     let index = code.read_u32()?;
-                //     self.check_index(index)?;
-
-                //     let value: i32 = self.get_global(index)?;
-                //     self.push(value)?;
-                // },
-                // SET_GLOBAL => {
-                //     let index = code.read_u32()?;
-                //     self.check_index(index)?;
-
-                //     let value: i32 = self.pop()?;
-                //     self.set_global(index, value)?;
-                // },
+                GET_GLOBAL => {
+                    let index = code.read_u32()?;
+                    let value: i32 = mi.get_global(index)?;
+                    self.push(value)?;
+                },
+                SET_GLOBAL => {
+                    let index = code.read_u32()?;
+                    let value: i32 = self.pop()?;
+                    mi.set_global(index, value)?;
+                },
                 // I32 load
                 0x28 ... 0x30 => {
                     let _flags = code.read_u32()?;

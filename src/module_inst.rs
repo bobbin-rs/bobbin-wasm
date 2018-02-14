@@ -1,6 +1,7 @@
 use {Error, SectionType, Value};
-use types::Initializer;
+// use types::Initializer;
 use module::*;
+use core::cell::Cell;
 use memory_inst::MemoryInst;
 use small_vec::SmallVec;
 use writer::Writer;
@@ -63,7 +64,8 @@ impl<'m, 'a, 'mem> ModuleInst<'m, 'a, 'mem> {
                     for (global_index, global) in section.globals().enumerate() {
                         let global_type = global.global_type;
                         let init = global.init;
-                        globals.push(GlobalInst::Local { global_type, global_index, init });
+                        let value = Cell::new(init.value()?);
+                        globals.push(GlobalInst::Local { global_type, global_index, value });
                     }
                 },
                 SectionType::Data => {
@@ -113,6 +115,41 @@ impl<'m, 'a, 'mem> ModuleInst<'m, 'a, 'mem> {
         self.memory_inst
     }
 
+    pub fn get_global(&self, index: u32) -> Result<i32, Error> {
+        Ok({
+            info!("get_global({})", index);
+            if index as usize > self.globals.len() {
+                return Err(Error::OutOfBounds);
+            }
+            match self.globals[index as usize] {
+                GlobalInst::Local { global_type: _, global_index: _, ref value } => {
+                    let v = value.get().0;
+                    info!("  => {}", v);
+                    v
+                },
+                GlobalInst::Import { global_type: _, import_index: _ } => {
+                    unimplemented!()
+                }
+            }
+        })        
+    }
+    pub fn set_global(&self, index: u32, new_value: i32) -> Result<(), Error> {
+        Ok({
+            info!("set_global({}, {})", index, new_value);
+            if index as usize > self.globals.len() {
+                return Err(Error::OutOfBounds);
+            }
+            match self.globals[index as usize] {
+                GlobalInst::Local { global_type: _, global_index: _, ref value } => {
+                    value.set(Value(new_value))
+                },
+                GlobalInst::Import { global_type: _, import_index: _ } => {
+                    unimplemented!()
+                }
+            }
+        })        
+    }    
+
     // pub fn body(&self, index: usize) -> Option<Body> {
     //     self.m.body(index as u32)
     // }
@@ -127,7 +164,7 @@ pub enum FuncInst {
 #[derive(Debug)]
 pub enum GlobalInst {
     Import { global_type: GlobalType, import_index: usize },
-    Local { global_type: GlobalType, global_index: usize, init: Initializer },
+    Local { global_type: GlobalType, global_index: usize, value: Cell<Value> },
 }
 
 
