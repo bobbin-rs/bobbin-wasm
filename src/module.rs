@@ -35,7 +35,7 @@ impl fmt::Debug for ImportDesc {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GlobalType {
     pub type_value: TypeValue,
     pub mutability: u8,

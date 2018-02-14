@@ -115,7 +115,7 @@ impl<'m, 'a, 'mem> ModuleInst<'m, 'a, 'mem> {
         self.memory_inst
     }
 
-    pub fn global_type(&self, index: u32) -> Result<GlobalType> {
+    pub fn global_type(&self, index: u32) -> Result<GlobalType, Error> {
         Ok({
             info!("global_type({})", index);
             if index as usize > self.globals.len() {

@@ -771,11 +771,17 @@ impl<'m> Loader<'m> {
 
             }
             Global { index } => {
-                match op {
+                match op {                    
                     GET_GLOBAL => {
-                        unimplemented!();
-                        // let global_type = self.m.global_type(index)?;
-                        // self.type_checker.on_get_global(global_type.type_value)?;
+
+                        if let Some(global) = self.module.global(index.0) {
+                            let global_type = global.global_type;
+                            self.type_checker.on_get_global(global_type.type_value)?;
+                            self.w.write_opcode(GET_GLOBAL)?    ;
+                            self.w.write_u32(index.0)?;
+                        } else {
+                            return Err(Error::InvalidGlobal{ id: index.0});
+                        }
 
                         //   CHECK_RESULT(CheckGlobal(global_index));
                         //   Type type = GetGlobalTypeByModuleIndex(global_index);
