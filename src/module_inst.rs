@@ -78,7 +78,10 @@ impl<'m, 'a, 'mem> ModuleInst<'m, 'a, 'mem> {
                         } else {
                             limits.min
                         };
-                        let t: SmallVec<u32> = w.alloc_smallvec(size as usize);
+                        let mut t: SmallVec<u32> = w.alloc_smallvec(size as usize);
+                        for _ in 0..size {
+                            t.push(0);
+                        }
                         tables.push(t);
                     }
                 },                
@@ -140,8 +143,12 @@ impl<'m, 'a, 'mem> ModuleInst<'m, 'a, 'mem> {
         self.globals.as_ref()
     }
 
-    pub fn table(&self, index: usize) -> &[u32] {
-        self.tables[index].as_ref()
+    pub fn table(&self, index: usize) -> &SmallVec<u32> {
+        &self.tables[index]
+    }
+
+    pub fn indirect_functions_len(&self) -> usize {
+        self.tables[0].len()
     }
 
     pub fn indirect_function_id(&self, index: usize) -> u32 {

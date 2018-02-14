@@ -187,24 +187,55 @@ impl<'a> Interp<'a> {
                     // get body offset
                     // jump
 
-                    let sig = code.read_u32()?;
-                    let sig_type = &mi.types()[sig as usize];
+                    // Display Types
+                    // info!("module types");
+                    // for (i, t) in mi.module().section(SectionType::Type).unwrap().types().enumerate() {
+                    //     info!("{}: {:?}", i, t);                        
+                    // }
+                    // info!("mi types");
+                    // for (i, t) in mi.types().iter().enumerate() {
+                    //     info!("{}: {:?}", i, t);
+                    // }
+                    // info!("functions");
+                    // for (i, f) in mi.module().section(SectionType::Function).unwrap().functions().enumerate() {
+                    //     info!("{}: {:?}", i, f);
+                    // }
 
-                    let func_index = self.value_stack.pop()?;
-                    let func_inst = &mi.functions()[func_index.0 as usize];
+                    let sig = code.read_u32()?;
+                    info!("CALL_INDIRECT {}", sig);
+                    let sig_type = &mi.types()[sig as usize];
+                    info!("   sig_type: {:?}", sig_type);
+                    let table_index = self.value_stack.pop()?;
+                    info!("   table_index: {:?}", table_index);
+
+                    let table = mi.table(0);
+                    if table_index.0 as usize >= table.len() {
+                        return Err(Error::UndefinedTableIndex { id: table_index.0 })
+                    }
+
+                    let func_index = mi.indirect_function_id(table_index.0 as usize);
+                    let func_inst = &mi.functions()[func_index as usize];
+                    info!("   func_inst: {:?}", func_inst);
                     match func_inst {
                         &FuncInst::Import { type_index: _, import_index: _ } => {
                             unimplemented!()
                         }
                         &FuncInst::Local { type_index, function_index } => {
                             let func_type = &mi.types()[type_index];
-                            info!("Local Function: {}", function_index);
-                            info!("Sig: {:?} Func: {:?}", sig_type, func_type);
+                            // info!("Local Function: {}", function_index);
+                            // info!("Sig: {:?} Func: {:?}", sig_type, func_type);
+
+                            if sig_type.parameters != func_type.parameters {
+                                return Err(Error::SignatureMismatch)
+                            }
+                            if sig_type.returns != func_type.returns {
+                                return Err(Error::SignatureMismatch)
+                            }
 
                             let body = m.body(function_index as u32).unwrap();
                             let offset = code_buf.as_ptr().offset_to(body.buf.as_ptr()).unwrap() as usize;
                             let pos = code.pos();
-                            info!("CALL_INDIRECT: {:08x} to {:08x}", pos, offset);
+                            info!("  => {:08x} to {:08x}", pos, offset);
 
                             self.call_stack.push(pos as u32)?;
                             code.set_pos(offset as usize);

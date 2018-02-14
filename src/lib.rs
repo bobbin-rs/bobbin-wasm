@@ -54,6 +54,8 @@ pub enum Error {
     ScopesFull,
     FixupsFull,
     OutOfBounds,
+    UndefinedTableIndex { id: i32 },
+    SignatureMismatch,
     TypeCheck(&'static str),
 
     InvalidHeader,

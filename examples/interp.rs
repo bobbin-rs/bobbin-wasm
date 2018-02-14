@@ -99,22 +99,29 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
                 if let ExportDesc::Function(index) = e.export_desc {
                     let t = m.function_signature_type(index).unwrap();
                     let id = std::str::from_utf8(e.identifier.0).unwrap();
-                    interp.run(&mi, index as usize).unwrap();
+                    match interp.run(&mi, index as usize) {
+                        Ok(_) => {
+                            if t.returns.len() == 1 {
+                                if interp.stack_len() == 1 {
+                                    println!("{}() => {}:{}", id, TypeValue::try_from(t.returns[0] as i8).unwrap(), interp.pop().unwrap() as u32);
+                                } else {
+                                    println!("---- Stack Dump ----");
 
-                    if t.returns.len() == 1 {
-                        if interp.stack_len() == 1 {
-                            println!("{}() => {}:{}", id, TypeValue::try_from(t.returns[0] as i8).unwrap(), interp.pop().unwrap() as u32);
-                        } else {
-                            println!("---- Stack Dump ----");
-
-                            let mut i = 0;
-                            while let Ok(value) = interp.pop() {
-                                println!("{}: {:?}", i, value);
-                                i += 1;
+                                    let mut i = 0;
+                                    while let Ok(value) = interp.pop() {
+                                        println!("{}: {:?}", i, value);
+                                        i += 1;
+                                    }
+                                    println!("---- END ----");
+                                }
                             }
-                            println!("---- END ----");
+                        }, 
+                        Err(err) => {
+                            println!("{}() => {:?}", id, err);
                         }
                     }
+
+
                 }
             }
             

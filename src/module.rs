@@ -370,17 +370,18 @@ pub struct Type<'a> {
 impl<'a> fmt::Debug for Type<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Ok({
-            let indent = "    ";
-            writeln!(f, "{}<Type>", indent)?;
-            for p in self.parameters {
-                let indent = "      ";
-                writeln!(f, "{}<parameter>{:?}</parameter>", indent, TypeValue::from(*p as i8))?;
-            }
-            for r in self.returns {
-                let indent = "      ";
-                writeln!(f, "{}<return>{:?}</return>", indent, TypeValue::from(*r as i8))?;
-            }
-            writeln!(f, "{}</Type>", indent)?;
+            write!(f, "Type {{ {:?} -> {:?} }}", self.parameters, self.returns)?;
+            // let indent = "    ";
+            // writeln!(f, "{}<Type>", indent)?;
+            // for p in self.parameters {
+            //     let indent = "      ";
+            //     writeln!(f, "{}<parameter>{:?}</parameter>", indent, TypeValue::from(*p as i8))?;
+            // }
+            // for r in self.returns {
+            //     let indent = "      ";
+            //     writeln!(f, "{}<return>{:?}</return>", indent, TypeValue::from(*r as i8))?;
+            // }
+            // writeln!(f, "{}</Type>", indent)?;
         })
     }
 }
