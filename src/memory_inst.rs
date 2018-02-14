@@ -5,47 +5,56 @@ use byteorder::{ByteOrder, LittleEndian};
 use core::marker::PhantomData;
 use core::cell::Cell;
 use core::slice;
+use core::fmt;
 
 pub const PAGE_SIZE: usize = 64;
 
 pub struct MemoryInst<'a> {
     buf: *mut u8,
-    len: Cell<usize>,
-    min: usize,
-    max: usize,
+    num_pages: Cell<usize>,
+    min_pages: usize,
+    max_pages: usize,
     _phantom: PhantomData<&'a [u8]>,
 }
 
 impl<'a> MemoryInst<'a> {
-    pub fn new(buf: &'a mut [u8], min: usize, max: Option<usize>) -> MemoryInst {        
+    pub fn new(buf: &'a mut [u8], min_pages: usize, max_pages: Option<usize>) -> MemoryInst {        
         let buf_pages = buf.len() / PAGE_SIZE;
         let buf = buf.as_mut_ptr();
-        let len = Cell::new(min);
-        let max = if let Some(max) = max {
-            if max < buf_pages { max } else { buf_pages }
+        let num_pages = Cell::new(min_pages);
+        let max_pages = if let Some(max_pages) = max_pages {
+            if max_pages < buf_pages { max_pages } else { buf_pages }
         } else {
             buf_pages
         };
-        MemoryInst { buf: buf as *mut u8, len, min, max, _phantom: PhantomData }
+        MemoryInst { buf: buf as *mut u8, num_pages, min_pages, max_pages, _phantom: PhantomData }
     }
 
     pub fn len(&self) -> usize {
-        self.len.get() * PAGE_SIZE
+        self.num_pages.get() * PAGE_SIZE
+    }
+
+    pub fn cap(&self) -> usize {
+        self.max_pages * PAGE_SIZE
+    }
+
+    pub fn num_pages(&self) -> usize {
+        self.num_pages.get()
     }
 
     pub fn reset(&self) {
-        self.len.set(self.min);
+        self.num_pages.set(self.min_pages);
     }
 
     pub fn current_memory(&self) -> i32 {
-        self.len.get() as i32
+        self.num_pages.get() as i32
     }
 
     pub fn grow_memory(&mut self, pages: i32) -> i32 {
         let prev = self.current_memory();
         let next = prev + pages;
-        if next <= self.max as i32 {
-            self.len.set(next as usize);
+        if next <= self.max_pages as i32 {
+            self.num_pages.set(next as usize);
             prev
         } else {
             -1
@@ -53,11 +62,11 @@ impl<'a> MemoryInst<'a> {
     }
 
     fn as_ref(&self) -> &[u8] {
-        unsafe { slice::from_raw_parts(self.buf, self.len.get() * PAGE_SIZE) }
+        unsafe { slice::from_raw_parts(self.buf, self.len()) }
     }
 
     fn as_mut(&self) -> &mut [u8] {
-        unsafe { slice::from_raw_parts_mut(self.buf, self.len.get() * PAGE_SIZE) }
+        unsafe { slice::from_raw_parts_mut(self.buf, self.len()) }
     }
 
     fn check_access(&self, index: usize, len: usize) -> Result<(), Error> {
@@ -121,6 +130,15 @@ impl<'a> MemoryInst<'a> {
     }
 
 }
+
+impl<'a> fmt::Debug for MemoryInst<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "MemoryInst {{ len: {} / {} pages: {} / {} }}",
+             self.len(), self.cap(), self.num_pages(), self.max_pages
+        )
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
