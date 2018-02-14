@@ -12,6 +12,7 @@ pub struct ModuleInst<'m, 'a, 'mem> {
     types: SmallVec<'a, Type<'a>>,
     functions: SmallVec<'a, FuncInst>,
     globals: SmallVec<'a, GlobalInst>,
+    tables: SmallVec<'a, SmallVec<'a, u32>>,
     memory_inst: &'mem MemoryInst<'mem>,
 }
 
@@ -23,6 +24,7 @@ impl<'m, 'a, 'mem> ModuleInst<'m, 'a, 'mem> {
         let mut types = w.alloc_smallvec(16);
         let mut functions = w.alloc_smallvec(16);
         let mut globals = w.alloc_smallvec(16);
+        let mut tables = w.alloc_smallvec(16);
         // let mut imports = w.alloc_smallvec(16);
 
         for section in m.iter() {
@@ -68,6 +70,36 @@ impl<'m, 'a, 'mem> ModuleInst<'m, 'a, 'mem> {
                         globals.push(GlobalInst::Local { global_type, global_index, value });
                     }
                 },
+                SectionType::Table => {
+                    for Table { element_type, limits } in section.tables() {
+                        info!("Adding table: {} {:?}", element_type, limits);
+                        let size = if let Some(max) = limits.max {
+                            max
+                        } else {
+                            limits.min
+                        };
+                        let t: SmallVec<u32> = w.alloc_smallvec(size as usize);
+                        tables.push(t);
+                    }
+                },                
+                SectionType::Element => {
+                    for Element { table_index, offset, data } in section.elements() {
+                        use byteorder::{ByteOrder, LittleEndian};
+
+                        info!("Initializing table {}", table_index);
+                        let table = &mut tables[table_index as usize];
+                        let Value(offset) = offset.value()?;
+                        let mut i = 0;
+                        let mut o = offset as usize;
+                        while i < data.len() {
+                            let d = LittleEndian::read_u32(&data[i..]);
+                            info!("{:08x}: {:08x}", o, d);
+                            table[o] = d;
+                            o += 1;
+                            i += 4;
+                        }              
+                    }
+                },
                 SectionType::Data => {
                     for Data{ memory_index: _, offset, data } in section.data() {
                         let Value(offset) = offset.value()?;
@@ -78,13 +110,13 @@ impl<'m, 'a, 'mem> ModuleInst<'m, 'a, 'mem> {
                             memory_inst.set(o, d);
                         }
                     }
-                }
+                },
                 _ => {},
             }
         }
 
 
-        Ok((ModuleInst { name, m, types, functions, globals, memory_inst }, w.into_slice()))
+        Ok((ModuleInst { name, m, types, functions, globals, tables, memory_inst }, w.into_slice()))
     }
 
     pub fn name(&self) -> &str {
