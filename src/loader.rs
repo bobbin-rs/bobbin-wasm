@@ -606,7 +606,8 @@ impl<'m> Loader<'m> {
                 },
                 LOOP => {
                     self.type_checker.on_loop(sig)?;
-                    self.push_label(FIXUP_OFFSET)?;                    
+                    let pos = self.w.pos();
+                    self.push_label(pos as u32)?;                    
                 },
                 IF => {
                     // CHECK_RESULT(typechecker_.OnIf(&sig));
@@ -642,11 +643,17 @@ impl<'m> Loader<'m> {
                 BR_IF => {
                     self.type_checker.on_br_if(depth as usize)?;
                     let (drop, keep) = self.get_br_drop_keep_count(depth as usize)?;
+
                     self.w.write_opcode(INTERP_BR_UNLESS)?;
                     let fixup_br_offset = self.w.pos();
                     self.w.write_u32(FIXUP_OFFSET)?;    
                     self.w.write_drop_keep(drop, keep)?;
+
                     self.w.write_opcode(BR)?;
+                    let pos = self.w.pos();
+                    self.add_fixup(depth, pos as u32)?;
+                    self.w.write_u32(FIXUP_OFFSET)?;    
+                    
                     let pos = self.w.pos();
                     self.w.write_u32_at(pos as u32, fixup_br_offset)?;
                     

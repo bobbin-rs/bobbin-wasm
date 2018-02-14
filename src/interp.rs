@@ -255,6 +255,7 @@ impl<'a> Interp<'a> {
                 // I32 cmpops
                 0x46 ... 0x50 => {
                     let (rhs, lhs): (i32, i32) = (self.pop()?, self.pop()?);
+                    info!("lhs: {} rhs: {}", lhs, rhs);
                     let res = match opc {
                         I32_EQ => lhs == rhs,
                         I32_NE => lhs != rhs,
@@ -268,6 +269,7 @@ impl<'a> Interp<'a> {
                         I32_GE_S => (lhs as u32) >= (rhs as u32),
                         _ => return Err(Error::Unimplemented),
                     };
+                    info!("res: {}", res);
                     self.push(if res { 1 } else { 0 })?;
                 },
                 // I32 binops
@@ -298,6 +300,7 @@ impl<'a> Interp<'a> {
                 // I32 unops                
                 0x45 | 0x67 ... 0x6a => {
                     let val: i32 = self.pop()?;
+                    info!("val: {}", val);
                     let res = match opc {
                         I32_EQZ => if val == 0 { 1 } else { 0 },
                         I32_CLZ => val.leading_zeros(),
@@ -305,6 +308,7 @@ impl<'a> Interp<'a> {
                         I32_POPCNT => val.count_zeros(),
                         _ => unimplemented!(),
                     };
+                    info!("res: {}", res);                    
                     self.push(res as i32)?;
                 },
                 INTERP_ALLOCA => {
@@ -316,6 +320,7 @@ impl<'a> Interp<'a> {
                 },
                 INTERP_BR_UNLESS => {
                     let offset = code.read_u32()?;
+                    info!("BR_UNLESS: {:08x}", offset);
                     let val = self.pop()?;
                     if val == 0 {             
                         info!("  => {:08x}", offset);
