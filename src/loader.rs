@@ -887,9 +887,7 @@ impl<'m> Loader<'m> {
                 //   CHECK_RESULT(EmitI32(module_->table_index));
                 //   CHECK_RESULT(EmitI32(TranslateSigIndexToEnv(sig_index)));
                 info!("CALL_INDIRECT: {}", index.0);
-                let sig = self.functions[index.0 as usize];
-                info!("  => sig: {}", sig);
-                if let Some(sig_type) = self.module.signature_type(sig) {
+                if let Some(sig_type) = self.module.signature_type(index.0) {
                     let (parameters, returns) = (sig_type.parameters, sig_type.returns);
 
                     let mut p_arr = [TypeValue::Any; 16];
