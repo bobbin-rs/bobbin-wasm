@@ -1,5 +1,6 @@
 use {Error, SectionType, TypeValue, Cursor, FIXUP};
 use types::{Limits, Identifier, Initializer};
+use memory_inst::MemoryInst;
 use writer::Writer;
 use module_inst::ModuleInst;
 use opcode::*;
@@ -67,8 +68,8 @@ impl<'a> Module<'a> {
         self.version = version;
     }
 
-    pub fn instantiate<'b>(&'a self, buf: &'b mut [u8]) -> Result<(ModuleInst<'a, 'b>, &'b mut [u8]), Error> {
-        ModuleInst::new(self, buf)
+    pub fn instantiate<'b, 'mem>(&'a self, buf: &'b mut [u8], memory: &'mem MemoryInst<'mem>) -> Result<(ModuleInst<'a, 'b, 'mem>, &'b mut [u8]), Error> {
+        ModuleInst::new(self, buf, memory)
     }
 
     pub fn extend(&mut self, buf: &'a [u8]) {

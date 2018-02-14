@@ -14,6 +14,7 @@ use std::path::Path;
 use clap::{App, Arg, ArgMatches};
 
 use wasm::{Reader, BinaryReader, TypeValue, SectionType, ExportDesc};
+use wasm::memory_inst::MemoryInst;
 
 #[derive(Debug)]
 pub enum Error {
@@ -74,24 +75,13 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     if matches.is_present("dump") {
         print!("{:?}", m);
     }
-    let (mi, _buf) = m.instantiate(buf)?;
-    // println!("mi: {}", mi.name());
-    // println!("types");
 
-    // for (i, t) in mi.types().iter().enumerate() {
-    //     println!("  {}: {:?} -> {:?}", i, t.parameters, t.return_type());
-    // }
-    // println!("functions");
-    // for (i, f) in mi.functions().iter().enumerate() {
-    //     println!("  {}: {:?}", i, f);
-    // }
-    // println!("globals");
-    // for (i, g) in mi.globals().iter().enumerate() {
-    //     println!("  {}: {:?}", i, g);
-    // }
+    let mut memory_buf = [0u8; 256];
+    let memory = MemoryInst::new(&mut memory_buf, 1, None);
 
+    let (mi, _buf) = m.instantiate(buf, &memory)?;
 
-    // println!("---- RUN ----");
+    println!("Memory: {:?}", mi.memory_inst());
 
     // Interpreter
 

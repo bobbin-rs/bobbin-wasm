@@ -1,19 +1,21 @@
 use {Error, SectionType};
 use types::Initializer;
 use module::*;
+use memory_inst::MemoryInst;
 use small_vec::SmallVec;
 use writer::Writer;
 
-pub struct ModuleInst<'m, 'a> {
+pub struct ModuleInst<'m, 'a, 'mem> {
     name: &'a str,
     m: &'m Module<'m>,
     types: SmallVec<'a, Type<'a>>,
     functions: SmallVec<'a, FuncInst>,
     globals: SmallVec<'a, GlobalInst>,
+    memory_inst: &'mem MemoryInst<'mem>,
 }
 
-impl<'m, 'a> ModuleInst<'m, 'a> {
-    pub fn new(m: &'m Module<'m>, buf: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), Error> {
+impl<'m, 'a, 'mem> ModuleInst<'m, 'a, 'mem> {
+    pub fn new(m: &'m Module<'m>, buf: &'a mut [u8], memory_inst: &'mem MemoryInst<'mem>) -> Result<(Self, &'a mut [u8]), Error> {
         let mut w = Writer::new(buf);
         let name = w.copy_str(m.name());
 
@@ -69,7 +71,7 @@ impl<'m, 'a> ModuleInst<'m, 'a> {
         }
 
 
-        Ok((ModuleInst { name, m, types, functions, globals }, w.into_slice()))
+        Ok((ModuleInst { name, m, types, functions, globals, memory_inst }, w.into_slice()))
     }
 
     pub fn name(&self) -> &str {
@@ -94,6 +96,10 @@ impl<'m, 'a> ModuleInst<'m, 'a> {
 
     pub fn type_signature(&self, index: usize) -> &Type {
         &self.types[index]
+    }
+
+    pub fn memory_inst(&self) -> &MemoryInst {
+        self.memory_inst
     }
 
     // pub fn body(&self, index: usize) -> Option<Body> {
