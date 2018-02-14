@@ -115,6 +115,23 @@ impl<'m, 'a, 'mem> ModuleInst<'m, 'a, 'mem> {
         self.memory_inst
     }
 
+    pub fn global_type(&self, index: u32) -> Result<GlobalType> {
+        Ok({
+            info!("global_type({})", index);
+            if index as usize > self.globals.len() {
+                return Err(Error::OutOfBounds);
+            }
+            match self.globals[index as usize] {
+                GlobalInst::Local { global_type, global_index: _, value: _} => {
+                    global_type
+                },
+                GlobalInst::Import { global_type, import_index: _ } => {
+                    global_type
+                }
+            }
+        })         
+    }
+
     pub fn get_global(&self, index: u32) -> Result<i32, Error> {
         Ok({
             info!("get_global({})", index);

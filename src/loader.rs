@@ -770,8 +770,36 @@ impl<'m> Loader<'m> {
                 self.w.write_u32(local_id)?;                
 
             }
-            Global { index: _ } => {
-                unimplemented!();
+            Global { index } => {
+                match op {
+                    GET_GLOBAL => {
+                        unimplemented!();
+                        // let global_type = self.m.global_type(index)?;
+                        // self.type_checker.on_get_global(global_type.type_value)?;
+
+                        //   CHECK_RESULT(CheckGlobal(global_index));
+                        //   Type type = GetGlobalTypeByModuleIndex(global_index);
+                        //   CHECK_RESULT(typechecker_.OnGetGlobal(type));
+                        //   CHECK_RESULT(EmitOpcode(Opcode::GetGlobal));
+                        //   CHECK_RESULT(EmitI32(TranslateGlobalIndexToEnv(global_index)));   
+                    },
+                    SET_GLOBAL => {
+                        unimplemented!();
+                        //   CHECK_RESULT(CheckGlobal(global_index));
+                        //   Global* global = GetGlobalByModuleIndex(global_index);
+                        //   if (!global->mutable_) {
+                        //     PrintError("can't set_global on immutable global at index %" PRIindex ".",
+                        //                global_index);
+                        //     return wabt::Result::Error;
+                        //   }
+                        //   CHECK_RESULT(typechecker_.OnSetGlobal(global->typed_value.type));
+                        //   CHECK_RESULT(EmitOpcode(Opcode::SetGlobal));
+                        //   CHECK_RESULT(EmitI32(TranslateGlobalIndexToEnv(global_index)));
+                    },
+                    _ => unimplemented!(),
+
+                }
+
                 // let id = index.0 as u32;
 
                 // // TODO: Move to type_check
