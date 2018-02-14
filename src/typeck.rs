@@ -453,6 +453,30 @@ impl<'m> TypeChecker<'m> {
         })
     }
 
+    pub fn check_opcode1(&mut self, op: &Opcode) -> Result<(), Error> {
+        info!("check_opcode1({:?})", op.text);
+        Ok({
+            self.pop_and_check_one_type(op.t1)?;
+            self.push_type(op.tr)?;
+        })
+    }
+
+    pub fn check_opcode2(&mut self, op: &Opcode) -> Result<(), Error> {
+        info!("check_opcode2({:?})", op.text);
+        Ok({
+            self.pop_and_check_two_types(op.t1, op.t2)?;
+            self.push_type(op.tr)?;            
+        })
+    }
+
+    pub fn on_load(&mut self, op: &Opcode) -> Result<(), Error> {
+        self.check_opcode1(op)
+    }
+
+    pub fn on_store(&mut self, op: &Opcode) -> Result<(), Error> {
+        self.check_opcode2(op)
+    }    
+
     pub fn on_const(&mut self, t: TypeValue) -> Result<(), Error> {
         info!("on_const({:?})", t);
         Ok({
@@ -461,23 +485,11 @@ impl<'m> TypeChecker<'m> {
     }
     
     pub fn on_unary(&mut self, op: &Opcode) -> Result<(), Error> {
-        info!("on_unary({})", op.text);
-        Ok({
-            self.peek_and_check_type(0, op.t1)?;
-            self.drop_types(2)?;
-            self.push_type(op.tr)?;
-        })
+        self.check_opcode1(op)
     }
 
-    
     pub fn on_binary(&mut self, op: &Opcode) -> Result<(), Error> {
-        info!("on_binary({})", op.text);
-        Ok({
-            self.peek_and_check_type(0, op.t2)?;
-            self.peek_and_check_type(1, op.t1)?;
-            self.drop_types(2)?;
-            self.push_type(op.tr)?;
-        })
+        self.check_opcode2(op)
     }
 
 
