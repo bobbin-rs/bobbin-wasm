@@ -790,7 +790,6 @@ impl<'m> Loader<'m> {
                         //   CHECK_RESULT(EmitI32(TranslateGlobalIndexToEnv(global_index)));   
                     },
                     SET_GLOBAL => {
-                        unimplemented!();
                         //   CHECK_RESULT(CheckGlobal(global_index));
                         //   Global* global = GetGlobalByModuleIndex(global_index);
                         //   if (!global->mutable_) {
@@ -800,7 +799,19 @@ impl<'m> Loader<'m> {
                         //   }
                         //   CHECK_RESULT(typechecker_.OnSetGlobal(global->typed_value.type));
                         //   CHECK_RESULT(EmitOpcode(Opcode::SetGlobal));
-                        //   CHECK_RESULT(EmitI32(TranslateGlobalIndexToEnv(global_index)));
+                        //   CHECK_RESULT(EmitI32(TranslateGlobalIndexToEnv(global_index)));                        
+                        if let Some(global) = self.module.global(index.0) {
+                            let global_type = global.global_type;
+                            if global_type.mutability != 0 {
+                                return Err(Error::InvalidGlobal { id: index.0 });
+                            }
+                            self.type_checker.on_set_global(global_type.type_value)?;
+                            self.w.write_opcode(SET_GLOBAL)?    ;
+                            self.w.write_u32(index.0)?;
+                        } else {
+                            return Err(Error::InvalidGlobal{ id: index.0});
+                        }                        
+
                     },
                     _ => unimplemented!(),
 

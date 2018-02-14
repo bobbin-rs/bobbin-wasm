@@ -1,9 +1,16 @@
 ;;; TOOL: run-interp
 (module
   (global i32 i32.const 42)
-  (func (export "global") (result i32)
+  (func (export "get_global") (result i32)
     get_global 0
-    return))
+    return)
+  (func (export "set_global") (result i32)
+    i32.const 99
+    set_global 0
+    get_global 0
+    return)
+)
 (;; STDOUT ;;;
-main() => i32:42
+get_global() => i32:42
+set_global() => i32:99
 ;;; STDOUT ;;)

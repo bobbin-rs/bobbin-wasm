@@ -513,11 +513,19 @@ impl<'m> TypeChecker<'m> {
     }    
 
     pub fn on_get_global(&mut self, t: TypeValue) -> Result<(), Error> {
-        info!("on_get_global()");
+        info!("on_get_global({})", t);
         Ok({
             self.push_type(t)?;
         })
     }
+
+    pub fn on_set_global(&mut self, t: TypeValue) -> Result<(), Error> {
+        info!("on_set_global({})", t);
+        Ok({
+            self.pop_and_check_one_type(t)?;
+        })
+    }
+
 
     pub fn check_opcode1(&mut self, op: &Opcode) -> Result<(), Error> {
         info!("check_opcode1({:?})", op.text);
