@@ -305,7 +305,7 @@ impl<'a> Interp<'a> {
                         I32_EQZ => if val == 0 { 1 } else { 0 },
                         I32_CLZ => val.leading_zeros(),
                         I32_CTZ => val.trailing_zeros(),
-                        I32_POPCNT => val.count_zeros(),
+                        I32_POPCNT => val.count_ones(),
                         _ => unimplemented!(),
                     };
                     info!("res: {}", res);                    
