@@ -513,6 +513,10 @@ impl<'m> Loader<'m> {
         let op = i.op.code;
         match i.imm {
             None => match op {
+                DROP => {
+                    self.type_checker.on_drop()?;
+                    self.w.write_opcode(op)?;
+                }
                 END => {
 
                     let ty_label = self.type_checker.get_label(0)?;
