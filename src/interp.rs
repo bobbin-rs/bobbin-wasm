@@ -176,20 +176,22 @@ impl<'a> Interp<'a> {
                 GET_LOCAL => {
                     let depth: u32 = code.read_u32()?;
                     info!("GET_LOCAL: {} ", depth);
-                    let value: i32 = self.value_stack.peek(depth as usize)?.0;
+                    let value: i32 = self.value_stack.peek((depth - 1) as usize)?.0;
                     info!("   => {}", value);
                     self.push(value)?;
                 },
                 SET_LOCAL => {
                     // check: should depth be relative to top of stack at beginning of operation?
                     let depth: u32 = code.read_u32()?;
+                    info!("SET_LOCAL: {} ", depth);
                     let value: i32 = self.pop()?;
+                    info!("   <= {}", value);
                     self.value_stack.pick((depth - 1) as usize)?.0 = value;
                 },
                 TEE_LOCAL => {
                     let depth: u32 = code.read_u32()?;
                     let value: i32 = self.pop()?;
-                    self.value_stack.peek(depth as usize)?.0 = value;
+                    self.value_stack.peek((depth - 1) as usize)?.0 = value;
                     self.push(value)?;
                 },                
                 // GET_GLOBAL => {
