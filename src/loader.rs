@@ -703,28 +703,25 @@ impl<'m> Loader<'m> {
                 // Emits OP DEPTH_TO_LOCAL
                 let id = index.0;
                 let ty = self.context[id as usize];
-                match op {
+                let local_id = match op {
                     GET_LOCAL => {                        
                         let local_id = self.translate_local_index(id)?;
-                        info!("-- local_id: {}", local_id);
                         self.type_checker.on_get_local(ty)?;
-                        self.w.write_opcode(op)?;
-                        self.w.write_u32(local_id)?;                
+                        local_id
                     },
                     SET_LOCAL => {
                         self.type_checker.on_set_local(ty)?;
-                        let local_id = self.translate_local_index(id)?;
-                        self.w.write_opcode(op)?;
-                        self.w.write_u32(local_id)?;                
+                        self.translate_local_index(id)?
                     },
                     TEE_LOCAL => {
                         self.type_checker.on_tee_local(ty)?;
-                        let local_id = self.translate_local_index(id)?;
-                        self.w.write_opcode(op)?;
-                        self.w.write_u32(local_id)?;                
+                        self.translate_local_index(id)?
                     }
                     _ => unreachable!()
-                }
+                };
+                info!("-- local_id: {}", local_id);
+                self.w.write_opcode(op)?;
+                self.w.write_u32(local_id)?;                
 
             }
             Global { index: _ } => {
