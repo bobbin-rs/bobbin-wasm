@@ -814,28 +814,7 @@ impl<'m> Loader<'m> {
 
                     },
                     _ => unimplemented!(),
-
-                }
-
-                // let id = index.0 as u32;
-
-                // // TODO: Move to type_check
-                // let ty = {
-                //     let global = if let Some(global) = self.module.global(id) {
-                //         global
-                //     } else {
-                //         return Err(Error::InvalidGlobal { id: id })
-                //     };
-                //     global.global_type.type_value
-                // };
-                // match op {
-                //     // GET_GLOBAL => self.type_stack.push_type(ty)?,
-                //     // SET_GLOBAL => self.type_stack.pop_type_expecting(ty)?,
-                //     _ => unreachable!()
-                // }
-
-                // self.w.write_opcode(op)?;
-                // self.w.write_u32(id as u32)?;                
+                }              
             },
             Call { index } => {
                 let id = index.0 as u32;
