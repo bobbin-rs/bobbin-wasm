@@ -1,0 +1,13 @@
+;;; TOOL: run-interp
+(module
+  (func (export "callempty") (result i32)
+    call $empty)
+
+
+  (func $empty (result i32)
+    i32.const 42
+  )
+)
+(;; STDOUT ;;;
+callempty() => i32:42
+;;; STDOUT ;;)

@@ -467,9 +467,9 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
                 }
                 self.dispatch(Event::InstructionsStart)?;                
                 while self.r.pos() < body_end {
-                    self.read_instruction()?;
+                    self.read_instruction(body_end)?;
                 }
-                // self.dispatch(Event::InstructionsEnd)?;
+                self.dispatch(Event::InstructionsEnd)?;
 
                 // TODO: Check that function body ends with the END opcode
 
@@ -479,7 +479,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         })
     }
 
-    pub fn read_instruction(&mut self) -> WasmResult<()> {
+    pub fn read_instruction(&mut self, body_end: usize) -> WasmResult<()> {
         use self::ImmediateType::*;
         let offset = self.r.pos() as u32;
         let op = Opcode::try_from(self.read_u8()?)?;
@@ -563,10 +563,10 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         let end = self.r.pos();
         let data = self.r.slice(offset as usize..end);
 
-        info!("end: {} len: {}", end, self.r.len());
-        if op.code == END && end == self.r.len() {
-            info!("END at end of function body => InstructionsEnd");
-            self.d.dispatch(Event::InstructionsEnd)?;
+        // info!("end: {} len: {}", end, body_end);
+        if op.code == END && end == body_end {
+            info!("Skipping END at end of function body");
+            // self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }))?;
         } else {
             self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }))?;
         }
