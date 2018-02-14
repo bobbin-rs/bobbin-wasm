@@ -143,6 +143,10 @@ impl<'m, 'a, 'mem> ModuleInst<'m, 'a, 'mem> {
         self.tables[index].as_ref()
     }
 
+    pub fn indirect_function_id(&self, index: usize) -> u32 {
+        self.tables[0][index]
+    }
+
     pub fn type_signature(&self, index: usize) -> &Type {
         &self.types[index]
     }
