@@ -282,6 +282,14 @@ impl<'a> Interp<'a> {
                     let value: i32 = self.pop()?;
                     mi.set_global(index, value)?;
                 },
+                MEM_GROW => {
+                    let pages = self.pop()?;
+                    info!("Grow Pages: {}", pages);
+                },
+                MEM_SIZE => {
+                    let size = mi.memory_inst().num_pages();
+                    self.push(size as i32)?;
+                }
                 // I32 load
                 0x28 ... 0x30 => {
                     let _flags = code.read_u32()?;
