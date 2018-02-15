@@ -444,7 +444,6 @@ mod test {
             assert_eq!(header.buf.pos(), 0x0a);
             assert_eq!(header.buf.len(), 0x05);
             let sig = section.signatures().nth(0).unwrap();
-            panic!("sig: {}", sig);
             assert_eq!(sig.parameters(), &[]);
             assert_eq!(sig.returns(), &[0x7f]);
 
