@@ -114,11 +114,23 @@ pub fn visit<D: Delegate>(m: &Module, d: &mut D) -> Result<(), Error> {
                     }
 
                     d.dispatch(Event::MemsEnd)?;
-                },                              
+                },
+                Section::Export(ref e) => {
+                    let c = h.count();
+                    
+                    d.dispatch(Event::ExportsStart { c })?;
+                    for (n, export) in e.iter().enumerate() {
+                        let n = n as u32;
+                        let id = export.identifier;
+                        let desc = export.export_desc;
+                        d.dispatch(Event::Export { n, id, desc })?;
+                    }
+                    d.dispatch(Event::ExportsEnd)?;
+                },
                 Section::Start(_) => {
                     let index = FuncIndex(h.count() as u32);
                     d.dispatch(Event::StartFunction { index })?;
-                }
+                },
                 Section::Element(ref e) => {
                     let c = h.count();
                     
@@ -131,7 +143,7 @@ pub fn visit<D: Delegate>(m: &Module, d: &mut D) -> Result<(), Error> {
                         d.dispatch(Event::Element { n, index, offset, data })?;
                     }
                     d.dispatch(Event::ExportsEnd)?;
-                }                          
+                },
                 Section::Code(ref _code) => {
                     let c = h.count();
                     d.dispatch(Event::CodeStart { c })?;
@@ -172,18 +184,7 @@ pub fn visit<D: Delegate>(m: &Module, d: &mut D) -> Result<(), Error> {
                     }
                     d.dispatch(Event::DataSegmentsEnd)?;
                 }                    
-                Section::Export(ref e) => {
-                    let c = h.count();
-                    
-                    d.dispatch(Event::ExportsStart { c })?;
-                    for (n, export) in e.iter().enumerate() {
-                        let n = n as u32;
-                        let id = export.identifier;
-                        let desc = export.export_desc;
-                        d.dispatch(Event::Export { n, id, desc })?;
-                    }
-                    d.dispatch(Event::ExportsEnd)?;
-                }                
+       
                 _ => {}
             }
             d.dispatch(Event::SectionEnd)?;
