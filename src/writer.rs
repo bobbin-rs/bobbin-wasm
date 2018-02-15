@@ -67,19 +67,22 @@ impl<'a> Writer<'a> {
         Ok(())
     }
 
-    pub fn write_var_u1(&mut self, value: bool) -> WriteResult<()> {
-        self.pos += write_u1(&mut self.buf[self.pos..], value).unwrap();        
-        Ok(())
+    pub fn write_var_u1(&mut self, value: u8) -> WriteResult<()> {
+        if value > 1 { return Err(Error::Leb128Overflow) }
+        self.write_u8(value)
     }
 
     pub fn write_var_u7(&mut self, value: u8) -> WriteResult<()> {
-        self.pos += write_u7(&mut self.buf[self.pos..], value).unwrap();        
-        Ok(())
+        if value & 0x80 != 0 { return Err(Error::Leb128Overflow) }
+        self.write_u8(value)
     }
 
     pub fn write_var_i7(&mut self, value: i8) -> WriteResult<()> {
-        self.pos += write_i7(&mut self.buf[self.pos..], value).unwrap();        
-        Ok(())
+        let value = value as u8;
+        if (value & 0x80 != 0) != (value & 0x40 != 0) {
+             return Err(Error::Leb128Overflow)
+        }
+        self.write_u8(value & 0x7f)
     }
 
     pub fn write_var_u32(&mut self, value: u32) -> WriteResult<()> {
@@ -375,5 +378,70 @@ mod tests {
         assert_eq!(t.d, &[0u8, 1, 2, 3]);
 
     }
+
+
+    #[test]
+    fn test_var_u1() {
+        fn write_u1(buf: &mut [u8], value: u8) -> Result<usize, Error> {
+            let mut w = Writer::new(buf);
+            w.write_var_u1(value)?;
+            Ok(w.pos())
+        }
+        let mut buf = [0u8; 8];
+        
+        assert_eq!(write_u1(&mut buf, 0).unwrap(), 1);
+        assert_eq!(buf[0], 0);
+        assert_eq!(write_u1(&mut buf, 1).unwrap(), 1);
+        assert_eq!(buf[0], 1);
+    }
+
+    #[test]
+    fn test_var_u7() {
+        fn write_u7(buf: &mut [u8], value: u8) -> Result<usize, Error> {
+            let mut w = Writer::new(buf);
+            w.write_var_u7(value)?;
+            Ok(w.pos())
+        }
+        for i in 0..128 {
+            let mut buf = [0u8; 8];            
+            assert_eq!(write_u7(&mut buf, i).unwrap(), 1);
+            assert_eq!(buf[0], i);
+        }        
+    }
+
+    #[test]
+    fn test_var_i7() {
+        fn write_i7(buf: &mut [u8], value: i8) -> Result<usize, Error> {
+            let mut w = Writer::new(buf);            
+            w.write_var_i7(value)?;
+            Ok(w.pos())
+        }
+
+        let mut buf = [0u8; 8];            
+
+        assert!(write_i7(&mut buf, 64).is_err());
+        assert!(write_i7(&mut buf, -65).is_err());
+
+        assert_eq!(write_i7(&mut buf, 1).unwrap(), 1);
+        assert_eq!(buf[0], 0b0000_0001);
+        assert_eq!(write_i7(&mut buf, 63).unwrap(), 1);
+        assert_eq!(buf[0], 0b0011_1111);
+
+        assert_eq!(write_i7(&mut buf, -1).unwrap(), 1);
+        assert_eq!(buf[0], 0b0111_1111);
+        assert_eq!(write_i7(&mut buf, -2).unwrap(), 1);
+        assert_eq!(buf[0], 0b0111_1110);
+        assert_eq!(write_i7(&mut buf, -4).unwrap(), 1);
+        assert_eq!(buf[0], 0b0111_1100);
+        assert_eq!(write_i7(&mut buf, -8).unwrap(), 1);
+        assert_eq!(buf[0], 0b0111_1000);
+        assert_eq!(write_i7(&mut buf, -16).unwrap(), 1);
+        assert_eq!(buf[0], 0b0111_0000);
+        assert_eq!(write_i7(&mut buf, -32).unwrap(), 1);
+        assert_eq!(buf[0], 0b0110_0000);
+        assert_eq!(write_i7(&mut buf, -64).unwrap(), 1);
+        assert_eq!(buf[0], 0b0100_0000);
+    }
+
 
 }
