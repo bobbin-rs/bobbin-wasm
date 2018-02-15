@@ -237,16 +237,16 @@ pub enum GlobalInst {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_module_inst() {
-        let mut buf = [0u8; 2048];
+    // #[test]
+    // fn test_module_inst() {
+    //     let mut buf = [0u8; 2048];
 
-        let mut m = Module::new();
-        m.set_name("hello.wasm");
+    //     let mut m = Module::new();
+    //     m.set_name("hello.wasm");
 
-        let (mi, _buf) = ModuleInst::new(&m, &mut buf).unwrap();
-        assert_eq!(mi.name(), "hello.wasm");
-    }
+    //     let (mi, _buf) = ModuleInst::new(&m, &mut buf).unwrap();
+    //     assert_eq!(mi.name(), "hello.wasm");
+    // }
 
     #[test]
     fn test_copy_types() {

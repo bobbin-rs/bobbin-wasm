@@ -172,7 +172,11 @@ impl Default for TypeValue {
         TypeValue::Any
     }
 }
-
+impl From<u8> for TypeValue {
+    fn from(other: u8) -> Self {
+        TypeValue::from(other as i8)
+    }
+}
 impl From<i8> for TypeValue {
     fn from(other: i8) -> Self {
         match other {

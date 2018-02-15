@@ -1,4 +1,4 @@
-use {Error, Value};
+use {Error, TypeValue, Value};
 use opcode::*;
 
 #[derive(Debug)]
@@ -68,5 +68,68 @@ impl Initializer {
             I32_CONST => Ok(Value(self.immediate)),
             _ => unimplemented!(),
         }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Sig<'a> {
+    buf: &'a [u8],
+}
+
+impl<'a> Sig<'a> {
+    pub fn new(buf: &'a [u8]) -> Sig<'a> {
+        assert!(buf.len() == (1 + buf[0] as usize +1 +  buf[1 + buf[0] as usize] as usize), "Sig buffer too short");
+        Sig { buf }
+    }
+
+    pub fn parameters(&self) -> SigIter {
+        let len = self.buf[0];
+        let buf = &self.buf[1..1+len as usize];
+        let pos = 0;
+        SigIter { buf, len, pos }
+    }
+
+    pub fn returns(&self) -> SigIter {
+        let p_len = self.buf[0];
+        let len = self.buf[1 + p_len as usize];
+        let buf = &self.buf[(1 + p_len + 1) as usize .. (1 + p_len + 1 + len) as usize];
+        let pos = 0;
+        SigIter { buf, len, pos }        
+    }
+}
+
+pub struct SigIter<'a> {
+    buf: &'a [u8],
+    len: u8,
+    pos: u8,
+}
+
+impl<'a> Iterator for SigIter<'a> {
+    type Item = TypeValue;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.pos < self.len {
+            let t = TypeValue::from(self.buf[self.pos as usize]);
+            self.pos += 1;
+            Some(t)
+        } else {
+            None
+        }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sig() {
+        let buf = [2, I32 as u8, I32 as u8, 1, I64 as u8];
+        let sig = Sig::new(&buf[..]);
+
+        assert!(sig.parameters().count() == 2);
+        assert!(sig.returns().count() == 1);
+
     }
 }
