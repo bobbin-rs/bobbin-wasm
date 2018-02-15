@@ -13,6 +13,10 @@ impl<'a> Cursor<'a> {
         self.buf.len()
     }
 
+    pub fn done(&self) -> bool {
+        self.buf.len() == 0
+    }
+
     pub fn slice(&mut self, len: usize) -> &'a [u8] {
         let v = &self.buf[..len];
         self.buf = &self.buf[len..];
@@ -206,7 +210,7 @@ mod tests {
         fn read_u7(buf: &[u8]) -> u8 {
             let mut c = Cursor::new(buf);
             let v = c.read_var_u7();
-            assert!(c.len() == 0);
+            assert!(c.done());
             v
         }        
         for i in 0u8..128 {
@@ -219,7 +223,7 @@ mod tests {
         fn read_i7(buf: &[u8]) -> i8 {
             let mut c = Cursor::new(buf);
             let v = c.read_var_i7();
-            assert!(c.len() == 0);
+            assert!(c.done());
             v
         }        
         for i in 0u8..64 {
@@ -239,7 +243,7 @@ mod tests {
         fn read_u32(buf: &[u8]) -> u32 {
             let mut c = Cursor::new(buf);
             let v = c.read_var_u32();
-            assert!(c.len() == 0);
+            assert!(c.done());
             v            
         }
 
@@ -277,7 +281,7 @@ mod tests {
         fn read_u64(buf: &[u8]) -> u64 {
             let mut c = Cursor::new(buf);
             let v = c.read_var_u64();
-            assert!(c.len() == 0);
+            assert!(c.done());
             v
         }
 
@@ -316,7 +320,7 @@ mod tests {
         fn read_i32(buf: &[u8]) -> i32 {
             let mut c = Cursor::new(buf);
             let v = c.read_var_i32();
-            assert!(c.len() == 0);
+            assert!(c.done());
             v
         }
         
@@ -341,7 +345,7 @@ mod tests {
         fn read_i64(buf: &[u8]) -> i64 {
             let mut c = Cursor::new(buf);
             let v = c.read_var_i64();
-            assert!(c.len() == 0);
+            assert!(c.done());
             v
         }
         
