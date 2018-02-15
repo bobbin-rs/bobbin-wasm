@@ -17,6 +17,15 @@ impl<'a> Cursor<'a> {
         self.buf.len() == 0
     }
 
+    pub fn advance(&mut self, count: usize) -> &mut Self {
+        self.buf = &self.buf[count..];
+        self
+    }
+
+    pub fn rest(&self) -> &'a [u8] {
+        self.buf
+    }
+
     pub fn slice(&mut self, len: usize) -> &'a [u8] {
         let v = &self.buf[..len];
         self.buf = &self.buf[len..];
