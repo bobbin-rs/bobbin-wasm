@@ -149,16 +149,16 @@ pub enum ExternalKind {
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(i8)]
+#[repr(u8)]
 pub enum TypeValue {
     Any = 0x00,
-    I32 = -0x01,
-    I64 = -0x02,
-    F32 = -0x03,
-    F64 = -0x04,
-    AnyFunc = -0x10,
-    Func = -0x20,
-    Void = -0x40,
+    I32 = 0x7f,
+    I64 = 0x7e,
+    F32 = 0x7d,
+    F64 = 0x7c,
+    AnyFunc = 0x70,
+    Func = 0x60,
+    Void = 0x40,
 }
 
 impl Default for TypeValue {
@@ -166,22 +166,18 @@ impl Default for TypeValue {
         TypeValue::Any
     }
 }
+
 impl From<u8> for TypeValue {
     fn from(other: u8) -> Self {
-        TypeValue::from(other as i8)
-    }
-}
-impl From<i8> for TypeValue {
-    fn from(other: i8) -> Self {
         match other {
-             0x00 => TypeValue::Any,
-            -0x01 => TypeValue::I32,
-            -0x02 => TypeValue::I64,
-            -0x03 => TypeValue::F32,
-            -0x04 => TypeValue::F64,
-            -0x10 => TypeValue::AnyFunc,
-            -0x20 => TypeValue::Func,
-            -0x40 => TypeValue::Void,
+            0x00 => TypeValue::Any,
+            0x7f => TypeValue::I32,
+            0x7e  => TypeValue::I64,
+            0x7d => TypeValue::F32,
+            0x7c => TypeValue::F64,
+            0x70 => TypeValue::AnyFunc,
+            0x60 => TypeValue::Func,
+            0x40 => TypeValue::Void,
             _ => panic!("Unrecognized TypeValue: 0x{:02x}", other)
         }
     }

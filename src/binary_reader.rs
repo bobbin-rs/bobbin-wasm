@@ -86,7 +86,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
     }
 
     fn read_type(&mut self) -> WasmResult<TypeValue> {
-        Ok(TypeValue::from(self.r.read_var_i7()?))
+        Ok(TypeValue::from(self.r.read_var_u7()?))
     }
 
     fn read_depth(&mut self) -> WasmResult<Depth> {

@@ -400,7 +400,7 @@ impl<'a> Type<'a> {
     }
 
     pub fn return_type(&self) -> Option<TypeValue> {
-        self.returns.first().map(|t| TypeValue::from(*t as i8))
+        self.returns.first().map(|t| TypeValue::from(*t))
     }
 }
 
@@ -621,7 +621,7 @@ impl<'a> Iterator for TypeValuesIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
             let i = self.index;
-            let t = TypeValue::from(self.buf[i as usize] as i8);
+            let t = TypeValue::from(self.buf[i as usize]);
             self.index += 1;
             Some(t)
         } else {
@@ -839,7 +839,7 @@ impl<'a> ModuleRead<'a> for Cursor<'a> {
     }
 
     fn read_type_value(&mut self) -> TypeValue {
-        TypeValue::from(self.read_i8())
+        TypeValue::from(self.read_u8())
     }
 
     fn read_type_values(&mut self) -> &'a [u8] {

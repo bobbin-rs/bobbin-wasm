@@ -284,7 +284,7 @@ impl<'a> ModuleRead<'a> for Cursor<'a> {
     }
 
     fn read_type_value(&mut self) -> TypeValue {
-        TypeValue::from(self.read_var_i7())
+        TypeValue::from(self.read_var_u7())
     }
 
     fn read_type_values(&mut self) -> &'a [u8] {

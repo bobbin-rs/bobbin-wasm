@@ -77,7 +77,7 @@ impl Context {
 
     fn set_parameters(&mut self, parameters: &[u8]) {
         for (i, p) in parameters.iter().enumerate() {
-            self.parameters[i] = TypeValue::from(*p as i8);
+            self.parameters[i] = TypeValue::from(*p);
         }
         self.parameters_count = parameters.len();
     }
@@ -111,7 +111,7 @@ impl<'t> From<Type<'t>> for Context {
         let mut c = Context::default();
         c.set_parameters(other.parameters);
         if other.returns.len() > 0 {
-            c.set_return(TypeValue::from(other.returns[0] as i8));
+            c.set_return(TypeValue::from(other.returns[0]));
         }
         c
     }
@@ -860,10 +860,10 @@ impl<'m> Loader<'m> {
                 let mut p_arr = [TypeValue::Any; 16];
                 let mut r_arr = [TypeValue::Any; 1];
                 for i in 0..parameters.len() {
-                    p_arr[i] = TypeValue::from(parameters[i] as i8);
+                    p_arr[i] = TypeValue::from(parameters[i]);
                 }
                 for i in 0..returns.len() {
-                    r_arr[i] = TypeValue::from(returns[i] as i8);
+                    r_arr[i] = TypeValue::from(returns[i]);
                 }
                 let p_slice = &p_arr[..parameters.len()];
                 let r_slice = &r_arr[..returns.len()];
@@ -893,10 +893,10 @@ impl<'m> Loader<'m> {
                     let mut p_arr = [TypeValue::Any; 16];
                     let mut r_arr = [TypeValue::Any; 1];
                     for i in 0..parameters.len() {
-                        p_arr[i] = TypeValue::from(parameters[i] as i8);
+                        p_arr[i] = TypeValue::from(parameters[i]);
                     }
                     for i in 0..returns.len() {
-                        r_arr[i] = TypeValue::from(returns[i] as i8);
+                        r_arr[i] = TypeValue::from(returns[i]);
                     }
                     let p_slice = &p_arr[..parameters.len()];
                     let r_slice = &r_arr[..returns.len()];

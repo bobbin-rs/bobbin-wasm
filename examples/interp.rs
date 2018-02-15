@@ -103,7 +103,7 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
                         Ok(_) => {
                             if t.returns.len() == 1 {
                                 if interp.stack_len() == 1 {
-                                    println!("{}() => {}:{}", id, TypeValue::try_from(t.returns[0] as i8).unwrap(), interp.pop().unwrap() as u32);
+                                    println!("{}() => {}:{}", id, TypeValue::try_from(t.returns[0]).unwrap(), interp.pop().unwrap() as u32);
                                 } else {
                                     println!("---- Stack Dump ----");
 
