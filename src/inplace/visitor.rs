@@ -119,6 +119,59 @@ pub fn visit<D: Delegate>(m: &Module, d: &mut D) -> Result<(), Error> {
                     let index = FuncIndex(h.count() as u32);
                     d.dispatch(Event::StartFunction { index })?;
                 }
+                Section::Element(ref e) => {
+                    let c = h.count();
+                    
+                    d.dispatch(Event::ElementsStart { c })?;
+                    for (n, element) in e.iter().enumerate() {
+                        let n = n as u32;
+                        let index = TableIndex(element.table_index);
+                        let offset = element.offset;
+                        let data = Some(element.data);
+                        d.dispatch(Event::Element { n, index, offset, data })?;
+                    }
+                    d.dispatch(Event::ExportsEnd)?;
+                }                          
+                Section::Code(ref _code) => {
+                    let c = h.count();
+                    d.dispatch(Event::CodeStart { c })?;
+                    // for (n, body) in code.iter().enumerate() {                        
+                    //     let offset = body.pos()
+                    //     let size = self.read_var_u32()?;
+                    //     let body_beg = self.r.pos();
+                    //     let body_end = body_beg + size as usize;     
+
+                    //     let locals = self.read_count()?;
+                    //     self.dispatch(Event::Body { n, offset, size, locals })?;
+                    //     for i in 0..locals {
+                    //         let n = self.read_count()?;
+                    //         let t = self.read_type()?;
+                    //         self.dispatch(Event::Local { i, n, t })?;
+                    //     }
+                    //     self.dispatch(Event::InstructionsStart)?;                
+                    //     while self.r.pos() < body_end {
+                    //         self.read_instruction(body_end)?;
+                    //     }
+                    //     self.dispatch(Event::InstructionsEnd)?;
+
+                    //     // TODO: Check that function body ends with the END opcode
+
+                    //     self.dispatch(Event::BodyEnd)?;
+                    // }
+                    d.dispatch(Event::CodeEnd)?;                    
+                },
+                Section::Data(ref e) => {
+                    let c = h.count();
+                    d.dispatch(Event::DataSegmentsStart { c })?;
+                    for (n, data) in e.iter().enumerate() {
+                        let n = n as u32;
+                        let index = MemIndex(data.memory_index);
+                        let offset = data.offset;
+                        let data = data.data;
+                        d.dispatch(Event::DataSegment { n, index, offset, data } )?;
+                    }
+                    d.dispatch(Event::DataSegmentsEnd)?;
+                }                    
                 Section::Export(ref e) => {
                     let c = h.count();
                     
