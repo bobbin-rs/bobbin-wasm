@@ -23,14 +23,17 @@ impl<'a> Module<'a> {
     pub fn version(&self) -> u32 {
         Cursor::new(self.buf).advance(4).read_u32()
     }
-    pub fn iter(&self) -> SectionIter {
-        SectionIter { buf: Cursor::new(self.buf) }
+
+    pub fn sections(&self) -> SectionIter {
+        let pos = 8;
+        SectionIter { buf: Cursor::new(&self.buf[pos..]), pos }
     }
     
 }
 
 pub struct SectionIter<'a> {
     buf: Cursor<'a>,
+    pos: usize,
 }
 
 impl<'a> Iterator for SectionIter<'a> {
@@ -39,10 +42,9 @@ impl<'a> Iterator for SectionIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
             let section_type = SectionType::from(self.buf.read_var_u7());
-            let size = self.buf.read_var_u32();
-            let count = self.buf.read_var_u32();
-            let buf = self.buf.rest();
-            let section_header = SectionHeader { section_type, size, count, buf };
+            let size = self.buf.read_var_u32();            
+            let buf = self.buf.slice(size as usize);            
+            let section_header = SectionHeader { section_type, buf };
             Some(match section_type {
                 SectionType::Custom => Section::Custom(CustomSection { section_header }),
                 SectionType::Type => Section::Type(TypeSection { section_header }),
@@ -63,13 +65,13 @@ impl<'a> Iterator for SectionIter<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct SectionHeader<'a> {
     pub section_type: SectionType,
-    pub size: u32, 
-    pub count: u32, 
     pub buf: &'a [u8],
 }
 
+#[derive(Debug)]
 pub enum Section<'a> {
     Custom(CustomSection<'a>),
     Type(TypeSection<'a>),
@@ -85,39 +87,51 @@ pub enum Section<'a> {
     Data(DataSection<'a>),
 }
 
+#[derive(Debug)]
 pub struct CustomSection<'a> {
     pub section_header: SectionHeader<'a>
 }
+#[derive(Debug)]
 pub struct TypeSection<'a> {
     pub section_header: SectionHeader<'a>
 }
+#[derive(Debug)]
 pub struct ImportSection<'a> {
     pub section_header: SectionHeader<'a>
 }
+#[derive(Debug)]
 pub struct FunctionSection<'a> {
     pub section_header: SectionHeader<'a>
 }
+#[derive(Debug)]
 pub struct TableSection<'a> {
     pub section_header: SectionHeader<'a>
 }
+#[derive(Debug)]
 pub struct MemorySection<'a> {
     pub section_header: SectionHeader<'a>
 }
+#[derive(Debug)]
 pub struct GlobalSection<'a> {
     pub section_header: SectionHeader<'a>
 }
+#[derive(Debug)]
 pub struct ExportSection<'a> {
     pub section_header: SectionHeader<'a>
 }
+#[derive(Debug)]
 pub struct StartSection<'a> {
     pub section_header: SectionHeader<'a>
 }
+#[derive(Debug)]
 pub struct ElementSection<'a> {
     pub section_header: SectionHeader<'a>
 }
+#[derive(Debug)]
 pub struct CodeSection<'a> {
     pub section_header: SectionHeader<'a>
 }
+#[derive(Debug)]
 pub struct DataSection<'a> {
     pub section_header: SectionHeader<'a>
 }
@@ -136,5 +150,38 @@ mod test {
         assert_eq!(m.magic(), MAGIC_COOKIE);
         assert_eq!(m.version(), 0x1);
 
+        let mut sections = m.sections();
+
+        let section = sections.next().unwrap();
+        if let Section::Type(section) = section {
+            assert_eq!(section.section_header.section_type, SectionType::Type);
+            assert_eq!(section.section_header.buf.len(), 0x5);
+        } else {
+            panic!("Unexpected Section Type: {:?}", section)
+        }
+
+        let section = sections.next().unwrap();
+        if let Section::Function(section) = section {
+            assert_eq!(section.section_header.section_type, SectionType::Function);
+            assert_eq!(section.section_header.buf.len(), 0x2);
+        } else {
+            panic!("Unexpected Section Type: {:?}", section)
+        }        
+
+        let section = sections.next().unwrap();
+        if let Section::Export(section) = section {
+            assert_eq!(section.section_header.section_type, SectionType::Export);
+            assert_eq!(section.section_header.buf.len(), 0x8);
+        } else {
+            panic!("Unexpected Section Type: {:?}", section)
+        }        
+
+        let section = sections.next().unwrap();
+        if let Section::Code(section) = section {
+            assert_eq!(section.section_header.section_type, SectionType::Code);
+            assert_eq!(section.section_header.buf.len(), 0x7);
+        } else {
+            panic!("Unexpected Section Type: {:?}", section)
+        }        
     }
 }
