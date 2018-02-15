@@ -1,4 +1,3 @@
-use wasm_leb128::{write_u1, write_u7, write_i7, write_u32, write_i32};
 use byteorder::{ByteOrder, LittleEndian};
 use core::ops::Deref;
 use core::{mem, ptr, slice, str};

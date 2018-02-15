@@ -245,12 +245,7 @@ dependencies = [
  "clap 2.29.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "wasm-leb128 0.1.0",
 ]
-
-[[package]]
-name = "wasm-leb128"
-version = "0.1.0"
 
 [[package]]
 name = "winapi"

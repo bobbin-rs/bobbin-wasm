@@ -4,7 +4,6 @@
 
 // extern crate core;
 extern crate byteorder;
-extern crate wasm_leb128;
 #[macro_use] extern crate log;
 
 pub mod inplace;
@@ -85,8 +84,6 @@ pub enum Error {
     Utf8Error(str::Utf8Error),
     OpcodeError(opcode::Error),
     StackError(stack::Error),
-    Leb128Error(wasm_leb128::Error),
-
 }
 
 impl From<fmt::Error> for Error {
@@ -114,12 +111,6 @@ impl From<str::Utf8Error> for Error {
     }
 }
 
-
-impl From<wasm_leb128::Error> for Error {
-    fn from(other: wasm_leb128::Error) -> Error {
-        Error::Leb128Error(other)
-    }
-}
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Value(i32);
