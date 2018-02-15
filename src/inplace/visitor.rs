@@ -15,7 +15,9 @@ pub fn visit<D: Delegate>(m: &Module, d: &mut D) -> Result<(), Error> {
             let s_len = h.buf.len() as u32;
             let s_beg = h.buf.pos() as u32;
             let s_end = s_beg + s_len;
-            d.dispatch(Event::SectionStart { s_type, s_beg, s_end, s_len })?;
+            let s_count = h.count();
+            d.dispatch(Event::SectionStart { s_type, s_beg, s_end, s_len, s_count })?;
+            
             match s {
                 Section::Type(ref t) => {
                     let c = h.count();
@@ -23,7 +25,7 @@ pub fn visit<D: Delegate>(m: &Module, d: &mut D) -> Result<(), Error> {
                     d.dispatch(Event::TypesStart { c })?;
                     for (n, sig) in t.iter().enumerate() {
                         let n = n as u32;
-                        let form = t.form();
+                        let form = sig.form;
                         d.dispatch(Event::TypeStart { n , form })?;
 
                         {
@@ -49,6 +51,19 @@ pub fn visit<D: Delegate>(m: &Module, d: &mut D) -> Result<(), Error> {
                     }
                     d.dispatch(Event::TypesEnd)?;
                 },
+                Section::Import(ref imps) => {
+                    let c = h.count();
+                    
+                    d.dispatch(Event::ImportsStart { c })?;
+                    for (n, imp) in imps.iter().enumerate() {
+                        let n = n as u32;
+                        let module = imp.module;
+                        let export = imp.export;
+                        let desc = imp.desc;
+                        d.dispatch(Event::Import { n, module, export, desc })?;
+                    }
+                    d.dispatch(Event::FunctionsEnd)?;
+                },                
                 Section::Function(ref f) => {
                     let c = h.count();
                     

@@ -382,7 +382,7 @@ impl<'m> Delegate for Loader<'m> {
                 self.module.set_name(self.w.copy_str(name));
                 self.module.set_version(version);
             },
-            SectionStart { s_type, s_beg: _, s_end:_ , s_len: _ } => {
+            SectionStart { s_type, s_beg: _, s_end:_ , s_len: _, s_count: _ } => {
                 self.section_fixup = self.w.write_section_start(s_type)?;
             },
             SectionEnd => {

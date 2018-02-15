@@ -20,6 +20,7 @@ impl<'a> From<&'a [u8]> for Module<'a> {
         let mut buf = Cursor::new(buf);        
         let magic = buf.read_u32();
         let version = buf.read_u32();
+        
         Module { buf, magic, version }
     }
 }
@@ -136,9 +137,7 @@ impl<'a> TypeSection<'a> {
     }
 
     pub fn iter(&self) -> SignatureIter<'a> {
-        let mut buf = self.section_header.body();
-        let _form = buf.read_var_i7();
-        SignatureIter { buf: buf }
+        SignatureIter { buf: self.section_header.body() }
     }    
 }
 
@@ -255,7 +254,7 @@ impl<'a> Iterator for SignatureIter<'a> {
     type Item = Signature<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.buf.len() > 0 {
+        if self.buf.len() > 0 {            
             Some(self.buf.read_signature())
         } else {
             None
@@ -415,6 +414,7 @@ impl<'a> Iterator for DataIter<'a> {
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub struct Signature<'a> {
+    form: TypeValue,
     parameters: &'a [u8],
     returns: &'a [u8],
 }
@@ -496,11 +496,12 @@ impl<'a> ModuleRead<'a> for Cursor<'a> {
     }
 
     fn read_signature(&mut self) -> Signature<'a> {
+        let form = self.read_type_value();
         let p_len = self.read_var_u32();
         let parameters = self.slice(p_len as usize);
         let r_len = self.read_var_u32();
         let returns = self.slice(r_len as usize);
-        Signature { parameters, returns }
+        Signature { form, parameters, returns }
     }
 
     fn read_type_value(&mut self) -> TypeValue {

@@ -212,7 +212,7 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
             let s_beg = self.r.pos() as u32;
             let s_end = s_beg + s_len;
             // info!("section: {:08x} to {:08x} len {:02x}", s_beg, s_end, s_len);
-            self.dispatch(Event::SectionStart { s_type, s_beg, s_end, s_len })?;
+            self.dispatch(Event::SectionStart { s_type, s_beg, s_end, s_len, s_count: 0 })?;
             // self.d.section_start(s, s_beg, s_end, s_len)?;
 
             // self.write_u8(s as u8)?;

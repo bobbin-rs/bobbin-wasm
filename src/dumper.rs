@@ -16,8 +16,8 @@ impl<W: Write> Delegate for HeaderDumper<W> {
             Start { name, version } => {
                 writeln!(self.w, "\n{}:\tfile format wasm 0x{:x}\n", name, version).unwrap();
             },
-            SectionStart { s_type, s_beg, s_end, s_len } => {
-                writeln!(self.w,"{:>9} start={:#010x} end={:#010x} (size={:#010x}) count: 1", s_type.as_str(), s_beg, s_end, s_len)?;
+            SectionStart { s_type, s_beg, s_end, s_len, s_count } => {
+                writeln!(self.w,"{:>9} start={:#010x} end={:#010x} (size={:#010x}) count: {}", s_type.as_str(), s_beg, s_end, s_len, s_count)?;
             },
             End => {
                 writeln!(self.w,"")?;
@@ -37,7 +37,7 @@ impl<W: Write> Delegate for DetailsDumper<W> {
             Start { name, version } => {
                 writeln!(self.w, "\n{}:\tfile format wasm 0x{:x}\n", name, version).unwrap();
             },
-            SectionStart { s_type, s_beg: _, s_end: _, s_len: _ } => {
+            SectionStart { s_type, s_beg: _, s_end: _, s_len: _, s_count: _ } => {
                 if s_type != SectionType::Code {
                     writeln!(self.w,"{}:", s_type.as_str())?;
                 }

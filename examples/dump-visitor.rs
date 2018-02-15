@@ -1,5 +1,7 @@
 extern crate wasm;
 extern crate clap;
+#[macro_use] extern crate log;
+extern crate env_logger;
 
 use std::process;
 use std::io::{self, Read};
@@ -30,6 +32,8 @@ impl From<wasm::Error> for Error {
 }
 
 pub fn main() {
+    env_logger::init();
+    info!("running!");
     let matches = App::new("dump")
         .arg(Arg::with_name("path")
             .required(true))
@@ -56,11 +60,15 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     // let path = path.file_name().unwrap().to_str().unwrap();
     let mut out = String::new();
 
+    
     let m = Module::from(data.as_ref());
-
+    
     if matches.is_present("headers") {        
+    
         let mut d = wasm::dumper::HeaderDumper{ w: &mut out };
+        
         visitor::visit(&m, &mut d)?;
+        
     } 
     
     if matches.is_present("details") {
