@@ -35,6 +35,12 @@ impl<'a> Cursor<'a> {
         self
     }
 
+    pub fn advanced(&self, count: usize) -> Self {
+        let pos = self.pos + count;
+        let buf = &self.buf[count..];
+        Cursor { buf, pos }
+    }    
+
     pub fn rest(&self) -> Cursor<'a> {
         Cursor { buf: self.buf, pos: self.pos }
     }

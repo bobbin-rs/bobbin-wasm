@@ -797,7 +797,7 @@ impl<'a> Iterator for DataIter<'a> {
     }
 }
 
-trait ModuleRead<'a> {
+pub trait ModuleRead<'a> {
     fn read_identifier(&mut self) -> Identifier<'a>;
     fn read_initializer(&mut self) -> Initializer;
     fn read_section_type(&mut self) -> SectionType;
