@@ -20,7 +20,6 @@ impl<'a> From<&'a [u8]> for Module<'a> {
         let mut buf = Cursor::new(buf);        
         let magic = buf.read_u32();
         let version = buf.read_u32();
-        
         Module { buf, magic, version }
     }
 }
@@ -49,7 +48,7 @@ impl<'a> Iterator for SectionIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
-            let section_header = self.buf.read_section_header();
+            let section_header = self.buf.read_section_header();            
             Some(match section_header.section_type {
                 SectionType::Custom => Section::Custom(CustomSection { section_header }),
                 SectionType::Type => Section::Type(TypeSection { section_header }),

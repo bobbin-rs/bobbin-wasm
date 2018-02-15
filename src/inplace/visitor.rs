@@ -75,6 +75,19 @@ pub fn visit<D: Delegate>(m: &Module, d: &mut D) -> Result<(), Error> {
                     }
                     d.dispatch(Event::FunctionsEnd)?;
                 },
+                Section::Table(ref t) => {
+                    let c = h.count();
+                    
+                    d.dispatch(Event::TablesStart { c })?;
+                    for (n, table) in t.iter().enumerate() {
+                        let n = n as u32;
+                        let element_type = table.element_type;
+                        let limits = table.limits;
+                        d.dispatch(Event::Table { n, element_type, limits })?;
+                    }
+
+                    d.dispatch(Event::TablesEnd)?;
+                },                
                 Section::Export(ref e) => {
                     let c = h.count();
                     
