@@ -110,16 +110,11 @@ pub struct TypeSection<'a> {
 }
 
 impl<'a> TypeSection<'a> {
-    pub fn signatures(&self) -> SignatureIter<'a> {
+    pub fn iter(&self) -> SignatureIter<'a> {
         let mut buf = self.section_header.body();
         let _form = buf.read_var_i32();
         SignatureIter { buf: buf }
     }    
-}
-
-#[derive(Debug)]
-pub struct ImportSection<'a> {
-    pub section_header: SectionHeader<'a>
 }
 
 #[derive(Debug)]
@@ -128,50 +123,104 @@ pub struct FunctionSection<'a> {
 }
 
 impl<'a> FunctionSection<'a> {
-    pub fn count(&self) -> u32 { 
-        self.section_header.count()
-    }
-    pub fn body(&self) -> Cursor<'a> {
-        self.section_header.body()
-    }
-    pub fn functions(&self) -> FunctionIter<'a> {
+    pub fn iter(&self) -> FunctionIter<'a> {
         FunctionIter { buf: self.section_header.body() }
     }    
 }
 
+#[derive(Debug)]
+pub struct ImportSection<'a> {
+    pub section_header: SectionHeader<'a>
+}
+
+impl<'a> ImportSection<'a> {
+    pub fn iter(&self) -> ImportIter<'a> {
+        ImportIter { buf: self.section_header.body() }
+    }    
+}
 
 #[derive(Debug)]
 pub struct TableSection<'a> {
     pub section_header: SectionHeader<'a>
 }
+
+impl<'a> TableSection<'a> {
+    pub fn iter(&self) -> TableIter<'a> {
+        TableIter { buf: self.section_header.body() }
+    }    
+}
+
 #[derive(Debug)]
 pub struct MemorySection<'a> {
     pub section_header: SectionHeader<'a>
 }
+
+impl<'a> MemorySection<'a> {
+    pub fn iter(&self) -> MemoryIter<'a> {
+        MemoryIter { buf: self.section_header.body() }
+    }    
+}
+
 #[derive(Debug)]
 pub struct GlobalSection<'a> {
     pub section_header: SectionHeader<'a>
 }
+
+impl<'a> GlobalSection<'a> {
+    pub fn iter(&self) -> GlobalIter<'a> {
+        GlobalIter { buf: self.section_header.body() }
+    }    
+}
+
 #[derive(Debug)]
 pub struct ExportSection<'a> {
     pub section_header: SectionHeader<'a>
 }
+
+impl<'a> ExportSection<'a> {    
+    pub fn iter(&self) -> ExportIter<'a> {
+        ExportIter { buf: self.section_header.body() }
+    }    
+}
+
 #[derive(Debug)]
 pub struct StartSection<'a> {
     pub section_header: SectionHeader<'a>
 }
+
 #[derive(Debug)]
 pub struct ElementSection<'a> {
     pub section_header: SectionHeader<'a>
 }
+
+impl<'a> ElementSection<'a> {    
+    pub fn iter(&self) -> ElementIter<'a> {
+        ElementIter { buf: self.section_header.body() }
+    }    
+}
+
 #[derive(Debug)]
 pub struct CodeSection<'a> {
     pub section_header: SectionHeader<'a>
 }
+
+impl<'a> CodeSection<'a> {    
+    pub fn iter(&self) -> CodeIter<'a> {
+        CodeIter { buf: self.section_header.body() }
+    }    
+}
+
 #[derive(Debug)]
 pub struct DataSection<'a> {
     pub section_header: SectionHeader<'a>
 }
+
+impl<'a> DataSection<'a> {    
+    pub fn iter(&self) -> DataIter<'a> {
+        DataIter { buf: self.section_header.body() }
+    }    
+}
+
 
 pub struct SignatureIter<'a> {
     buf: Cursor<'a>,
@@ -189,6 +238,23 @@ impl<'a> Iterator for SignatureIter<'a> {
     }
 }
 
+
+pub struct ImportIter<'a> {
+    buf: Cursor<'a>,
+}
+
+impl<'a> Iterator for ImportIter<'a> {
+    type Item = ::module::Import<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.buf.len() > 0 {
+            Some(self.buf.read_import())
+        } else {
+            None
+        }
+    }
+}
+
 pub struct FunctionIter<'a> {
     buf: Cursor<'a>,
 }
@@ -199,6 +265,122 @@ impl<'a> Iterator for FunctionIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
             Some(self.buf.read_function())
+        } else {
+            None
+        }
+    }
+}
+
+pub struct TableIter<'a> {
+    buf: Cursor<'a>,
+}
+
+impl<'a> Iterator for TableIter<'a> {
+    type Item = ::module::Table;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.buf.len() > 0 {
+            Some(self.buf.read_table())
+        } else {
+            None
+        }
+    }
+}
+
+
+pub struct MemoryIter<'a> {
+    buf: Cursor<'a>,
+}
+
+impl<'a> Iterator for MemoryIter<'a> {
+    type Item = ::module::Memory;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.buf.len() > 0 {
+            Some(self.buf.read_memory())
+        } else {
+            None
+        }
+    }
+}
+
+
+pub struct GlobalIter<'a> {
+    buf: Cursor<'a>,
+}
+
+impl<'a> Iterator for GlobalIter<'a> {
+    type Item = ::module::Global;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.buf.len() > 0 {
+            Some(self.buf.read_global())
+        } else {
+            None
+        }
+    }
+}
+
+
+pub struct ExportIter<'a> {
+    buf: Cursor<'a>,
+}
+
+impl<'a> Iterator for ExportIter<'a> {
+    type Item = ::module::Export<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.buf.len() > 0 {
+            Some(self.buf.read_export())
+        } else {
+            None
+        }
+    }
+}
+
+
+pub struct ElementIter<'a> {
+    buf: Cursor<'a>,
+}
+
+impl<'a> Iterator for ElementIter<'a> {
+    type Item = ::module::Element<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.buf.len() > 0 {
+            Some(self.buf.read_element())
+        } else {
+            None
+        }
+    }
+}
+
+pub struct CodeIter<'a> {
+    buf: Cursor<'a>,
+}
+
+impl<'a> Iterator for CodeIter<'a> {
+    type Item = ::module::Body<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.buf.len() > 0 {
+            Some(self.buf.read_body())
+        } else {
+            None
+        }
+    }
+}
+
+pub struct DataIter<'a> {
+    buf: Cursor<'a>,
+}
+
+impl<'a> Iterator for DataIter<'a> {
+    type Item = ::module::Data<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.buf.len() > 0 {
+            Some(self.buf.read_data())
         } else {
             None
         }
@@ -443,7 +625,7 @@ mod test {
             assert_eq!(header.section_type, SectionType::Type);            
             assert_eq!(header.buf.pos(), 0x0a);
             assert_eq!(header.buf.len(), 0x05);
-            let sig = section.signatures().nth(0).unwrap();
+            let sig = section.iter().nth(0).unwrap();
             assert_eq!(sig.parameters(), &[]);
             assert_eq!(sig.returns(), &[0x7f]);
 
@@ -457,9 +639,7 @@ mod test {
             assert_eq!(header.section_type, SectionType::Function);
             assert_eq!(header.buf.pos(), 0x11);
             assert_eq!(header.buf.len(), 0x02);            
-            assert_eq!(section.count(), 1);
-            assert_eq!(section.body().len(), 0x01);
-            let func = section.functions().nth(0).unwrap();
+            let func = section.iter().nth(0).unwrap();
             assert_eq!(func.signature_type_index, 0);
         } else {
             panic!("Unexpected Section Type: {:?}", section)
