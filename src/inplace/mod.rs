@@ -383,7 +383,7 @@ pub struct CodeIter<'a> {
 }
 
 impl<'a> Iterator for CodeIter<'a> {
-    type Item = ::module::Body<'a>;
+    type Item = Body<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
@@ -393,6 +393,15 @@ impl<'a> Iterator for CodeIter<'a> {
         }
     }
 }
+
+pub struct Body<'a> {
+    pub locals: &'a [u8],
+    pub expr: Cursor<'a>,
+}
+
+impl<'a> Body<'a> {
+}
+
 
 pub struct DataIter<'a> {
     buf: Cursor<'a>,
@@ -475,7 +484,7 @@ pub trait ModuleRead<'a> {
 
 use {TypeValue};
 use types::*;
-use module::{GlobalType, Type, Function, Table, Memory, ImportDesc, ExportDesc, Data, Element, Global, Export, Import, Body};
+use module::{GlobalType, Type, Function, Table, Memory, ImportDesc, ExportDesc, Data, Element, Global, Export, Import};
 
 impl<'a> ModuleRead<'a> for Cursor<'a> {
     fn read_identifier(&mut self) -> Identifier<'a> {
@@ -626,10 +635,11 @@ impl<'a> ModuleRead<'a> for Cursor<'a> {
     }    
 
     fn read_body(&mut self) -> Body<'a> {
-        let buf = self.read_bytes();
-        Body { buf }
-    }
-    
+        let locals = self.read_bytes();
+        let expr = self.rest();
+
+        Body { locals, expr }
+    }    
 }
 
 #[cfg(test)]
