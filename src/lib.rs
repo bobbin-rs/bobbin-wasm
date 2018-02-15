@@ -7,6 +7,8 @@ extern crate byteorder;
 extern crate wasm_leb128;
 #[macro_use] extern crate log;
 
+pub mod inplace;
+
 pub mod opcode;
 pub mod types;
 pub mod cursor;

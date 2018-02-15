@@ -823,7 +823,8 @@ trait ModuleRead<'a> {
 
 impl<'a> ModuleRead<'a> for Cursor<'a> {
     fn read_identifier(&mut self) -> Identifier<'a> {
-        Identifier(self.slice_identifier())
+        let len = self.read_u32();        
+        Identifier(self.slice(len as usize))
     }
 
     fn read_initializer(&mut self) -> Initializer {
