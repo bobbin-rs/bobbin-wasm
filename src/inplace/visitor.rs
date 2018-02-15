@@ -87,7 +87,38 @@ pub fn visit<D: Delegate>(m: &Module, d: &mut D) -> Result<(), Error> {
                     }
 
                     d.dispatch(Event::TablesEnd)?;
-                },                
+                },      
+                Section::Memory(ref m) => {
+                    let c = h.count();
+                    
+                    d.dispatch(Event::MemsStart { c })?;
+                    for (n, mem) in m.iter().enumerate() {
+                        let n = n as u32;
+                        let limits = mem.limits;
+                        d.dispatch(Event::Mem { n, limits })?;                    
+                    }
+
+                    d.dispatch(Event::MemsEnd)?;
+                },        
+                Section::Global(ref g) => {
+                    let c = h.count();
+                    
+                    d.dispatch(Event::GlobalsStart { c })?;
+                    for (n, global) in g.iter().enumerate() {
+                        let n = n as u32;
+                        let global_type = global.global_type;
+                        let t = global_type.type_value;
+                        let mutability = global_type.mutability;                        
+                        let init = global.init;
+                        d.dispatch(Event::Global { n, t, mutability, init })?;
+                    }
+
+                    d.dispatch(Event::MemsEnd)?;
+                },                              
+                Section::Start(_) => {
+                    let index = FuncIndex(h.count() as u32);
+                    d.dispatch(Event::StartFunction { index })?;
+                }
                 Section::Export(ref e) => {
                     let c = h.count();
                     

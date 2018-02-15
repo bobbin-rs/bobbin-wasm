@@ -484,8 +484,12 @@ impl<'a> ModuleRead<'a> for Cursor<'a> {
     }
 
     fn read_initializer(&mut self) -> Initializer {
+        use opcode::*;
         let opcode = self.read_u8();
-        let immediate = self.read_i32();
+        if opcode == I64_CONST || opcode == F64_CONST {
+            panic!("64 bit initializers not supported");
+        }
+        let immediate = self.read_var_i32();
         let end = self.read_u8();
         Initializer { opcode, immediate, end }
     }
