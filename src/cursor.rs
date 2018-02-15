@@ -1,12 +1,23 @@
 use byteorder::{ByteOrder, LittleEndian};
 
+use core::fmt;
+
 pub struct Cursor<'a> {
     buf: &'a [u8],
+    pos: usize,
 }
 
 impl<'a> Cursor<'a> {
     pub fn new(buf: &'a [u8]) -> Self {
-        Cursor { buf }
+        Cursor { buf, pos: 0 }
+    }
+
+    pub fn new_at_pos(buf: &'a [u8], pos: usize ) -> Self {
+        Cursor { buf, pos }
+    }
+
+    pub fn pos(&self) -> usize {
+        self.pos
     }
 
     pub fn len(&self) -> usize {
@@ -18,17 +29,25 @@ impl<'a> Cursor<'a> {
     }
 
     pub fn advance(&mut self, count: usize) -> &mut Self {
+        self.pos += count;
         self.buf = &self.buf[count..];
         self
     }
 
-    pub fn rest(&self) -> &'a [u8] {
-        self.buf
+    pub fn rest(&self) -> Cursor<'a> {
+        Cursor { buf: self.buf, pos: self.pos }
+    }
+
+    pub fn split(&mut self, len: usize) -> Cursor<'a> {        
+        let buf = &self.buf[..len];
+        let pos = self.pos;
+        self.advance(len);
+        Cursor { buf, pos }
     }
 
     pub fn slice(&mut self, len: usize) -> &'a [u8] {
         let v = &self.buf[..len];
-        self.buf = &self.buf[len..];
+        self.advance(len);
         v
     }
 
@@ -36,50 +55,50 @@ impl<'a> Cursor<'a> {
 
     pub fn read_u8(&mut self) -> u8 {
         let v = self.buf[0];
-        self.buf = &self.buf[1..];
+        self.advance(1);
         v
     }
 
     pub fn read_u16(&mut self) -> u16 {
         let v = LittleEndian::read_u16(self.buf);
-        self.buf = &self.buf[2..];
+        self.advance(2);        
         v
     }
 
     pub fn read_u32(&mut self) -> u32 {
         let v = LittleEndian::read_u32(self.buf);
-        self.buf = &self.buf[4..];
+        self.advance(4);
         v
     }
 
     pub fn read_u64(&mut self) -> u64 {
         let v = LittleEndian::read_u64(self.buf);
-        self.buf = &self.buf[8..];
+        self.advance(8);
         v
     }    
 
     // Read Signed    
     pub fn read_i8(&mut self) -> i8 {
         let v = self.read_u8() as i8;
-        self.buf = &self.buf[1..];
+        self.advance(1);
         v
     }
 
     pub fn read_i16(&mut self) -> i16 {
         let v = LittleEndian::read_i16(self.buf);
-        self.buf = &self.buf[2..];
+        self.advance(2);
         v
     }
 
     pub fn read_i32(&mut self) -> i32 {
         let v = LittleEndian::read_i32(self.buf);
-        self.buf = &self.buf[4..];
+        self.advance(4);
         v
     }
 
     pub fn read_i64(&mut self) -> i64 {
         let v = LittleEndian::read_i64(self.buf);
-        self.buf = &self.buf[8..];
+        self.advance(8);
         v
     }
 
@@ -87,13 +106,13 @@ impl<'a> Cursor<'a> {
 
     pub fn read_f32(&mut self) -> f32 {
         let v = LittleEndian::read_f32(self.buf);
-        self.buf = &self.buf[4..];
+        self.advance(4);
         v
     }    
 
     pub fn read_f64(&mut self) -> f64 {
         let v = LittleEndian::read_f64(self.buf);
-        self.buf = &self.buf[8..];
+        self.advance(8);
         v
     }
 
@@ -208,6 +227,19 @@ impl<'a> Cursor<'a> {
             value as i64
         }    
     }    
+}
+
+impl<'a> fmt::Debug for Cursor<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Cursor {{ pos: {:x} len: {:x} buf: [", self.pos, self.buf.len())?;
+        for (i, b) in self.buf.iter().enumerate() {
+            if i != 0 { write!(f, " ")?; }
+            write!(f, "{:02x}", b)?;
+        }
+        writeln!(f, "] }}")?;
+        Ok(())
+    }
+
 }
 
 #[cfg(test)]
