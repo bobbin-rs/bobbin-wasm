@@ -1,5 +1,4 @@
 use SectionType;
-use types::Sig;
 use cursor::Cursor;
 
 pub struct FixupCount(usize);
@@ -177,7 +176,7 @@ pub struct SignatureIter<'a> {
 }
 
 impl<'a> Iterator for SignatureIter<'a> {
-    type Item = Sig<'a>;
+    type Item = Signature<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
@@ -204,11 +203,37 @@ impl<'a> Iterator for FunctionIter<'a> {
     }
 }
 
+
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub struct Signature<'a> {
+    parameters: &'a [u8],
+    returns: &'a [u8],
+}
+
+impl<'a> Signature<'a> {
+    pub fn parameters(&self) -> &[u8] {
+        self.parameters
+        // use ::core::slice;
+        // let buf = self.parameters.as_ptr() as *const TypeValue;
+        // let len = self.parameters.len();
+        // unsafe { slice::from_raw_parts(buf, len)}
+    }
+
+    pub fn returns(&self) -> &[u8] {
+        self.returns
+        // use ::core::slice;
+        // let buf = self.returns.as_ptr() as *const TypeValue;
+        // let len = self.returns.len();
+        // unsafe { slice::from_raw_parts(buf, len)}
+    }
+
+}
+
 pub trait ModuleRead<'a> {
     fn read_identifier(&mut self) -> Identifier<'a>;
     fn read_initializer(&mut self) -> Initializer;
     fn read_section_type(&mut self) -> SectionType;
-    fn read_signature(&mut self) -> Sig<'a>;
+    fn read_signature(&mut self) -> Signature<'a>;
     fn read_type_value(&mut self) -> TypeValue;
     fn read_type_values(&mut self) -> &'a [u8];
     fn read_bytes(&mut self) -> &'a [u8];
@@ -250,8 +275,12 @@ impl<'a> ModuleRead<'a> for Cursor<'a> {
         SectionType::from(self.read_var_u7())
     }
 
-    fn read_signature(&mut self) -> Sig<'a> {
-        Sig::from_cursor(self)
+    fn read_signature(&mut self) -> Signature<'a> {
+        let p_len = self.read_var_u32();
+        let parameters = self.slice(p_len as usize);
+        let r_len = self.read_var_u32();
+        let returns = self.slice(r_len as usize);
+        Signature { parameters, returns }
     }
 
     fn read_type_value(&mut self) -> TypeValue {
@@ -403,8 +432,7 @@ mod test {
             assert_eq!(header.buf.len(), 0x05);
             let sig = section.signatures().nth(0).unwrap();
             assert_eq!(sig.parameters(), &[]);
-            // panic!("returns: {:?}", sig.returns());
-            // assert_eq!(sig.returns(), &[TypeValue::I32]);
+            assert_eq!(sig.returns(), &[0x7f]);
 
         } else {
             panic!("Unexpected Section Type: {:?}", section)

@@ -78,7 +78,7 @@ pub const MAX_RETURNS: usize = 1;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Sig<'a> {
-    buf: &'a [u8],
+    buf: &'a [u8],    
 }
 
 impl<'a> Sig<'a> {
@@ -89,7 +89,7 @@ impl<'a> Sig<'a> {
         }
     }
 
-    pub fn from_cursor(buf: &mut Cursor<'a>) -> Sig<'a> {
+    pub fn new(buf: &mut Cursor<'a>) -> Sig<'a> {
         let mut orig = buf.clone();
         let p_num = buf.read_var_i32();
         
