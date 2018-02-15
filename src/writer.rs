@@ -77,6 +77,34 @@ impl<'a> Writer<'a> {
         self.write_u8(value)
     }
 
+    pub fn write_var_u32(&mut self, mut value: u32) -> WriteResult<()> {
+        loop {
+            let mut b = value as u8 & 0b0111_1111;
+            value >>= 7;
+            if value != 0 {
+                b |= 0b1000_0000;
+            }
+            self.write_u8(b)?;
+            if value == 0 {
+                return Ok(())
+            }
+        }        
+    }
+
+    pub fn write_var_u64(&mut self, mut value: u64) -> WriteResult<()> {
+        loop {
+            let mut b = value as u8 & 0b0111_1111;
+            value >>= 7;
+            if value != 0 {
+                b |= 0b1000_0000;
+            }
+            self.write_u8(b)?;
+            if value == 0 {
+                return Ok(())
+            }
+        }        
+    }
+
     pub fn write_var_i7(&mut self, value: i8) -> WriteResult<()> {
         let value = value as u8;
         if (value & 0x80 != 0) != (value & 0x40 != 0) {
@@ -85,15 +113,53 @@ impl<'a> Writer<'a> {
         self.write_u8(value & 0x7f)
     }
 
-    pub fn write_var_u32(&mut self, value: u32) -> WriteResult<()> {
-        self.pos += write_u32(&mut self.buf[self.pos..], value).unwrap();        
-        Ok(())
+    pub fn write_var_i32(&mut self, mut value: i32) -> WriteResult<()> {
+        const SIGN_BIT: u8 = 0b0100_0000;
+        let mut more = true;
+        loop {
+            let mut b = value as u8 & 0b0111_1111;
+            value >>= 7;
+            if (value == 0 && b & SIGN_BIT == 0) ||
+                (value == -1 && b & SIGN_BIT != 0) {
+                    more = false;
+            } else {
+                b |= 0b1000_0000;
+            }
+            self.write_u8(b)?;
+            if !more {
+                return Ok(())
+            }
+        }           
     }
 
-    pub fn write_var_i32(&mut self, value: i32) -> WriteResult<()> {
-        self.pos += write_i32(&mut self.buf[self.pos..], value).unwrap();        
-        Ok(())
+    pub fn write_var_i64(&mut self, mut value: i64) -> WriteResult<()> {
+        const SIGN_BIT: u8 = 0b0100_0000;
+        let mut more = true;
+        loop {
+            let mut b = value as u8 & 0b0111_1111;
+            value >>= 7;
+            if (value == 0 && b & SIGN_BIT == 0) ||
+                (value == -1 && b & SIGN_BIT != 0) {
+                    more = false;
+            } else {
+                b |= 0b1000_0000;
+            }
+            self.write_u8(b)?;
+            if !more {
+                return Ok(())
+            }
+        }           
     }
+
+    // pub fn write_var_u32(&mut self, value: u32) -> WriteResult<()> {
+    //     self.pos += write_u32(&mut self.buf[self.pos..], value).unwrap();        
+    //     Ok(())
+    // }
+
+    // pub fn write_var_i32(&mut self, value: i32) -> WriteResult<()> {
+    //     self.pos += write_i32(&mut self.buf[self.pos..], value).unwrap();        
+    //     Ok(())
+    // }
 
     pub fn write_len(&mut self, len: usize) -> WriteResult<()> {
         self.write_u32(len as u32)
@@ -443,5 +509,188 @@ mod tests {
         assert_eq!(buf[0], 0b0100_0000);
     }
 
+    #[test]
+    fn test_write_u32() {
+        fn write_u32(buf: &mut [u8], value: u32) -> Result<usize, Error> {
+            let mut w = Writer::new(buf);            
+            w.write_var_u32(value)?;
+            Ok(w.pos())
+        }
+        
+        let mut buf = [0xffu8; 8];
 
+        // 0-7 bits
+        assert_eq!(write_u32(&mut buf, 0b000000).unwrap(), 1);
+        assert_eq!(&buf[..1], &[0b0000_0000]);
+        assert_eq!(write_u32(&mut buf, 0b000001).unwrap(), 1);
+        assert_eq!(&buf[..1], &[0b0000_0001]);
+        assert_eq!(write_u32(&mut buf, 0b1111111).unwrap(), 1);
+        assert_eq!(&buf[..1], &[0b0111_1111]);
+
+        // 8-14 bits
+        assert_eq!(write_u32(&mut buf, 0b1_0000000).unwrap(), 2);
+        assert_eq!(&buf[..2], &[0b1000_0000, 0b0000_0001]);
+        assert_eq!(write_u32(&mut buf, 0b1_1111111).unwrap(), 2);
+        assert_eq!(&buf[..2], &[0b1111_1111, 0b0000_0001]);
+
+        // 15-21 bits
+        assert_eq!(write_u32(&mut buf, 0b1_0000000_0000000).unwrap(), 3);
+        assert_eq!(&buf[..3], &[0b1000_0000, 0b1000_0000, 0b0000_0001]);
+        assert_eq!(write_u32(&mut buf, 0b1_0000000_1111111).unwrap(), 3);
+        assert_eq!(&buf[..3], &[0b1111_1111, 0b1000_0000, 0b0000_0001]);
+        assert_eq!(write_u32(&mut buf, 0b1_1111111_0000000).unwrap(), 3);
+        assert_eq!(&buf[..3], &[0b1000_0000, 0b1111_1111, 0b0000_0001]);
+
+        // 22-28 bits
+        assert_eq!(write_u32(&mut buf, 0b1_0000000_0000000_0000000).unwrap(), 4);
+        assert_eq!(&buf[..4], &[0b1000_0000, 0b1000_0000, 0b1000_0000, 0b0000_0001]);
+        assert_eq!(write_u32(&mut buf, 0b1_0000100_0000010_0000001).unwrap(), 4);
+        assert_eq!(&buf[..4], &[0b1000_0001, 0b1000_0010, 0b1000_0100, 0b0000_0001]);
+        assert_eq!(write_u32(&mut buf, 0b1_1111111_1111111_1111111).unwrap(), 4);
+        assert_eq!(&buf[..4], &[0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0000_0001]);
+
+        // 29-32 bits    
+        assert_eq!(write_u32(&mut buf, 0b1_0000000_0000000_0000000_0000000).unwrap(), 5);
+        assert_eq!(&buf[..5], &[0b1000_0000, 0b1000_0000, 0b1000_0000, 0b1000_0000, 0b0000_0001]);
+        assert_eq!(write_u32(&mut buf, 0b1_0001000_0000100_0000010_0000001).unwrap(), 5);
+        assert_eq!(&buf[..5], &[0b1000_0001, 0b1000_0010, 0b1000_0100, 0b1000_1000, 0b0000_0001]);
+        assert_eq!(write_u32(&mut buf, 0b1_1111111_1111111_1111111_1111111).unwrap(), 5);
+        assert_eq!(&buf[..5], &[0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0000_0001]);
+
+        // 32 bits    
+        assert_eq!(write_u32(&mut buf, 0b1000_0000000_0000000_0000000_0000000).unwrap(), 5);
+        assert_eq!(&buf[..5], &[0b1000_0000, 0b1000_0000, 0b1000_0000, 0b1000_0000, 0b0000_1000]);
+        assert_eq!(write_u32(&mut buf, 0b1000_0001000_0000100_0000010_0000001).unwrap(), 5);
+        assert_eq!(&buf[..5], &[0b1000_0001, 0b1000_0010, 0b1000_0100, 0b1000_1000, 0b0000_1000]);
+        assert_eq!(write_u32(&mut buf, 0b1111_1111111_1111111_1111111_1111111).unwrap(), 5);
+        assert_eq!(&buf[..5], &[0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0000_1111]);
+    }
+
+    #[test]
+    fn test_write_u64() {
+        fn write_u64(buf: &mut [u8], value: u64) -> Result<usize, Error> {
+            let mut w = Writer::new(buf);            
+            w.write_var_u64(value)?;
+            Ok(w.pos())
+        }
+        
+        let mut buf = [0xffu8; 8];
+
+        // 0-7 bits
+        assert_eq!(write_u64(&mut buf, 0b000000).unwrap(), 1);
+        assert_eq!(&buf[..1], &[0b0000_0000]);
+        assert_eq!(write_u64(&mut buf, 0b000001).unwrap(), 1);
+        assert_eq!(&buf[..1], &[0b0000_0001]);
+        assert_eq!(write_u64(&mut buf, 0b1111111).unwrap(), 1);
+        assert_eq!(&buf[..1], &[0b0111_1111]);
+
+        // 8-14 bits
+        assert_eq!(write_u64(&mut buf, 0b1_0000000).unwrap(), 2);
+        assert_eq!(&buf[..2], &[0b1000_0000, 0b0000_0001]);
+        assert_eq!(write_u64(&mut buf, 0b1_1111111).unwrap(), 2);
+        assert_eq!(&buf[..2], &[0b1111_1111, 0b0000_0001]);
+
+        // 15-21 bits
+        assert_eq!(write_u64(&mut buf, 0b1_0000000_0000000).unwrap(), 3);
+        assert_eq!(&buf[..3], &[0b1000_0000, 0b1000_0000, 0b0000_0001]);
+        assert_eq!(write_u64(&mut buf, 0b1_0000000_1111111).unwrap(), 3);
+        assert_eq!(&buf[..3], &[0b1111_1111, 0b1000_0000, 0b0000_0001]);
+        assert_eq!(write_u64(&mut buf, 0b1_1111111_0000000).unwrap(), 3);
+        assert_eq!(&buf[..3], &[0b1000_0000, 0b1111_1111, 0b0000_0001]);
+
+        // 22-28 bits
+        assert_eq!(write_u64(&mut buf, 0b1_0000000_0000000_0000000).unwrap(), 4);
+        assert_eq!(&buf[..4], &[0b1000_0000, 0b1000_0000, 0b1000_0000, 0b0000_0001]);
+        assert_eq!(write_u64(&mut buf, 0b1_0000100_0000010_0000001).unwrap(), 4);
+        assert_eq!(&buf[..4], &[0b1000_0001, 0b1000_0010, 0b1000_0100, 0b0000_0001]);
+        assert_eq!(write_u64(&mut buf, 0b1_1111111_1111111_1111111).unwrap(), 4);
+        assert_eq!(&buf[..4], &[0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0000_0001]);
+
+        // 29-32 bits    
+        assert_eq!(write_u64(&mut buf, 0b1_0000000_0000000_0000000_0000000).unwrap(), 5);
+        assert_eq!(&buf[..5], &[0b1000_0000, 0b1000_0000, 0b1000_0000, 0b1000_0000, 0b0000_0001]);
+        assert_eq!(write_u64(&mut buf, 0b1_0001000_0000100_0000010_0000001).unwrap(), 5);
+        assert_eq!(&buf[..5], &[0b1000_0001, 0b1000_0010, 0b1000_0100, 0b1000_1000, 0b0000_0001]);
+        assert_eq!(write_u64(&mut buf, 0b1_1111111_1111111_1111111_1111111).unwrap(), 5);
+        assert_eq!(&buf[..5], &[0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0000_0001]);
+
+        // 32 bits    
+        assert_eq!(write_u64(&mut buf, 0b1000_0000000_0000000_0000000_0000000).unwrap(), 5);
+        assert_eq!(&buf[..5], &[0b1000_0000, 0b1000_0000, 0b1000_0000, 0b1000_0000, 0b0000_1000]);
+        assert_eq!(write_u64(&mut buf, 0b1000_0001000_0000100_0000010_0000001).unwrap(), 5);
+        assert_eq!(&buf[..5], &[0b1000_0001, 0b1000_0010, 0b1000_0100, 0b1000_1000, 0b0000_1000]);
+        assert_eq!(write_u64(&mut buf, 0b1111_1111111_1111111_1111111_1111111).unwrap(), 5);
+        assert_eq!(&buf[..5], &[0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0000_1111]);
+
+        // TODO create tests for 64 bits
+    }    
+
+    #[test]
+    fn test_write_i32() {
+        fn write_i32(buf: &mut [u8], value: i32) -> Result<usize, Error> {
+            let mut w = Writer::new(buf);            
+            w.write_var_i32(value)?;
+            Ok(w.pos())
+        }        
+        let mut buf = [0xffu8; 8];
+
+        // 0-7 bits
+        assert_eq!(write_i32(&mut buf, 0b0000000).unwrap(), 1);
+        assert_eq!(&buf[..1], &[0b0000_0000]);
+        assert_eq!(write_i32(&mut buf, 0b0000001).unwrap(), 1);
+        assert_eq!(&buf[..1], &[0b0000_0001]);
+        assert_eq!(write_i32(&mut buf, 0b0111111).unwrap(), 1);
+        assert_eq!(&buf[..1], &[0b0011_1111]);
+        assert_eq!(write_i32(&mut buf, -1).unwrap(), 1);
+        assert_eq!(&buf[..1], &[0b0111_1111]);
+        assert_eq!(write_i32(&mut buf, -64).unwrap(), 1);
+        assert_eq!(&buf[..1], &[0b0100_0000]);
+
+        // 8-14 bits
+        assert_eq!(write_i32(&mut buf, 0b1_0000000).unwrap(), 2);
+        assert_eq!(&buf[..2], &[0b1000_0000, 0b0000_0001]);
+        assert_eq!(write_i32(&mut buf, 0b1_1111111).unwrap(), 2);
+        assert_eq!(&buf[..2], &[0b1111_1111, 0b0000_0001]);
+        assert_eq!(write_i32(&mut buf, -127).unwrap(), 2);
+        assert_eq!(&buf[..2], &[0b1000_0001, 0b0111_1111]);
+        assert_eq!(write_i32(&mut buf, -128).unwrap(), 2);
+        assert_eq!(&buf[..2], &[0b1000_0000, 0b0111_1111]);
+        assert_eq!(write_i32(&mut buf, -129).unwrap(), 2);
+        assert_eq!(&buf[..2], &[0b1111_1111, 0b0111_1110]);
+    }
+
+
+    #[test]
+    fn test_write_i64() {
+        fn write_i64(buf: &mut [u8], value: i64) -> Result<usize, Error> {
+            let mut w = Writer::new(buf);            
+            w.write_var_i64(value)?;
+            Ok(w.pos())
+        }        
+        let mut buf = [0xffu8; 8];
+
+        // 0-7 bits
+        assert_eq!(write_i32(&mut buf, 0b0000000).unwrap(), 1);
+        assert_eq!(&buf[..1], &[0b0000_0000]);
+        assert_eq!(write_i32(&mut buf, 0b0000001).unwrap(), 1);
+        assert_eq!(&buf[..1], &[0b0000_0001]);
+        assert_eq!(write_i32(&mut buf, 0b0111111).unwrap(), 1);
+        assert_eq!(&buf[..1], &[0b0011_1111]);
+        assert_eq!(write_i32(&mut buf, -1).unwrap(), 1);
+        assert_eq!(&buf[..1], &[0b0111_1111]);
+        assert_eq!(write_i32(&mut buf, -64).unwrap(), 1);
+        assert_eq!(&buf[..1], &[0b0100_0000]);
+
+        // 8-14 bits
+        assert_eq!(write_i32(&mut buf, 0b1_0000000).unwrap(), 2);
+        assert_eq!(&buf[..2], &[0b1000_0000, 0b0000_0001]);
+        assert_eq!(write_i32(&mut buf, 0b1_1111111).unwrap(), 2);
+        assert_eq!(&buf[..2], &[0b1111_1111, 0b0000_0001]);
+        assert_eq!(write_i32(&mut buf, -127).unwrap(), 2);
+        assert_eq!(&buf[..2], &[0b1000_0001, 0b0111_1111]);
+        assert_eq!(write_i32(&mut buf, -128).unwrap(), 2);
+        assert_eq!(&buf[..2], &[0b1000_0000, 0b0111_1111]);
+        assert_eq!(write_i32(&mut buf, -129).unwrap(), 2);
+        assert_eq!(&buf[..2], &[0b1111_1111, 0b0111_1110]);
+    }    
 }
