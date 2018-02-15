@@ -1,5 +1,6 @@
 use {Error, TypeValue, Value};
 use opcode::*;
+use cursor::Cursor;
 use core::{mem, slice};
 
 #[derive(Debug)]
@@ -88,6 +89,24 @@ impl<'a> Sig<'a> {
         }
     }
 
+    pub fn from_cursor(buf: &mut Cursor<'a>) -> Sig<'a> {
+        let mut orig = buf.clone();
+        let p_num = buf.read_var_i32();
+        
+        for _ in 0..p_num {
+            buf.read_var_i7();
+        }
+        let r_num = buf.read_var_i32();
+        
+        for _ in 0..r_num {
+            buf.read_var_i7();
+        }
+        let len = orig.len() - buf.len();
+        
+        let buf = orig.slice(len);        
+        Sig { buf }
+    }
+
     pub fn read_slice(buf: &[u8]) -> Option<(Sig, &[u8])> {
         debug_assert!(mem::size_of::<TypeValue>() == mem::size_of::<u8>());
         
@@ -126,16 +145,20 @@ impl<'a> Sig<'a> {
         Some((Sig { buf: &buf[..s_len] }, &buf[s_len..]))
     }    
 
-    pub fn parameters(&self) -> &[TypeValue] {
-        let len = self.buf[0] as usize;
-        let buf = &self.buf[1..1+len];
+    pub fn buf(&self) -> &'a [u8] {
+        self.buf
+    }
+
+    pub fn parameters(&self) -> &'a [TypeValue] {
+        let len = self.buf[0] as usize;        
+        let buf = &self.buf[1..1+len];        
         unsafe { slice::from_raw_parts(buf.as_ptr() as *const TypeValue, buf.len())}
     }
 
-    pub fn returns(&self) -> &[TypeValue] {
-        let p_num = self.buf[0] as usize;
-        let p_len = 1 + p_num;
-        let r_num = self.buf[p_len] as usize;
+    pub fn returns(&self) -> &'a [TypeValue] {
+        let p_num = self.buf[0] as usize;        
+        let p_len = 1 + p_num;        
+        let r_num = self.buf[p_len] as usize;        
         let buf = &self.buf[p_len+1..p_len+1+r_num];
         unsafe { slice::from_raw_parts(buf.as_ptr() as *const TypeValue, buf.len())}
     }

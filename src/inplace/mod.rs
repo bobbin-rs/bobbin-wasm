@@ -1,4 +1,5 @@
 use SectionType;
+use types::Sig;
 use cursor::Cursor;
 
 pub struct FixupCount(usize);
@@ -107,6 +108,14 @@ pub struct TypeSection<'a> {
     pub section_header: SectionHeader<'a>
 }
 
+impl<'a> TypeSection<'a> {
+    pub fn signatures(&self) -> SignatureIter<'a> {
+        let mut buf = self.section_header.body();
+        let _form = buf.read_var_i32();
+        SignatureIter { buf: buf }
+    }    
+}
+
 #[derive(Debug)]
 pub struct ImportSection<'a> {
     pub section_header: SectionHeader<'a>
@@ -163,6 +172,22 @@ pub struct DataSection<'a> {
     pub section_header: SectionHeader<'a>
 }
 
+pub struct SignatureIter<'a> {
+    buf: Cursor<'a>,
+}
+
+impl<'a> Iterator for SignatureIter<'a> {
+    type Item = Sig<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.buf.len() > 0 {
+            Some(self.buf.read_signature())
+        } else {
+            None
+        }
+    }
+}
+
 pub struct FunctionIter<'a> {
     buf: Cursor<'a>,
 }
@@ -183,6 +208,7 @@ pub trait ModuleRead<'a> {
     fn read_identifier(&mut self) -> Identifier<'a>;
     fn read_initializer(&mut self) -> Initializer;
     fn read_section_type(&mut self) -> SectionType;
+    fn read_signature(&mut self) -> Sig<'a>;
     fn read_type_value(&mut self) -> TypeValue;
     fn read_type_values(&mut self) -> &'a [u8];
     fn read_bytes(&mut self) -> &'a [u8];
@@ -224,6 +250,10 @@ impl<'a> ModuleRead<'a> for Cursor<'a> {
         SectionType::from(self.read_var_u7())
     }
 
+    fn read_signature(&mut self) -> Sig<'a> {
+        Sig::from_cursor(self)
+    }
+
     fn read_type_value(&mut self) -> TypeValue {
         TypeValue::from(self.read_var_i7())
     }
@@ -263,6 +293,7 @@ impl<'a> ModuleRead<'a> for Cursor<'a> {
     }
 
     fn read_type(&mut self) -> Type<'a> {
+        let _form = self.read_var_i7();
         let parameters = self.read_type_values();
         let returns = self.read_type_values();
         Type { parameters, returns }
@@ -340,7 +371,7 @@ impl<'a> ModuleRead<'a> for Cursor<'a> {
         let desc = self.read_import_desc();
         Import { module, export, desc }    
     }    
-    
+
     fn read_body(&mut self) -> Body<'a> {
         let buf = self.read_bytes();
         Body { buf }
@@ -366,10 +397,15 @@ mod test {
         
         let section = sections.next().unwrap();
         if let Section::Type(section) = section {
-            let header = section.section_header;
+            let header = &section.section_header;
             assert_eq!(header.section_type, SectionType::Type);            
             assert_eq!(header.buf.pos(), 0x0a);
             assert_eq!(header.buf.len(), 0x05);
+            let sig = section.signatures().nth(0).unwrap();
+            assert_eq!(sig.parameters(), &[]);
+            // panic!("returns: {:?}", sig.returns());
+            // assert_eq!(sig.returns(), &[TypeValue::I32]);
+
         } else {
             panic!("Unexpected Section Type: {:?}", section)
         }

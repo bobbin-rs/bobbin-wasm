@@ -236,9 +236,15 @@ impl<'a> Cursor<'a> {
     }    
 }
 
+impl<'a> AsRef<[u8]> for Cursor<'a> {
+    fn as_ref(&self) -> &[u8] {
+        self.buf
+    }
+}
+
 impl<'a> fmt::Debug for Cursor<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Cursor {{ pos: {:x} len: {:x} buf: [", self.pos, self.buf.len())?;
+        write!(f, "Cursor {{ pos: {} len: {} buf: [", self.pos, self.buf.len())?;
         for (i, b) in self.buf.iter().enumerate() {
             if i != 0 { write!(f, " ")?; }
             write!(f, "{:02x}", b)?;
