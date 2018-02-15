@@ -6,34 +6,37 @@ pub struct FixupLen(usize);
 pub struct FixupPos(usize);
 
 pub struct Module<'a> {
-    buf: &'a [u8],
+    buf: Cursor<'a>,
+    magic: u32,
+    version: u32,
 }
 
 impl<'a> From<&'a [u8]> for Module<'a> {
     fn from(buf: &'a [u8]) -> Self {
-        Module { buf }
+        let mut buf = Cursor::new(buf);
+        let magic = buf.read_u32();
+        let version = buf.read_u32();
+        Module { buf, magic, version }
     }
 }
 
 impl<'a> Module<'a> {
     pub fn magic(&self) -> u32 {
-        Cursor::new(self.buf).read_u32()
+        self.magic
     }
 
     pub fn version(&self) -> u32 {
-        Cursor::new(self.buf).advance(4).read_u32()
+       self.version
     }
 
     pub fn sections(&self) -> SectionIter {
-        let pos = 8;
-        SectionIter { buf: Cursor::new(&self.buf[pos..]), pos }
+        SectionIter { buf: self.buf.clone() }
     }
     
 }
 
 pub struct SectionIter<'a> {
     buf: Cursor<'a>,
-    pos: usize,
 }
 
 impl<'a> Iterator for SectionIter<'a> {
@@ -43,7 +46,7 @@ impl<'a> Iterator for SectionIter<'a> {
         if self.buf.len() > 0 {
             let section_type = SectionType::from(self.buf.read_var_u7());
             let size = self.buf.read_var_u32();            
-            let buf = self.buf.slice(size as usize);            
+            let buf = self.buf.split(size as usize);            
             let section_header = SectionHeader { section_type, buf };
             Some(match section_type {
                 SectionType::Custom => Section::Custom(CustomSection { section_header }),
@@ -68,7 +71,7 @@ impl<'a> Iterator for SectionIter<'a> {
 #[derive(Debug)]
 pub struct SectionHeader<'a> {
     pub section_type: SectionType,
-    pub buf: &'a [u8],
+    pub buf: Cursor<'a>,
 }
 
 #[derive(Debug)]
@@ -151,35 +154,43 @@ mod test {
         assert_eq!(m.version(), 0x1);
 
         let mut sections = m.sections();
-
+        
         let section = sections.next().unwrap();
         if let Section::Type(section) = section {
-            assert_eq!(section.section_header.section_type, SectionType::Type);
-            assert_eq!(section.section_header.buf.len(), 0x5);
+            let header = section.section_header;
+            assert_eq!(header.section_type, SectionType::Type);            
+            assert_eq!(header.buf.pos(), 0x0a);
+            assert_eq!(header.buf.len(), 0x05);
         } else {
             panic!("Unexpected Section Type: {:?}", section)
         }
 
         let section = sections.next().unwrap();
         if let Section::Function(section) = section {
-            assert_eq!(section.section_header.section_type, SectionType::Function);
-            assert_eq!(section.section_header.buf.len(), 0x2);
+            let header = section.section_header;
+            assert_eq!(header.section_type, SectionType::Function);
+            assert_eq!(header.buf.pos(), 0x11);
+            assert_eq!(header.buf.len(), 0x02);
         } else {
             panic!("Unexpected Section Type: {:?}", section)
         }        
 
         let section = sections.next().unwrap();
         if let Section::Export(section) = section {
-            assert_eq!(section.section_header.section_type, SectionType::Export);
-            assert_eq!(section.section_header.buf.len(), 0x8);
+            let header = section.section_header;
+            assert_eq!(header.section_type, SectionType::Export);
+            assert_eq!(header.buf.pos(), 0x15);
+            assert_eq!(header.buf.len(), 0x08);
         } else {
             panic!("Unexpected Section Type: {:?}", section)
         }        
 
         let section = sections.next().unwrap();
         if let Section::Code(section) = section {
-            assert_eq!(section.section_header.section_type, SectionType::Code);
-            assert_eq!(section.section_header.buf.len(), 0x7);
+            let header = section.section_header;
+            assert_eq!(header.section_type, SectionType::Code);
+            assert_eq!(header.buf.pos(), 0x1f);
+            assert_eq!(header.buf.len(), 0x07);
         } else {
             panic!("Unexpected Section Type: {:?}", section)
         }        

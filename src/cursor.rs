@@ -2,6 +2,7 @@ use byteorder::{ByteOrder, LittleEndian};
 
 use core::fmt;
 
+#[derive(Clone)]
 pub struct Cursor<'a> {
     buf: &'a [u8],
     pos: usize,
