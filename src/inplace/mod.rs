@@ -1,6 +1,8 @@
 use SectionType;
 use cursor::Cursor;
 
+use core::fmt;
+
 pub struct FixupCount(usize);
 pub struct FixupLen(usize);
 pub struct FixupPos(usize);
@@ -213,20 +215,31 @@ pub struct Signature<'a> {
 impl<'a> Signature<'a> {
     pub fn parameters(&self) -> &[u8] {
         self.parameters
-        // use ::core::slice;
-        // let buf = self.parameters.as_ptr() as *const TypeValue;
-        // let len = self.parameters.len();
-        // unsafe { slice::from_raw_parts(buf, len)}
     }
 
     pub fn returns(&self) -> &[u8] {
         self.returns
-        // use ::core::slice;
-        // let buf = self.returns.as_ptr() as *const TypeValue;
-        // let len = self.returns.len();
-        // unsafe { slice::from_raw_parts(buf, len)}
     }
+}
 
+impl<'a> fmt::Display for Signature<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "(")?;
+        for (i, p) in self.parameters.iter().enumerate() {
+            if i != 0 { write!(f, ", ")?; }
+            write!(f,"{}", TypeValue::from(*p))?;
+        }
+        write!(f, ") -> ")?;
+        if self.returns.len() == 0 {
+            write!(f, "nil")?;
+        } else {
+            for (i, r) in self.returns.iter().enumerate() {
+                if i != 0 { write!(f, ", ")?; }
+                write!(f,"{}", TypeValue::from(*r))?;
+            }            
+        }
+        Ok(())
+    }
 }
 
 pub trait ModuleRead<'a> {
@@ -431,6 +444,7 @@ mod test {
             assert_eq!(header.buf.pos(), 0x0a);
             assert_eq!(header.buf.len(), 0x05);
             let sig = section.signatures().nth(0).unwrap();
+            panic!("sig: {}", sig);
             assert_eq!(sig.parameters(), &[]);
             assert_eq!(sig.returns(), &[0x7f]);
 
