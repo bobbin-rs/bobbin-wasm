@@ -43,7 +43,7 @@ pub enum Event<'a> {
     GlobalsEnd,
 
     ExportsStart { c: u32 },
-        Export { n: u32, id: Identifier<'a>, index: ExternalIndex },
+        Export { n: u32, id: Identifier<'a>, desc: ExportDesc },
     ExportsEnd,
 
     StartFunction { index: FuncIndex },

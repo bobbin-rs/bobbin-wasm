@@ -446,10 +446,20 @@ impl<'m> Delegate for Loader<'m> {
             ExportsStart { c } => {
                 self.w.write_u32(c)?;
             },
-            Export { n: _, id, index } => {
-                self.w.write_identifier(id)?;                
-                self.w.write_u8(index.kind())?;
-                self.w.write_u32(index.index())?;
+            Export { n: _, id, desc } => {
+                self.w.write_identifier(id)?;    
+            // 0x00 => ExportDesc::Function(index),
+            // 0x01 => ExportDesc::Table(index),
+            // 0x02 => ExportDesc::Memory(index),
+            // 0x03 => ExportDesc::Global(index),                
+                let (kind, index) = match desc {
+                    ExportDesc::Function(i) => (0x00, i),
+                    ExportDesc::Table(i) => (0x01, i),
+                    ExportDesc::Memory(i) => (0x02, i),
+                    ExportDesc::Global(i) => (0x03, i),
+                };
+                self.w.write_u8(kind)?;
+                self.w.write_u32(index)?;
             },
             StartFunction { index } => {
                 self.w.write_u32(index.0)?;                

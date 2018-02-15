@@ -3,6 +3,8 @@ use cursor::Cursor;
 
 use core::fmt;
 
+pub mod visitor;
+
 pub struct FixupCount(usize);
 pub struct FixupLen(usize);
 pub struct FixupPos(usize);
@@ -100,6 +102,25 @@ pub enum Section<'a> {
     Data(DataSection<'a>),
 }
 
+impl<'a> Section<'a> {
+    pub fn header(&self) -> &SectionHeader {
+        match self {
+            &Section::Custom(ref s) => &s.section_header,
+            &Section::Type(ref s) => &s.section_header,
+            &Section::Import(ref s) => &s.section_header,
+            &Section::Function(ref s) => &s.section_header,
+            &Section::Table(ref s) => &s.section_header,
+            &Section::Memory(ref s) => &s.section_header,
+            &Section::Global(ref s) => &s.section_header,
+            &Section::Export(ref s) => &s.section_header,
+            &Section::Start(ref s) => &s.section_header,
+            &Section::Element(ref s) => &s.section_header,
+            &Section::Code(ref s) => &s.section_header,
+            &Section::Data(ref s) => &s.section_header,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct CustomSection<'a> {
     pub section_header: SectionHeader<'a>
@@ -110,9 +131,13 @@ pub struct TypeSection<'a> {
 }
 
 impl<'a> TypeSection<'a> {
+    pub fn form(&self) -> TypeValue {
+        TypeValue::from(self.section_header.body().read_var_u7())
+    }
+
     pub fn iter(&self) -> SignatureIter<'a> {
         let mut buf = self.section_header.body();
-        let _form = buf.read_var_i32();
+        let _form = buf.read_var_i7();
         SignatureIter { buf: buf }
     }    
 }

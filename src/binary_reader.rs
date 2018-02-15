@@ -131,6 +131,17 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         })
     }
 
+
+    fn read_export_desc(&mut self) -> WasmResult<ExportDesc> {
+        use ExternalKind::*;
+        match self.read_external_kind()? {
+            Function => self.read_var_u32().map(ExportDesc::Function),
+            Table => self.read_var_u32().map(ExportDesc::Table),
+            Memory => self.read_var_u32().map(ExportDesc::Memory),
+            Global => self.read_var_u32().map(ExportDesc::Global),
+        }
+    }
+
     fn read_external_index(&mut self) -> WasmResult<ExternalIndex> {
         use ExternalKind::*;
         match self.read_external_kind()? {
@@ -391,10 +402,10 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
             self.dispatch(Event::ExportsStart { c })?;
             for n in 0..c { 
                 let id_range = self.read_identifier_range()?;
-                let index = self.read_external_index()?;
+                let desc = self.read_export_desc()?;
                 let id = Identifier(self.r.slice(id_range));
 
-                self.d.dispatch(Event::Export { n, id, index})?;
+                self.d.dispatch(Event::Export { n, id, desc})?;
             }
             self.dispatch(Event::ExportsEnd)?;
         })

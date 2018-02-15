@@ -1,4 +1,4 @@
-use {SectionType, Delegate, DelegateResult, ExternalIndex, Event};
+use {SectionType, Delegate, DelegateResult, Event};
 use opcode::*;
 use opcode;
 use module::*;
@@ -77,12 +77,12 @@ impl<W: Write> Delegate for DetailsDumper<W> {
             Global { n, t, mutability, init } => {
                 writeln!(self.w," - global[{}] {} mutable={} init 0x{:02x}={} ", n, t, mutability, init.opcode, init.immediate)?;
             },
-            Export { n, id, index } => {
-                let kind = match index {
-                    ExternalIndex::Func(_) => "func",
-                    ExternalIndex::Table(_) => "table",
-                    ExternalIndex::Mem(_) => "memory",
-                    ExternalIndex::Global(_) => "global",
+            Export { n, id, desc } => {
+                let kind = match desc {
+                    ExportDesc::Function(_) => "func",
+                    ExportDesc::Table(_) => "table",
+                    ExportDesc::Memory(_) => "memory",
+                    ExportDesc::Global(_) => "global",
                 };
                 writeln!(self.w," - {}[{}] -> {:?}", kind, n, str::from_utf8(id.0)?)?;            
             },
