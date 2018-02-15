@@ -56,6 +56,7 @@ pub enum Error {
     ScopesFull,
     FixupsFull,
     OutOfBounds,
+    Leb128Overflow,
     UndefinedTableIndex { id: i32 },
     SignatureMismatch,
     TypeCheck(&'static str),
