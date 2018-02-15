@@ -669,27 +669,27 @@ mod tests {
         let mut buf = [0xffu8; 8];
 
         // 0-7 bits
-        assert_eq!(write_i32(&mut buf, 0b0000000).unwrap(), 1);
+        assert_eq!(write_i64(&mut buf, 0b0000000).unwrap(), 1);
         assert_eq!(&buf[..1], &[0b0000_0000]);
-        assert_eq!(write_i32(&mut buf, 0b0000001).unwrap(), 1);
+        assert_eq!(write_i64(&mut buf, 0b0000001).unwrap(), 1);
         assert_eq!(&buf[..1], &[0b0000_0001]);
-        assert_eq!(write_i32(&mut buf, 0b0111111).unwrap(), 1);
+        assert_eq!(write_i64(&mut buf, 0b0111111).unwrap(), 1);
         assert_eq!(&buf[..1], &[0b0011_1111]);
-        assert_eq!(write_i32(&mut buf, -1).unwrap(), 1);
+        assert_eq!(write_i64(&mut buf, -1).unwrap(), 1);
         assert_eq!(&buf[..1], &[0b0111_1111]);
-        assert_eq!(write_i32(&mut buf, -64).unwrap(), 1);
+        assert_eq!(write_i64(&mut buf, -64).unwrap(), 1);
         assert_eq!(&buf[..1], &[0b0100_0000]);
 
         // 8-14 bits
-        assert_eq!(write_i32(&mut buf, 0b1_0000000).unwrap(), 2);
+        assert_eq!(write_i64(&mut buf, 0b1_0000000).unwrap(), 2);
         assert_eq!(&buf[..2], &[0b1000_0000, 0b0000_0001]);
-        assert_eq!(write_i32(&mut buf, 0b1_1111111).unwrap(), 2);
+        assert_eq!(write_i64(&mut buf, 0b1_1111111).unwrap(), 2);
         assert_eq!(&buf[..2], &[0b1111_1111, 0b0000_0001]);
-        assert_eq!(write_i32(&mut buf, -127).unwrap(), 2);
+        assert_eq!(write_i64(&mut buf, -127).unwrap(), 2);
         assert_eq!(&buf[..2], &[0b1000_0001, 0b0111_1111]);
-        assert_eq!(write_i32(&mut buf, -128).unwrap(), 2);
+        assert_eq!(write_i64(&mut buf, -128).unwrap(), 2);
         assert_eq!(&buf[..2], &[0b1000_0000, 0b0111_1111]);
-        assert_eq!(write_i32(&mut buf, -129).unwrap(), 2);
+        assert_eq!(write_i64(&mut buf, -129).unwrap(), 2);
         assert_eq!(&buf[..2], &[0b1111_1111, 0b0111_1110]);
     }    
 }
