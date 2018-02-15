@@ -81,7 +81,7 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     let (mi, _buf) = m.instantiate(buf, &memory)?;
 
-    println!("Memory: {:?}", mi.memory_inst());
+    // println!("Memory: {:?}", mi.memory_inst());
 
     // Interpreter
 
