@@ -1,7 +1,9 @@
 use SectionType;
 use cursor::Cursor;
+use opcode::*;
 
 use core::fmt;
+use core::convert::TryFrom;
 
 pub mod visitor;
 
@@ -400,6 +402,148 @@ pub struct Body<'a> {
 }
 
 impl<'a> Body<'a> {
+    pub fn locals(&self) -> &'a [u8] {
+        self.locals
+    }
+    pub fn iter(&self) -> InstrIter<'a> {        
+        InstrIter { buf: self.expr.clone() }
+    }
+}
+
+pub struct InstrIter<'a> {
+    buf: Cursor<'a>,
+}
+
+impl<'a> Iterator for InstrIter<'a> {
+    type Item = Instr;
+
+    fn next(&mut self) -> Option<Self::Item> {        
+        if self.buf.len() > 0 {
+            Some(self.next_instr())
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a> InstrIter<'a> {
+    fn next_instr(&mut self) -> Instr {
+        use self::ImmediateType::*;
+
+        let offset = self.buf.pos() as u32;
+        let op = Opcode::try_from(self.buf.read_u8()).unwrap();
+        let imm = match op.immediate_type() {
+            None => Immediate::None,
+            BlockSignature => {
+                let signature = self.buf.read_type_value();
+                Immediate::Block { signature }
+            },
+            BranchDepth => {
+                let depth = self.buf.read_depth();
+                Immediate::Branch { depth }
+            },
+            BranchTable => {
+                // let count = self.buf.read_count();
+                // let imm = Immediate::BranchTable { count };
+                // {
+                //     let end = self.buf.pos();
+                //     let data = self.buf.slice(offset as usize..end);
+                //     // self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }));
+                // }
+                // for i in 0..count {
+                //     let depth = self.buf.read_depth();
+                //     let imm = Immediate::BranchTableDepth { n: i, depth };
+                //     {
+                //         let end = self.buf.pos();
+                //         let data = self.buf.slice(offset as usize..end);
+                //         self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }));
+                //     }                }
+                // let depth = self.buf.read_depth();
+                // let imm = Immediate::BranchTableDefault { depth };
+                // {
+                //     let end = self.buf.pos();
+                //     let data = self.buf.slice(offset as usize..end);
+                //     self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }));
+                // }
+                // return Ok(()) 
+                unimplemented!()               
+            },
+            Local => {                
+                let index = self.buf.read_local_index();
+                Immediate::Local { index }
+            },
+            Global => {
+                let index = self.buf.read_global_index();
+                Immediate::Global { index }
+            },
+            Call => {
+                let index = self.buf.read_func_index();
+                Immediate::Call { index }
+            },
+            CallIndirect => {
+                let index = self.buf.read_type_index();
+                let reserved = self.buf.read_var_u32();
+                Immediate::CallIndirect { index, reserved }
+            },
+            I32 => {
+                let value = self.buf.read_var_i32();
+                Immediate::I32Const { value }
+            },
+            F32 => {
+                let value = self.buf.read_f32();
+                Immediate::F32Const { value }
+            },
+            I64 => {
+                let value = self.buf.read_var_i64();
+                Immediate::I64Const { value }
+            },
+            F64 => {
+                let value = self.buf.read_f64();
+                Immediate::F64Const { value }
+            },
+            LoadStore=> {
+                let align = self.buf.read_var_u32();
+                let offset = self.buf.read_var_u32();
+                Immediate::LoadStore { align, offset }
+            },
+            Memory => {
+                let reserved = self.buf.read_var_u1();
+                Immediate::Memory { reserved }
+            },                
+        };
+        let end = self.buf.pos() as u32;
+        // let data = self.buf.slice(offset as usize..end);            
+
+        // if op.code == END && end == body_end {
+        //     info!("Skipping END at end of function body");
+        //     // self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }));
+        // } else {
+        //     self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }));
+        // }
+
+        Instr { offset, end, opcode: op.code, imm }
+    }
+}
+
+pub struct Instr { 
+    pub offset: u32, 
+    pub end: u32,
+    pub opcode: u8,
+    pub imm: Immediate 
+}
+
+// impl<'a> WriteTo for Instruction<'a> {
+//     fn write_to(&self, w: &mut Writer) -> WasmResult<()> {
+
+//         Ok(())
+//     }
+// }
+
+impl<'a> fmt::Debug for Instr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let op = Opcode::try_from(self.opcode).unwrap();
+        write!(f, "{:08x}: {:?} {:?}", self.offset, op.text, self.imm)
+    }
 }
 
 
@@ -480,6 +624,12 @@ pub trait ModuleRead<'a> {
     fn read_export(&mut self) -> Export<'a>;
     fn read_import(&mut self) -> Import<'a>;
     fn read_body(&mut self) -> Body<'a>;
+    fn read_depth(&mut self) -> u32;
+    fn read_count(&mut self) -> u32;
+    fn read_local_index(&mut self) -> LocalIndex;
+    fn read_global_index(&mut self) -> GlobalIndex;
+    fn read_func_index(&mut self) -> FuncIndex;
+    fn read_type_index(&mut self) -> TypeIndex;
 }
 
 use {TypeValue};
@@ -640,6 +790,25 @@ impl<'a> ModuleRead<'a> for Cursor<'a> {
 
         Body { locals, expr }
     }    
+    fn read_depth(&mut self) -> u32 {
+        self.read_var_u32()
+    }
+    fn read_count(&mut self) -> u32 {
+        self.read_var_u32()
+    }
+    fn read_local_index(&mut self) -> LocalIndex {
+        LocalIndex(self.read_var_u32())
+    }
+    fn read_global_index(&mut self) -> GlobalIndex {
+        GlobalIndex(self.read_var_u32())
+    }
+    fn read_func_index(&mut self) -> FuncIndex {
+        FuncIndex(self.read_var_u32())
+    }
+    fn read_type_index(&mut self) -> TypeIndex {
+        TypeIndex(self.read_var_u32())
+    }
+    
 }
 
 #[cfg(test)]

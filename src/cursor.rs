@@ -125,6 +125,16 @@ impl<'a> Cursor<'a> {
 
     // Read LEB128
 
+    pub fn read_var_u1(&mut self) -> u8 {
+        let byte = self.read_u8();
+        if byte & 0x80 == 0 {
+            if byte > 1 { panic!("Overflow") }
+            byte
+        } else {
+            panic!("Overflow");
+        }
+    }
+
     pub fn read_var_u7(&mut self) -> u8 {
         let byte = self.read_u8();
         if byte & 0x80 == 0 {
