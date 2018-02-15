@@ -1,5 +1,6 @@
 use {Error, TypeValue, Value};
 use opcode::*;
+use core::{mem, slice};
 
 #[derive(Debug)]
 pub struct Identifier<'a>(pub &'a [u8]);
@@ -71,30 +72,72 @@ impl Initializer {
     }
 }
 
+pub const MAX_PARAMETERS: usize = 16;
+pub const MAX_RETURNS: usize = 1;
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct Sig<'a> {
     buf: &'a [u8],
 }
 
 impl<'a> Sig<'a> {
-    pub fn new(buf: &'a [u8]) -> Sig<'a> {
-        assert!(buf.len() == (1 + buf[0] as usize +1 +  buf[1 + buf[0] as usize] as usize), "Sig buffer too short");
-        Sig { buf }
+    fn is_valid_type(v: u8) -> bool {
+        match v as i8 {
+            -0x01 | -0x02 |-0x03 | -0x04 => true,
+            _ => false,
+        }
     }
 
-    pub fn parameters(&self) -> SigIter {
-        let len = self.buf[0];
-        let buf = &self.buf[1..1+len as usize];
-        let pos = 0;
-        SigIter { buf, len, pos }
+    pub fn read_slice(buf: &[u8]) -> Option<(Sig, &[u8])> {
+        debug_assert!(mem::size_of::<TypeValue>() == mem::size_of::<u8>());
+        
+        // Check for appropriate length
+
+        if buf.len() < 1 { return None }
+
+        let p_num = buf[0] as usize;
+
+        // Check parameter count
+        if p_num > MAX_PARAMETERS { return None }
+
+        let p_len = 1 + p_num;
+
+        if buf.len() < p_len + 1 { return None }
+
+        let r_num = buf[p_len] as usize;
+
+        // Check return count
+        if r_num > MAX_RETURNS { return None }
+        
+        let s_len = p_len + 1 + r_num;
+
+        if buf.len() < s_len { return None }
+
+        // Check that type is one of I32, I64, F32, F64
+
+        for i in 1..p_len {
+            if !Self::is_valid_type(buf[i]) { return None }
+        }
+
+        for i in p_len+1..s_len {
+            if !Self::is_valid_type(buf[i]) { return None }
+        }
+
+        Some((Sig { buf: &buf[..s_len] }, &buf[s_len..]))
+    }    
+
+    pub fn parameters(&self) -> &[TypeValue] {
+        let len = self.buf[0] as usize;
+        let buf = &self.buf[1..1+len];
+        unsafe { slice::from_raw_parts(buf.as_ptr() as *const TypeValue, buf.len())}
     }
 
-    pub fn returns(&self) -> SigIter {
-        let p_len = self.buf[0];
-        let len = self.buf[1 + p_len as usize];
-        let buf = &self.buf[(1 + p_len + 1) as usize .. (1 + p_len + 1 + len) as usize];
-        let pos = 0;
-        SigIter { buf, len, pos }        
+    pub fn returns(&self) -> &[TypeValue] {
+        let p_num = self.buf[0] as usize;
+        let p_len = 1 + p_num;
+        let r_num = self.buf[p_len] as usize;
+        let buf = &self.buf[p_len+1..p_len+1+r_num];
+        unsafe { slice::from_raw_parts(buf.as_ptr() as *const TypeValue, buf.len())}
     }
 }
 
@@ -124,12 +167,40 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_sig() {
-        let buf = [2, I32 as u8, I32 as u8, 1, I64 as u8];
-        let sig = Sig::new(&buf[..]);
+    fn test_read_sig() {
+        let (sig, buf) = Sig::read_slice(&[0, 0]).unwrap();
+        assert_eq!(sig.parameters(), &[]);
+        assert_eq!(sig.returns(), &[]);
+        assert_eq!(buf, &[]);
 
-        assert!(sig.parameters().count() == 2);
-        assert!(sig.returns().count() == 1);
+        let (sig, buf) = Sig::read_slice(&[1, I32 as u8, 0]).unwrap();
+        assert_eq!(sig.parameters(), &[TypeValue::I32]);
+        assert_eq!(sig.returns(), &[]);
+        assert_eq!(buf, &[]);        
 
+        let (sig, buf) = Sig::read_slice(&[0, 1, I32 as u8]).unwrap();
+        assert_eq!(sig.parameters(), &[]);
+        assert_eq!(sig.returns(), &[TypeValue::I32]);
+        assert_eq!(buf, &[]);        
+
+
+        let (sig, buf) = Sig::read_slice(&[2, I32 as u8, I32 as u8, 1, I64 as u8]).unwrap();
+        assert_eq!(sig.parameters(), &[TypeValue::I32, TypeValue::I32]);
+        assert_eq!(sig.returns(), &[TypeValue::I64]);
+        assert_eq!(buf, &[]);
     }
+
+    #[test]
+    fn test_read_invalid_sig() {
+        // empty
+        assert!(Sig::read_slice(&[]).is_none());
+        // too short
+        assert!(Sig::read_slice(&[0]).is_none());
+        // parameters too short
+        assert!(Sig::read_slice(&[2, I32 as u8, 1, I64 as u8]).is_none());
+        // parameters too long
+        assert!(Sig::read_slice(&[2, I32 as u8, I32 as u8, I32 as u8, 1, I64 as u8]).is_none());
+        // returns too short
+        assert!(Sig::read_slice(&[2, I32 as u8, I32 as u8, 1]).is_none());
+    }    
 }
