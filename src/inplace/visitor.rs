@@ -17,7 +17,6 @@ pub fn visit<D: Delegate>(m: &Module, d: &mut D) -> Result<(), Error> {
             let s_end = s_beg + s_len;
             let s_count = h.count();
             d.dispatch(Event::SectionStart { s_type, s_beg, s_end, s_len, s_count })?;
-            
             match s {
                 Section::Type(ref t) => {
                     let c = h.count();
@@ -144,9 +143,32 @@ pub fn visit<D: Delegate>(m: &Module, d: &mut D) -> Result<(), Error> {
                     }
                     d.dispatch(Event::ExportsEnd)?;
                 },
-                Section::Code(ref _code) => {
+                Section::Code(ref code_section) => {
                     let c = h.count();
                     d.dispatch(Event::CodeStart { c })?;
+                    for code in code_section.iter() {
+                        for (i, local) in code.locals().enumerate() {
+                            let i = i as u32;
+                            let n = local.n;
+                            let t = local.t;
+                            d.dispatch(Event::Local { i, n, t })?;
+                        }
+                        // for i in 0..locals {
+                        //     let n = self.read_count()?;
+                        //     let t = self.read_type()?;
+                        //     d.dispatch(Event::Local { i, n, t })?;
+                        // }
+                        d.dispatch(Event::InstructionsStart)?;                
+                        for expr in code.iter() {
+                            let Instr { offset, end: _, opcode: _, imm } = expr;
+                            let op = Opcode::try_from(expr.opcode)?;
+                            let data = &[];
+                            let i = Instruction { offset, data, op: &op, imm };
+
+                            d.dispatch(Event::Instruction(i))?;
+                        }
+                        d.dispatch(Event::InstructionsEnd)?;                        
+                    }
                     // for (n, body) in code.iter().enumerate() {                        
                     //     let offset = body.pos()
                     //     let size = self.read_var_u32()?;
@@ -170,7 +192,7 @@ pub fn visit<D: Delegate>(m: &Module, d: &mut D) -> Result<(), Error> {
 
                     //     self.dispatch(Event::BodyEnd)?;
                     // }
-                    d.dispatch(Event::CodeEnd)?;                    
+                    d.dispatch(Event::CodeEnd)?;      
                 },
                 Section::Data(ref e) => {
                     let c = h.count();

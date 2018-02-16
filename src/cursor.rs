@@ -259,7 +259,7 @@ impl<'a> fmt::Debug for Cursor<'a> {
             if i != 0 { write!(f, " ")?; }
             write!(f, "{:02x}", b)?;
         }
-        writeln!(f, "] }}")?;
+        write!(f, "] }}")?;
         Ok(())
     }
 

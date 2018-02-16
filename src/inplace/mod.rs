@@ -397,18 +397,40 @@ impl<'a> Iterator for CodeIter<'a> {
 }
 
 pub struct Body<'a> {
-    pub locals: &'a [u8],
+    pub locals: Cursor<'a>,
     pub expr: Cursor<'a>,
 }
 
 impl<'a> Body<'a> {
-    pub fn locals(&self) -> &'a [u8] {
-        self.locals
+    pub fn locals(&self) -> LocalIter {
+        LocalIter { buf: self.locals.clone() }
     }
     pub fn iter(&self) -> InstrIter<'a> {        
         InstrIter { buf: self.expr.clone() }
     }
 }
+
+pub struct Local {
+    pub n: u32,
+    pub t: TypeValue,
+}
+
+pub struct LocalIter<'a> {
+    buf: Cursor<'a>,
+}
+
+impl<'a> Iterator for LocalIter<'a> {
+    type Item = Local;
+
+    fn next(&mut self) -> Option<Self::Item> { 
+        if self.buf.len() > 0 {
+            Some(self.buf.read_local())
+        } else {
+            None
+        }
+    }
+}
+
 
 pub struct InstrIter<'a> {
     buf: Cursor<'a>,
@@ -417,7 +439,7 @@ pub struct InstrIter<'a> {
 impl<'a> Iterator for InstrIter<'a> {
     type Item = Instr;
 
-    fn next(&mut self) -> Option<Self::Item> {        
+    fn next(&mut self) -> Option<Self::Item> { 
         if self.buf.len() > 0 {
             Some(self.next_instr())
         } else {
@@ -624,6 +646,7 @@ pub trait ModuleRead<'a> {
     fn read_export(&mut self) -> Export<'a>;
     fn read_import(&mut self) -> Import<'a>;
     fn read_body(&mut self) -> Body<'a>;
+    fn read_local(&mut self) -> Local;
     fn read_depth(&mut self) -> u32;
     fn read_count(&mut self) -> u32;
     fn read_local_index(&mut self) -> LocalIndex;
@@ -785,11 +808,22 @@ impl<'a> ModuleRead<'a> for Cursor<'a> {
     }    
 
     fn read_body(&mut self) -> Body<'a> {
-        let locals = self.read_bytes();
-        let expr = self.rest();
+        let size = self.read_var_u32();
+        let pos = self.pos();
+        let locals_count = self.read_var_u32() as usize;
+        let locals = self.split(locals_count * 2);
+        let locals_len = self.pos() - pos;
+        let expr = self.split((size as usize) - locals_len);
 
         Body { locals, expr }
     }    
+
+    fn read_local(&mut self) -> Local {
+        let n = self.read_var_u32();
+        let t = self.read_type_value();
+        Local { n, t }
+    }
+
     fn read_depth(&mut self) -> u32 {
         self.read_var_u32()
     }
