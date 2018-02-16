@@ -436,12 +436,18 @@ impl<'m> Compiler<'m> {
         }
 
         let code_section = m.code_section().ok_or_else(|| Error::MissingSection { id: SectionType::Code })?;
+
+        info!("{:08x}: Code Start", self.w.pos());
+        
         for (n, body) in code_section.iter().enumerate() {
-            self.context = Context::from(m.function_signature_type(n).unwrap());    
+            self.context = Context::from(m.function_signature_type(n).unwrap());
+
             for local in body.locals() {
                 self.context.add_local(local.n, local.t);
             }                  
+
             info!("{:08x}: V:{} | func[{}] {:?}", self.w.pos(), self.type_checker.type_stack_size(), n, self.context);  
+
             self.compile_body(m, &body)?;
         }
         Ok(self.w.split_mut())
@@ -456,9 +462,40 @@ impl<'m> Compiler<'m> {
         self.push_label(FIXUP_OFFSET)?;
 
 
-        for instr in body.iter() {
-            info!("{:?}", instr);
+        // InstructionsStart
+
+        self.w.write_alloca(self.context.locals_count as u32)?;                
+
+        for i in body.iter() {
+            // Instruction
+            self.dispatch_instruction(i)?;
         }
+        // InstructionsEnd
+        info!("{:08x}: L: {} V:{} | {} ", self.w.pos(), self.label_stack.len(), self.type_checker.type_stack_size(), "EXIT");
+
+        //   CHECK_RESULT(GetReturnDropKeepCount(&drop_count, &keep_count));
+        //   CHECK_RESULT(typechecker_.EndFunction());
+        //   CHECK_RESULT(EmitDropKeep(drop_count, keep_count));
+        //   CHECK_RESULT(EmitOpcode(Opcode::Return));
+        //   PopLabel();
+
+        self.fixup()?;
+        let (drop, keep) = self.get_return_drop_keep_count()?;
+        self.type_checker.end_function()?;
+        self.w.write_drop_keep(drop, keep)?;                                    
+        self.w.write_opcode(RETURN)?;
+        self.pop_label()?;
+
+        for entry in self.fixups.iter() {
+            if let &Some(entry) = entry {   
+                panic!("Orphan Fixup: {:?}", entry);
+            }
+        }        
+
+        // BodyEnd
+        self.w.write_code_end(self.body_fixup)?;
+        info!("code end: {:08x}", self.w.pos());
+
         Ok(())
     }
 
@@ -469,148 +506,42 @@ impl<'m> Delegate for Compiler<'m> {
         use Event::*;
         // info!("{:08x}: {:?}", self.w.pos(), evt);
         match evt {
-            // Start { name, version } => {
-            //     self.module.set_name(self.w.copy_str(name));
-            //     self.module.set_version(version);
-            // },
-            // SectionStart { s_type, s_beg: _, s_end:_ , s_len: _, s_count: _ } => {
-            //     self.section_fixup = self.w.write_section_start(s_type)?;
-            // },
-            // SectionEnd => {
-            //     self.w.write_section_end(self.section_fixup)?;
-            //     self.module.extend(self.w.split());
-            // },
-            // TypesStart { c } => {
-            //     self.w.write_u32(c)?;
-            // },
-            // TypeParametersStart { c } => {
-            //     self.w.write_u8(c as u8)?;
-            // },
-            // TypeParameter { n: _, t } => {
-            //     self.w.write_u8(t as u8)?;
-            // },
-            // TypeReturnsStart { c } => {
-            //     self.w.write_u8(c as u8)?;
-            // },
-            // TypeReturn { n: _, t } => {
-            //     self.w.write_u8(t as u8)?;
-            // },
-            // ImportsStart { c } => {
-            //     self.w.write_u32(c)?;
-            // },            
-            // Import { n: _, module, export, desc } => {
-            //     match desc {
-            //         ImportDesc::Type(index) => {
-            //             self.functions.push(index);
-            //         },
-            //         _ => {},
-            //     }
-            //     self.w.write_import(module::Import { module, export, desc })?;
-            // }
-            // FunctionsStart { c } => {
-            //     self.w.write_u32(c)?;
-            // },
-            // Function { n: _, index } => {
-            //     self.functions.push(index.0);
-            //     self.w.write_u32(index.0)?;
-            // },
-            // TablesStart { c } => {
-            //     self.w.write_u32(c)?;
-            // },
-            // Table { n: _, element_type, limits } => {
-            //     self.w.write_table(module::Table { element_type, limits })?
-            // },
-            // MemsStart { c } => {
-            //     self.w.write_u32(c)?;
-            // },
-            // Mem { n: _, limits } => {
-            //     self.w.write_memory(module::Memory { limits })?;
-            // },
-            // GlobalsStart { c } => {
-            //     self.w.write_u32(c)?;
-            // },
-            // Global { n: _, t, mutability, init } => {
-            //     self.w.write_global_type(module::GlobalType { type_value: t, mutability })?;
-            //     self.w.write_initializer(init)?;
 
-            // }
-            // ExportsStart { c } => {
-            //     self.w.write_u32(c)?;
-            // },
-            // Export { n: _, id, desc } => {
-            //     self.w.write_identifier(id)?;    
-            // // 0x00 => ExportDesc::Function(index),
-            // // 0x01 => ExportDesc::Table(index),
-            // // 0x02 => ExportDesc::Memory(index),
-            // // 0x03 => ExportDesc::Global(index),                
-            //     let (kind, index) = match desc {
-            //         ExportDesc::Function(i) => (0x00, i),
-            //         ExportDesc::Table(i) => (0x01, i),
-            //         ExportDesc::Memory(i) => (0x02, i),
-            //         ExportDesc::Global(i) => (0x03, i),
-            //     };
-            //     self.w.write_u8(kind)?;
-            //     self.w.write_u32(index)?;
-            // },
-            // StartFunction { index } => {
-            //     self.w.write_u32(index.0)?;                
-            // },
-            // ElementsStart { c } => {
-            //     self.w.write_u32(c)?;
-            // },
-            // Element { n: _, index, offset, data } => {
-            //     let Value(elt_offset) = offset.value()?;
-
-            //     self.w.write_u32(index.0)?;
-            //     self.w.write_initializer(offset)?;
-            //     info!("Initializing Table {}", index.0);
-            //     if let Some(data) = data {
-            //         let mut i = 0;
-            //         let mut o = elt_offset as usize;
-            //         while i < data.len() {
-            //             let d = data[i] as u32;
-            //             info!("   {:08x}: {:08x}", o, d);
-            //             self.table[o] = d;
-            //             o += 1;
-            //             i += 1;
-            //         }            
-            //     }
-            // },
             // CodeStart { c } => {
             //     info!("{:08x}: Code Start", self.w.pos());
             //     self.w.write_u32(c)?;
             // },
-            Body { n, offset: _, size: _, locals: _ } => {
-                self.context = Context::from(self.module.function_signature_type(n).unwrap());
-                self.body_fixup = self.w.write_code_start()?;
-                // self.w.write_u8(locals as u8)?;
-                info!("{:08x}: V:{} | func[{}] {:?}", self.w.pos(), self.type_checker.type_stack_size(), n, self.context);
+            // Body { n, offset: _, size: _, locals: _ } => {
+            //     self.context = Context::from(self.module.function_signature_type(n).unwrap());
+            //     self.body_fixup = self.w.write_code_start()?;
+            //     // self.w.write_u8(locals as u8)?;
+            //     info!("{:08x}: V:{} | func[{}] {:?}", self.w.pos(), self.type_checker.type_stack_size(), n, self.context);
 
-                self.type_checker.begin_function(self.context.return_type)?;
-                self.push_label(FIXUP_OFFSET)?;
-            },
-            Local { i: _, n, t } => {
-                if !self.cfg.compile { return Ok(()) }
+            //     self.type_checker.begin_function(self.context.return_type)?;
+            //     self.push_label(FIXUP_OFFSET)?;
+            // },
+            // Local { i: _, n, t } => {
+            //     if !self.cfg.compile { return Ok(()) }
 
-                info!("add_local: {} {}", n, t); 
-                self.context.add_local(n, t);
+            //     info!("add_local: {} {}", n, t); 
+            //     self.context.add_local(n, t);
                 
 
-                // self.w.write_u8(n as u8)?;
-                // self.w.write_i8(t as i8)?;
-            },
-            InstructionsStart => {
-                if !self.cfg.compile { return Ok(()) }
+            //     // self.w.write_u8(n as u8)?;
+            //     // self.w.write_i8(t as i8)?;
+            // },
+            // InstructionsStart => {
+            //     if !self.cfg.compile { return Ok(()) }
 
-                self.w.write_alloca(self.context.locals_count as u32)?;                
+            //     self.w.write_alloca(self.context.locals_count as u32)?;                
 
-            },
-            Instruction(i) => {
-                if !self.cfg.compile { return Ok(()) }
-                // assert_eq!(self.depth, self.type_stack.len());
-                self.dispatch_instruction(i)?;
-                // assert_eq!(self.depth, self.type_stack.len());
-            },
+            // },
+            // Instruction(i) => {
+            //     if !self.cfg.compile { return Ok(()) }
+            //     // assert_eq!(self.depth, self.type_stack.len());
+            //     self.dispatch_instruction(i)?;
+            //     // assert_eq!(self.depth, self.type_stack.len());
+            // },
             InstructionsEnd => {
                 if !self.cfg.compile { return Ok(()) }
                 info!("{:08x}: L: {} V:{} | {} ", self.w.pos(), self.label_stack.len(), self.type_checker.type_stack_size(), "EXIT");
@@ -653,27 +584,29 @@ impl<'m> Delegate for Compiler<'m> {
 }
 
 impl<'m> Compiler<'m> {
-    fn dispatch_instruction(&mut self, i: Instruction) -> DelegateResult {
+    fn dispatch_instruction(&mut self, i: inplace::Instr) -> DelegateResult {
         use opcode::Immediate::*;
+        use core::convert::TryFrom;
 
+        let op = Opcode::try_from(i.opcode).unwrap();
         {
             let mut indent = self.label_stack.len();
-            if i.op.code == END || i.op.code == ELSE {
+            if op.code == END || op.code == ELSE {
                 indent -= 1;
             }
-            info!("{:08x}: L: {} V:{} | {:0width$}{}{:?}" , self.w.pos(), self.label_stack.len(), self.type_checker.type_stack_size(),  "", i.op.text, i.imm, width=indent);
+            info!("{:08x}: L: {} V:{} | {:0width$}{}{:?}" , self.w.pos(), self.label_stack.len(), self.type_checker.type_stack_size(),  "", op.text, i.imm, width=indent);
         }
 
-        let op = i.op.code;
+        let opc = i.opcode;
         match i.imm {
-            None => match op {
+            None => match opc {
                 SELECT => {
                     self.type_checker.on_select()?;
-                    self.w.write_opcode(op)?;
+                    self.w.write_opcode(opc)?;
                 },
                 DROP => {
                     self.type_checker.on_drop()?;
-                    self.w.write_opcode(op)?;
+                    self.w.write_opcode(opc)?;
                 },                
                 END => {
                     info!("END");
@@ -745,21 +678,21 @@ impl<'m> Compiler<'m> {
                     self.w.write_opcode(RETURN)?;
                 },                
                 _ => {
-                    info!("{:?} {}", i.op, i.op.is_binop());
-                    if i.op.is_binop() {
-                        self.type_checker.on_binary(i.op)?;
-                        self.w.write_opcode(op)?;
-                    } else if i.op.is_unop() {
-                        self.type_checker.on_unary(i.op)?;
-                        self.w.write_opcode(op)?;
+                    info!("{:?} {}", op, op.is_binop());
+                    if op.is_binop() {
+                        self.type_checker.on_binary(&op)?;
+                        self.w.write_opcode(opc)?;
+                    } else if op.is_unop() {
+                        self.type_checker.on_unary(&op)?;
+                        self.w.write_opcode(opc)?;
                     } else {
-                        panic!("{} not implemented", i.op.text);
+                        panic!("{} not implemented", op.text);
                     }
                     
                 }           
                 // _ => {},
             },
-            Block { signature: sig } => match op {                
+            Block { signature: sig } => match opc {                
                 BLOCK => {
                     self.type_checker.on_block(sig)?;
                     self.push_label(FIXUP_OFFSET)?;                    
@@ -785,13 +718,13 @@ impl<'m> Compiler<'m> {
                 },
                 _ => unreachable!(),
             },
-            Branch { depth } => match op {
+            Branch { depth } => match opc {
                 BR => {
                     let (drop, keep) = self.get_br_drop_keep_count(depth as usize)?;
                     self.type_checker.on_br(depth as usize)?;
                     self.w.write_drop_keep(drop, keep)?;
 
-                    self.w.write_opcode(op)?;
+                    self.w.write_opcode(opc)?;
                     let pos = self.w.pos();
                     self.add_fixup(depth as u32, pos as u32)?;
                     self.w.write_u32(FIXUP_OFFSET)?;    
@@ -910,7 +843,7 @@ impl<'m> Compiler<'m> {
                 // Emits OP DEPTH_TO_LOCAL
                 let id = index.0;
                 let ty = self.context[id as usize];
-                let local_id = match op {
+                let local_id = match opc {
                     GET_LOCAL => {                        
                         let local_id = self.translate_local_index(id)?;
                         self.type_checker.on_get_local(ty)?;
@@ -927,12 +860,12 @@ impl<'m> Compiler<'m> {
                     _ => unreachable!()
                 };
                 info!("-- local_id: {}", local_id);
-                self.w.write_opcode(op)?;
+                self.w.write_opcode(opc)?;
                 self.w.write_u32(local_id)?;                
 
             }
             Global { index } => {
-                match op {                    
+                match opc {                    
                     GET_GLOBAL => {
 
                         if let Some(global) = self.module.global(index.0) {
@@ -1004,7 +937,7 @@ impl<'m> Compiler<'m> {
                 self.type_checker.on_call(p_slice, r_slice)?;
 
 
-                self.w.write_opcode(op)?;
+                self.w.write_opcode(opc)?;
                 self.w.write_u32(id as u32)?;
             },
             CallIndirect { index, reserved: _ } => {
@@ -1042,14 +975,14 @@ impl<'m> Compiler<'m> {
             },
             I32Const { value } => {
                 self.type_checker.on_const(I32)?;
-                self.w.write_opcode(op)?;
+                self.w.write_opcode(opc)?;
                 self.w.write_i32(value)?;
             },
             F32Const { value: _ } => { return Err(Error::Unimplemented) },
             I64Const { value: _ } => { return Err(Error::Unimplemented) },
             F64Const { value: _ } => { return Err(Error::Unimplemented) },
             LoadStore { align, offset } => {
-                match op {
+                match opc {
                     I32_LOAD | I32_LOAD8_S | I32_LOAD8_U | I32_LOAD16_S | I32_LOAD16_U => {
                         // CHECK_RESULT(CheckHasMemory(opcode));
                         // CHECK_RESULT(CheckAlign(alignment_log2, opcode.GetMemorySize()));
@@ -1058,7 +991,7 @@ impl<'m> Compiler<'m> {
                         // CHECK_RESULT(EmitI32(module_->memory_index));
                         // CHECK_RESULT(EmitI32(offset));
 
-                        self.type_checker.on_load(i.op)?;
+                        self.type_checker.on_load(&op)?;
                     },
                     I32_STORE | I32_STORE8 | I32_STORE16 => {
                         //   CHECK_RESULT(CheckHasMemory(opcode));
@@ -1067,25 +1000,25 @@ impl<'m> Compiler<'m> {
                         //   CHECK_RESULT(EmitOpcode(opcode));
                         //   CHECK_RESULT(EmitI32(module_->memory_index));
                         //   CHECK_RESULT(EmitI32(offset));
-                        self.type_checker.on_store(i.op)?;
+                        self.type_checker.on_store(&op)?;
                     },
                     _ => unimplemented!(),
                 }
-                self.w.write_opcode(op)?;
+                self.w.write_opcode(opc)?;
                 self.w.write_u32(align)?;
                 self.w.write_u32(offset)?;
             },
             Memory { reserved: _ } => {
-                match op {
+                match opc {
                     MEM_SIZE => {
                         self.type_checker.on_current_memory()?;
                     },
                     MEM_GROW => {
-                        self.type_checker.on_grow_memory(i.op)?;
+                        self.type_checker.on_grow_memory(&op)?;
                     },
                     _ => unimplemented!()
                 }
-                self.w.write_opcode(op)?;
+                self.w.write_opcode(opc)?;
             },
         } 
         Ok(())
