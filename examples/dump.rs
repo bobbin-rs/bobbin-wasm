@@ -12,7 +12,7 @@ use clap::{App, Arg, ArgMatches};
 
 // use wasm::{Reader, BinaryReader};
 use wasm::visitor;
-use wasm::inplace::{Module};
+use wasm::Module;
 
 #[derive(Debug)]
 pub enum Error {

@@ -40,9 +40,9 @@ impl fmt::Debug for Label {
 }
 
 pub struct Context {
-    parameters: [TypeValue; 16],
+    parameters: [TypeValue; 64],
     parameters_count: usize,
-    locals: [TypeValue; 16],
+    locals: [TypeValue; 64],
     locals_count: usize,
     return_type: TypeValue,
 }
@@ -50,9 +50,9 @@ pub struct Context {
 impl Default for Context {
     fn default() -> Self {
         Context {
-            parameters: [VOID; 16],
+            parameters: [VOID; 64],
             parameters_count: 0,
-            locals: [VOID; 16],
+            locals: [VOID; 64],
             locals_count: 0,
             return_type: VOID,
         }
@@ -270,8 +270,8 @@ impl<'m> Compiler<'m> {
         let label_stack = w.alloc_stack(16);        
         let type_checker = TypeChecker::new(w.alloc_stack(16), w.alloc_stack(16));
 
-        let functions = w.alloc_smallvec(16);
-        let table = w.alloc_smallvec(16);
+        let functions = w.alloc_smallvec(128);
+        let table = w.alloc_smallvec(64);
 
         // TODO: Break out into separate struct
         let fixups = [None; 256];
