@@ -507,28 +507,28 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
                 Immediate::Branch { depth }
             },
             BranchTable => {
-                // let count = self.read_count()?;
-                // let imm = Immediate::BranchTable { count };
-                // {
-                //     let end = self.r.pos();
-                //     let data = self.r.slice(offset as usize..end);
-                //     self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }))?;
-                // }
-                // for i in 0..count {
-                //     let depth = self.read_depth()?;
-                //     let imm = Immediate::BranchTableDepth { n: i, depth };
-                //     {
-                //         let end = self.r.pos();
-                //         let data = self.r.slice(offset as usize..end);
-                //         self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }))?;
-                //     }                }
-                // let depth = self.read_depth()?;
-                // let imm = Immediate::BranchTableDefault { depth };
-                // {
-                //     let end = self.r.pos();
-                //     let data = self.r.slice(offset as usize..end);
-                //     self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }))?;
-                // }
+                let count = self.read_count()?;
+                let imm = Immediate::BranchTableStart { count };
+                {
+                    let end = self.r.pos();
+                    let data = self.r.slice(offset as usize..end);
+                    self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }))?;
+                }
+                for i in 0..count {
+                    let depth = self.read_depth()?;
+                    let imm = Immediate::BranchTableDepth { n: i, depth };
+                    {
+                        let end = self.r.pos();
+                        let data = self.r.slice(offset as usize..end);
+                        self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }))?;
+                    }                }
+                let depth = self.read_depth()?;
+                let imm = Immediate::BranchTableDefault { depth };
+                {
+                    let end = self.r.pos();
+                    let data = self.r.slice(offset as usize..end);
+                    self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }))?;
+                }
                 return Ok(())       
             },
             Local => {                

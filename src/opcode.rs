@@ -31,7 +31,7 @@ pub enum Error {
 }
 
 pub type Depth = u8;
-// pub type BranchCount = u32;
+pub type BranchCount = u32;
 // pub type CallIndirectCount = u32;
 
 pub const ___: TypeValue = TypeValue::Void;
@@ -125,9 +125,9 @@ pub enum Immediate<'a> {
     Block { signature: TypeValue },
     Branch { depth: Depth },
     BranchTable { table: &'a [Depth] },
-    // BranchTable { count: BranchCount },
-    // BranchTableDepth { n: u32, depth: Depth },
-    // BranchTableDefault { depth: Depth },
+    BranchTableStart { count: BranchCount },
+    BranchTableDepth { n: u32, depth: Depth },
+    BranchTableDefault { depth: Depth },
     Local { index: LocalIndex },
     Global { index: GlobalIndex },
     Call { index: FuncIndex },
@@ -165,9 +165,9 @@ impl<'a> fmt::Debug for Immediate<'a> {
                 write!(f, "]")?;
                 Ok(())
             }
-            // BranchTable { count } => write!(f, " [{}]", count),
-            // BranchTableDepth { n: _, depth } => write!(f, " {}", depth),
-            // BranchTableDefault { depth } => write!(f, " {}", depth),
+            BranchTableStart { count } => write!(f, " [{}]", count),
+            BranchTableDepth { n: _, depth } => write!(f, " {}", depth),
+            BranchTableDefault { depth } => write!(f, " {}", depth),
             Local { ref index } => write!(f, " {}", index.0),
             Global { ref index } => write!(f, " {}", index.0),
             Call { ref index } => write!(f, " {}", index.0),

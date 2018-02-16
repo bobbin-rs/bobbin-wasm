@@ -781,18 +781,42 @@ impl<'m> Loader<'m> {
                 self.type_checker.end_br_table()?;
                 info!("branch table default done");   
             },
-            // BranchTableDepth { n: _, depth } => {
-            //     self.type_checker.on_br_table_target(depth as usize)?;
-            //     self.write_br_table_offset(depth)?;
-            // },
-            // BranchTableDefault { depth } => {
-            //     info!("branch table default");
-            //     self.type_checker.on_br_table_target(depth as usize)?;
-            //     self.write_br_table_offset(depth)?;
+            BranchTableStart { count } => {
+                // BR_TABLE COUNT:u32 TABLE_OFFSET:u32
+                // INTERP_DATA SIZE:u32
+                // [OFFSET:u32 DROP:u32 KEEP:u32]
+                // OFFSET:u32 DROP:u32 KEEP:u32
 
-            //     self.type_checker.end_br_table()?;              
-            //     info!("branch table default done");
-            // },
+                self.type_checker.begin_br_table()?;
+                self.w.write_opcode(BR_TABLE)?;
+                self.w.write_u32(count as u32)?;
+
+                // Write offset of branch table
+                let table_pos = self.w.pos();
+                self.w.write_u32(FIXUP_OFFSET)?;
+                
+                // Write INTERP_DATA + SIZE
+                self.w.write_opcode(INTERP_DATA)?;
+                self.w.write_u32((count + 1) * BR_TABLE_ENTRY_SIZE)?;
+
+                // Fixup branch table offset
+                let pos = self.w.pos();
+                self.w.write_u32_at(pos as u32, table_pos)?;
+
+                // Branch Table Starts Here            
+            },
+            BranchTableDepth { n: _, depth } => {
+                self.type_checker.on_br_table_target(depth as usize)?;
+                self.write_br_table_offset(depth as u32)?;
+            },
+            BranchTableDefault { depth } => {
+                info!("branch table default");
+                self.type_checker.on_br_table_target(depth as usize)?;
+                self.write_br_table_offset(depth as u32)?;
+
+                self.type_checker.end_br_table()?;              
+                info!("branch table default done");
+            },
             Local { index } => {
                 // Emits OP DEPTH_TO_LOCAL
                 let id = index.0;
