@@ -1,4 +1,3 @@
-use module::*;
 use types::*;
 use opcode::{Instruction};
 use {SectionType, TypeValue};
