@@ -433,7 +433,6 @@ impl<'a> Iterator for LocalIter<'a> {
     }
 }
 
-
 pub struct InstrIter<'a> {
     buf: Cursor<'a>,
 }
@@ -443,111 +442,10 @@ impl<'a> Iterator for InstrIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> { 
         if self.buf.len() > 0 {
-            Some(self.next_instr())
+            Some(self.buf.read_instr())
         } else {
             None
         }
-    }
-}
-
-impl<'a> InstrIter<'a> {
-    fn next_instr(&mut self) -> Instr<'a> {
-        use self::ImmediateType::*;
-
-        let offset = self.buf.pos() as u32;
-        let op = Opcode::try_from(self.buf.read_u8()).unwrap();
-        let imm = match op.immediate_type() {
-            None => Immediate::None,
-            BlockSignature => {
-                let signature = self.buf.read_type_value();
-                Immediate::Block { signature }
-            },
-            BranchDepth => {
-                let depth = self.buf.read_depth() as u8;
-                Immediate::Branch { depth }
-            },
-            BranchTable => {
-                let count = self.buf.read_count() as usize;
-                let table = self.buf.slice(count + 1);
-                Immediate::BranchTable { table }
-                // let imm = Immediate::BranchTable { count };
-                // {
-                //     let end = self.buf.pos();
-                //     let data = self.buf.slice(offset as usize..end);
-                //     // self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }));
-                // }
-                // for i in 0..count {
-                //     let depth = self.buf.read_depth();
-                //     let imm = Immediate::BranchTableDepth { n: i, depth };
-                //     {
-                //         let end = self.buf.pos();
-                //         let data = self.buf.slice(offset as usize..end);
-                //         self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }));
-                //     }                }
-                // let depth = self.buf.read_depth();
-                // let imm = Immediate::BranchTableDefault { depth };
-                // {
-                //     let end = self.buf.pos();
-                //     let data = self.buf.slice(offset as usize..end);
-                //     self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }));
-                // }
-                // return Ok(()) 
-            },
-            Local => {                
-                let index = self.buf.read_local_index();
-                Immediate::Local { index }
-            },
-            Global => {
-                let index = self.buf.read_global_index();
-                Immediate::Global { index }
-            },
-            Call => {
-                let index = self.buf.read_func_index();
-                Immediate::Call { index }
-            },
-            CallIndirect => {
-                let index = self.buf.read_type_index();
-                let reserved = self.buf.read_var_u32();
-                Immediate::CallIndirect { index, reserved }
-            },
-            I32 => {
-                let value = self.buf.read_var_i32();
-                Immediate::I32Const { value }
-            },
-            F32 => {
-                let value = self.buf.read_f32();
-                Immediate::F32Const { value }
-            },
-            I64 => {
-                let value = self.buf.read_var_i64();
-                Immediate::I64Const { value }
-            },
-            F64 => {
-                let value = self.buf.read_f64();
-                Immediate::F64Const { value }
-            },
-            LoadStore=> {
-                let align = self.buf.read_var_u32();
-                let offset = self.buf.read_var_u32();
-                Immediate::LoadStore { align, offset }
-            },
-            Memory => {
-                let reserved = self.buf.read_var_u1();
-                Immediate::Memory { reserved }
-            },                
-        };
-        let end = self.buf.pos() as u32;
-        let range = offset..end;
-        // let data = self.buf.slice(offset as usize..end);            
-
-        // if op.code == END && end == body_end {
-        //     info!("Skipping END at end of function body");
-        //     // self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }));
-        // } else {
-        //     self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }));
-        // }
-
-        Instr { range, opcode: op.code, imm }
     }
 }
 
@@ -557,20 +455,12 @@ pub struct Instr<'a> {
     pub imm: Immediate<'a> 
 }
 
-// impl<'a> WriteTo for Instruction<'a> {
-//     fn write_to(&self, w: &mut Writer) -> WasmResult<()> {
-
-//         Ok(())
-//     }
-// }
-
 impl<'a> fmt::Debug for Instr<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let op = Opcode::try_from(self.opcode).unwrap();
         write!(f, "{:08x}: {:?} {:?}", self.range.start, op.text, self.imm)
     }
 }
-
 
 pub struct DataIter<'a> {
     buf: Cursor<'a>,
@@ -673,6 +563,7 @@ pub trait ModuleRead<'a> {
     fn read_global_index(&mut self) -> GlobalIndex;
     fn read_func_index(&mut self) -> FuncIndex;
     fn read_type_index(&mut self) -> TypeIndex;
+    fn read_instr(&mut self) -> Instr<'a>;
 }
 
 use {TypeValue};
@@ -864,7 +755,74 @@ impl<'a> ModuleRead<'a> for Cursor<'a> {
     fn read_type_index(&mut self) -> TypeIndex {
         TypeIndex(self.read_var_u32())
     }
-    
+
+    fn read_instr(&mut self) -> Instr<'a> {
+        use self::ImmediateType::*;
+
+        let offset = self.pos() as u32;
+        let op = Opcode::try_from(self.read_u8()).unwrap();
+        let imm = match op.immediate_type() {
+            None => Immediate::None,
+            BlockSignature => {
+                let signature = self.read_type_value();
+                Immediate::Block { signature }
+            },
+            BranchDepth => {
+                let depth = self.read_depth() as u8;
+                Immediate::Branch { depth }
+            },
+            BranchTable => {
+                let count = self.read_count() as usize;
+                let table = self.slice(count + 1);
+                Immediate::BranchTable { table }
+            },
+            Local => {                
+                let index = self.read_local_index();
+                Immediate::Local { index }
+            },
+            Global => {
+                let index = self.read_global_index();
+                Immediate::Global { index }
+            },
+            Call => {
+                let index = self.read_func_index();
+                Immediate::Call { index }
+            },
+            CallIndirect => {
+                let index = self.read_type_index();
+                let reserved = self.read_var_u32();
+                Immediate::CallIndirect { index, reserved }
+            },
+            I32 => {
+                let value = self.read_var_i32();
+                Immediate::I32Const { value }
+            },
+            F32 => {
+                let value = self.read_f32();
+                Immediate::F32Const { value }
+            },
+            I64 => {
+                let value = self.read_var_i64();
+                Immediate::I64Const { value }
+            },
+            F64 => {
+                let value = self.read_f64();
+                Immediate::F64Const { value }
+            },
+            LoadStore=> {
+                let align = self.read_var_u32();
+                let offset = self.read_var_u32();
+                Immediate::LoadStore { align, offset }
+            },
+            Memory => {
+                let reserved = self.read_var_u1();
+                Immediate::Memory { reserved }
+            },                
+        };
+        let end = self.pos() as u32;
+        let range = offset..end;
+        Instr { range, opcode: op.code, imm }
+    }   
 }
 
 #[cfg(test)]
