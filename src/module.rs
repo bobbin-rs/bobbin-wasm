@@ -1,12 +1,13 @@
 use {Error, SectionType, TypeValue, Cursor, FIXUP};
 use types::{Limits, Identifier, Initializer};
-use memory_inst::MemoryInst;
+// use memory_inst::MemoryInst;
 use writer::Writer;
-use module_inst::ModuleInst;
+// use module_inst::ModuleInst;
+use wasm_read::WasmRead;
 use opcode::*;
 
 
-use core::{slice, str, fmt};
+use core::{str, fmt};
 
 #[derive(Debug)]
 pub enum ExportDesc {
@@ -42,150 +43,150 @@ pub struct GlobalType {
 }
 
 
-pub struct Module<'a> {
-    name: &'a str,
-    version: u32,
-    buf: &'a [u8],
-}
+// pub struct Module<'a> {
+//     name: &'a str,
+//     version: u32,
+//     buf: &'a [u8],
+// }
 
-impl<'a> Module<'a> {
-    pub fn new() -> Self {
-        let name = "";
-        let version = 0;
-        let buf = &[];
-        Module { name, version, buf }
-    }
+// impl<'a> Module<'a> {
+//     pub fn new() -> Self {
+//         let name = "";
+//         let version = 0;
+//         let buf = &[];
+//         Module { name, version, buf }
+//     }
 
-    pub fn name(&self) -> &str {
-        self.name
-    }
+//     pub fn name(&self) -> &str {
+//         self.name
+//     }
 
-    pub fn set_name(&mut self, name: &'a str) {
-        self.name = name;
-    }
+//     pub fn set_name(&mut self, name: &'a str) {
+//         self.name = name;
+//     }
 
-    pub fn set_version(&mut self, version: u32){
-        self.version = version;
-    }
+//     pub fn set_version(&mut self, version: u32){
+//         self.version = version;
+//     }
 
-    pub fn instantiate<'b, 'mem>(&'a self, buf: &'b mut [u8], memory: &'mem MemoryInst<'mem>) -> Result<(ModuleInst<'a, 'b, 'mem>, &'b mut [u8]), Error> {
-        ModuleInst::new(self, buf, memory)
-    }
+//     pub fn instantiate<'b, 'mem>(&'a self, buf: &'b mut [u8], memory: &'mem MemoryInst<'mem>) -> Result<(ModuleInst<'a, 'b, 'mem>, &'b mut [u8]), Error> {
+//         ModuleInst::new(self, buf, memory)
+//     }
 
-    pub fn extend(&mut self, buf: &'a [u8]) {
-        if self.buf.len() == 0 {
-            self.buf = buf
-        } else {
-            let a_ptr = self.buf.as_ptr();
-            let a_len = self.buf.len();
-            let b_ptr = buf.as_ptr();
-            let b_len = buf.len();
-            unsafe {
-                assert!(a_ptr.offset(a_len as isize) == b_ptr);
-                self.buf = slice::from_raw_parts(a_ptr, a_len + b_len)
-            }
-        }
-    }
+//     pub fn extend(&mut self, buf: &'a [u8]) {
+//         if self.buf.len() == 0 {
+//             self.buf = buf
+//         } else {
+//             let a_ptr = self.buf.as_ptr();
+//             let a_len = self.buf.len();
+//             let b_ptr = buf.as_ptr();
+//             let b_len = buf.len();
+//             unsafe {
+//                 assert!(a_ptr.offset(a_len as isize) == b_ptr);
+//                 self.buf = slice::from_raw_parts(a_ptr, a_len + b_len)
+//             }
+//         }
+//     }
 
-    pub fn iter(&self) -> SectionIter {
-        SectionIter { index: 0, buf: Cursor::new(self.buf) }
-    }
+//     pub fn iter(&self) -> SectionIter {
+//         SectionIter { index: 0, buf: Cursor::new(self.buf) }
+//     }
 
-    pub fn section(&self, st: SectionType) -> Option<Section> {
-        self.iter().find(|s| s.section_type == st)
-    }
+//     pub fn section(&self, st: SectionType) -> Option<Section> {
+//         self.iter().find(|s| s.section_type == st)
+//     }
 
-    pub fn function_signature_type(&self, index: u32) -> Option<Type> {
-        // info!("function_signature_type: {}", index);
+//     pub fn function_signature_type(&self, index: u32) -> Option<Type> {
+//         // info!("function_signature_type: {}", index);
 
-        let mut i = 0;
+//         let mut i = 0;
 
-        for s in self.iter() {
-            match s.section_type {
-                // SectionType::Type => {
-                //     for t in s.types() {
-                //         info!("{:?}", t);
-                //     }
-                // },
-                SectionType::Import => {
-                    for import in s.imports() {                        
-                        // info!("checking import: {:?} {:?}", import.module.0, import.export.0);
-                        if let ImportDesc::Type(t) = import.desc {
-                            if i == index {
-                                // info!("found type: {}", t);
-                                return self.signature_type(t);
-                            }
-                            i += 1;
-                        }
-                    }
-                },
-                SectionType::Function => {
-                    for function in s.functions() {
-                        // info!("checking function");
-                        if i == index {
-                            // info!("found type: {}", function.signature_type_index);
-                            return self.signature_type(function.signature_type_index)
-                        }
-                        i += 1;
-                    }
-                },
-                _ => {},
-            }
-        }
+//         for s in self.iter() {
+//             match s.section_type {
+//                 // SectionType::Type => {
+//                 //     for t in s.types() {
+//                 //         info!("{:?}", t);
+//                 //     }
+//                 // },
+//                 SectionType::Import => {
+//                     for import in s.imports() {                        
+//                         // info!("checking import: {:?} {:?}", import.module.0, import.export.0);
+//                         if let ImportDesc::Type(t) = import.desc {
+//                             if i == index {
+//                                 // info!("found type: {}", t);
+//                                 return self.signature_type(t);
+//                             }
+//                             i += 1;
+//                         }
+//                     }
+//                 },
+//                 SectionType::Function => {
+//                     for function in s.functions() {
+//                         // info!("checking function");
+//                         if i == index {
+//                             // info!("found type: {}", function.signature_type_index);
+//                             return self.signature_type(function.signature_type_index)
+//                         }
+//                         i += 1;
+//                     }
+//                 },
+//                 _ => {},
+//             }
+//         }
 
 
-        self.function(index).and_then(|f| self.signature_type(f.signature_type_index))
-    }
+//         self.function(index).and_then(|f| self.signature_type(f.signature_type_index))
+//     }
 
-    pub fn with_function_signature_type<T, F: FnOnce(Option<Type>)->T>(&self, index: u32, f: F) -> T {
-        f(self.function_signature_type(index))
-    }
+//     pub fn with_function_signature_type<T, F: FnOnce(Option<Type>)->T>(&self, index: u32, f: F) -> T {
+//         f(self.function_signature_type(index))
+//     }
 
-    pub fn signature_type(&self, index: u32) -> Option<Type> {
-        self.section(SectionType::Type).unwrap().types().nth(index as usize)
-    }
+//     pub fn signature_type(&self, index: u32) -> Option<Type> {
+//         self.section(SectionType::Type).unwrap().types().nth(index as usize)
+//     }
 
-    pub fn function(&self, index: u32) -> Option<Function> {
-        self.section(SectionType::Function).unwrap().functions().nth(index as usize)
-    }
+//     pub fn function(&self, index: u32) -> Option<Function> {
+//         self.section(SectionType::Function).unwrap().functions().nth(index as usize)
+//     }
 
-    pub fn table(&self, index: u32) -> Option<Table> {
-        self.section(SectionType::Table).unwrap().tables().nth(index as usize)
-    }
+//     pub fn table(&self, index: u32) -> Option<Table> {
+//         self.section(SectionType::Table).unwrap().tables().nth(index as usize)
+//     }
 
-    pub fn linear_memory(&self, index: u32) -> Option<Memory> {
-        self.section(SectionType::Table).unwrap().linear_memories().nth(index as usize)
-    }
+//     pub fn linear_memory(&self, index: u32) -> Option<Memory> {
+//         self.section(SectionType::Table).unwrap().linear_memories().nth(index as usize)
+//     }
 
-    pub fn global(&self, index: u32) -> Option<Global> {
-        self.section(SectionType::Global).unwrap().globals().nth(index as usize)
-    }
+//     pub fn global(&self, index: u32) -> Option<Global> {
+//         self.section(SectionType::Global).unwrap().globals().nth(index as usize)
+//     }
 
-    pub fn start(&self) -> Option<Function> {
-        self.section(SectionType::Start).and_then(|s| self.function(Cursor::new(s.buf).read_u32()))
-    }
+//     pub fn start(&self) -> Option<Function> {
+//         self.section(SectionType::Start).and_then(|s| self.function(Cursor::new(s.buf).read_u32()))
+//     }
 
-    pub fn elements(&self, index: u32) -> Option<Element> {
-        self.section(SectionType::Element).unwrap().elements().nth(index as usize)
-    }    
+//     pub fn elements(&self, index: u32) -> Option<Element> {
+//         self.section(SectionType::Element).unwrap().elements().nth(index as usize)
+//     }    
 
-    pub fn body(&self, index: u32) -> Option<Body> {
-        self.section(SectionType::Code).unwrap().bodies().nth(index as usize)
-    }
+//     pub fn body(&self, index: u32) -> Option<Body> {
+//         self.section(SectionType::Code).unwrap().bodies().nth(index as usize)
+//     }
     
-}
+// }
 
-impl<'a> fmt::Debug for Module<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        Ok({
-            writeln!(f, "<Module name={:?} version={}>", self.name(), self.version)?;
-            for s in self.iter() {
-                s.fmt(f)?;
-            }
-            writeln!(f, "</Module>")?;
-        })
-    }
-}
+// impl<'a> fmt::Debug for Module<'a> {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         Ok({
+//             writeln!(f, "<Module name={:?} version={}>", self.name(), self.version)?;
+//             for s in self.iter() {
+//                 s.fmt(f)?;
+//             }
+//             writeln!(f, "</Module>")?;
+//         })
+//     }
+// }
 
 
 pub struct Section<'a> {
@@ -797,168 +798,6 @@ impl<'a> Iterator for DataIter<'a> {
     }
 }
 
-pub trait ModuleRead<'a> {
-    fn read_identifier(&mut self) -> Identifier<'a>;
-    fn read_initializer(&mut self) -> Initializer;
-    fn read_section_type(&mut self) -> SectionType;
-    fn read_type_value(&mut self) -> TypeValue;
-    fn read_type_values(&mut self) -> &'a [u8];
-    fn read_bytes(&mut self) -> &'a [u8];
-    fn read_global_type(&mut self) -> GlobalType;
-    fn read_limits(&mut self) -> Limits;
-    fn read_section(&mut self) -> Section<'a>;
-    fn read_type(&mut self) -> Type<'a>;
-    fn read_function(&mut self) -> Function;
-    fn read_table(&mut self) -> Table;
-    fn read_memory(&mut self) -> Memory;
-    fn read_import_desc(&mut self) -> ImportDesc;
-    fn read_export_desc(&mut self) -> ExportDesc;
-    fn read_data(&mut self) -> Data<'a>;
-    fn read_element(&mut self) -> Element<'a>;
-    fn read_global(&mut self) -> Global;
-    fn read_export(&mut self) -> Export<'a>;
-    fn read_import(&mut self) -> Import<'a>;
-    fn read_body(&mut self) -> Body<'a>;
-}
-
-impl<'a> ModuleRead<'a> for Cursor<'a> {
-    fn read_identifier(&mut self) -> Identifier<'a> {
-        let len = self.read_u32();        
-        Identifier(self.slice(len as usize))
-    }
-
-    fn read_initializer(&mut self) -> Initializer {
-        let opcode = self.read_u8();
-        let immediate = self.read_i32();
-        let end = self.read_u8();
-        Initializer { opcode, immediate, end }
-    }
-
-    fn read_section_type(&mut self) -> SectionType {
-        SectionType::from(self.read_u8())
-    }
-
-    fn read_type_value(&mut self) -> TypeValue {
-        TypeValue::from(self.read_u8())
-    }
-
-    fn read_type_values(&mut self) -> &'a [u8] {
-        let data_len = self.read_u8();
-        self.slice(data_len as usize)
-    }
-
-    fn read_bytes(&mut self) -> &'a [u8] {
-        let data_len = self.read_u32();
-        self.slice(data_len as usize)
-    }
-
-    fn read_global_type(&mut self) -> GlobalType {
-        let type_value = self.read_type_value();
-        let mutability = self.read_u8();
-        GlobalType { type_value, mutability }
-    }
-
-    fn read_limits(&mut self) -> Limits {
-        let flags = self.read_u32();
-        let min = self.read_u32();
-        let max = match flags {
-            0 => None,
-            1 => Some(self.read_u32()),
-            _ => panic!("Unexpected Flags"),
-        };
-        Limits { flags, min, max }
-    }
-
-    fn read_section(&mut self) -> Section<'a> {
-        let section_type = self.read_section_type();
-        let buf = self.read_bytes();
-        Section { section_type, buf }
-    }    
-
-    fn read_type(&mut self) -> Type<'a> {
-        let parameters = self.read_type_values();
-        let returns = self.read_type_values();
-        Type { parameters, returns }
-    }
-
-    fn read_function(&mut self) -> Function {
-        let signature_type_index = self.read_u32();
-        Function { signature_type_index } 
-    }
-
-    fn read_table(&mut self) -> Table {
-        let element_type = self.read_type_value();
-        let limits = self.read_limits();
-        Table { element_type, limits }
-    }
-
-    fn read_memory(&mut self) -> Memory {
-        let limits = self.read_limits();
-        Memory { limits }
-    }
-
-    fn read_import_desc(&mut self) -> ImportDesc {
-        let kind = self.read_u8();
-        match kind {
-            0x00 => ImportDesc::Type(self.read_u32()),
-            0x01 => ImportDesc::Table(self.read_table()),
-            0x02 => ImportDesc::Memory(self.read_memory()),
-            0x03 => ImportDesc::Global(self.read_global_type()),
-            _ => panic!("Invalid import type: {:02x}", kind),
-        }        
-    }
-
-    fn read_export_desc(&mut self) -> ExportDesc {
-        let kind = self.read_u8();
-        let index = self.read_u32();
-
-        match kind {
-            0x00 => ExportDesc::Function(index),
-            0x01 => ExportDesc::Table(index),
-            0x02 => ExportDesc::Memory(index),
-            0x03 => ExportDesc::Global(index),
-            _ => panic!("Invalid export type: {:02x}", kind),
-        }
-    }
-
-    fn read_data(&mut self) -> Data<'a> {
-        let memory_index = self.read_u32();
-        let offset = self.read_initializer();
-        let data = self.read_bytes();
-        Data { memory_index, offset, data }
-    }
-
-    fn read_element(&mut self) -> Element<'a> {
-        let table_index = self.read_u32();
-        let offset = self.read_initializer();
-        let data = self.read_bytes();
-        Element { table_index, offset, data }
-    }
-
-    fn read_global(&mut self) -> Global {
-        let global_type = self.read_global_type();
-        let init = self.read_initializer();
-        Global { global_type, init }
-    }
-
-    fn read_export(&mut self) -> Export<'a> {
-        let identifier = self.read_identifier();
-        let export_desc = self.read_export_desc();
-        Export { identifier, export_desc }
-    }
-
-    fn read_import(&mut self) -> Import<'a> {
-        let module = self.read_identifier();
-        let export = self.read_identifier();
-        let desc = self.read_import_desc();
-        Import { module, export, desc }    
-    }    
-    fn read_body(&mut self) -> Body<'a> {
-        let buf = self.read_bytes();
-        Body { buf }
-    }
-    
-}
 
 pub trait ModuleWrite {
     fn write_section_type(&mut self, st: SectionType) -> Result<(), Error>;
