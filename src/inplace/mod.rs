@@ -39,7 +39,98 @@ impl<'a> Module<'a> {
     pub fn sections(&self) -> SectionIter {
         SectionIter { buf: self.buf.clone() }
     }
-    
+
+    pub fn section(&self, section_type: SectionType) -> Option<Section> {
+        self.sections().find(|s| s.section_type() == section_type)
+    }
+
+    pub fn type_section(&self) -> Option<TypeSection> {
+        if let Some(Section::Type(section)) = self.section(SectionType::Type) {
+            Some(section)
+        } else {
+            None
+        }
+    }
+
+    pub fn import_section(&self) -> Option<ImportSection> {
+        if let Some(Section::Import(section)) = self.section(SectionType::Import) {
+            Some(section)
+        } else {
+            None
+        }
+    }
+
+    pub fn function_section(&self) -> Option<FunctionSection> {
+        if let Some(Section::Function(section)) = self.section(SectionType::Function) {
+            Some(section)
+        } else {
+            None
+        }
+    }
+
+    pub fn table_section(&self) -> Option<TableSection> {
+        if let Some(Section::Table(section)) = self.section(SectionType::Table) {
+            Some(section)
+        } else {
+            None
+        }
+    }
+
+    pub fn memory_section(&self) -> Option<MemorySection> {
+        if let Some(Section::Memory(section)) = self.section(SectionType::Memory) {
+            Some(section)
+        } else {
+            None
+        }
+    }
+
+    pub fn global_section(&self) -> Option<GlobalSection> {
+        if let Some(Section::Global(section)) = self.section(SectionType::Global) {
+            Some(section)
+        } else {
+            None
+        }
+    }    
+
+    pub fn export_section(&self) -> Option<ExportSection> {
+        if let Some(Section::Export(section)) = self.section(SectionType::Export) {
+            Some(section)
+        } else {
+            None
+        }
+    }    
+
+    pub fn start_section(&self) -> Option<StartSection> {
+        if let Some(Section::Start(section)) = self.section(SectionType::Start) {
+            Some(section)
+        } else {
+            None
+        }
+    }    
+
+    pub fn element_section(&self) -> Option<ElementSection> {
+        if let Some(Section::Element(section)) = self.section(SectionType::Element) {
+            Some(section)
+        } else {
+            None
+        }
+    }    
+                
+    pub fn code_section(&self) -> Option<CodeSection> {
+        if let Some(Section::Code(section)) = self.section(SectionType::Code) {
+            Some(section)
+        } else {
+            None
+        }
+    }
+
+    pub fn data_section(&self) -> Option<DataSection> {
+        if let Some(Section::Data(section)) = self.section(SectionType::Data) {
+            Some(section)
+        } else {
+            None
+        }
+    }    
 }
 
 pub struct SectionIter<'a> {
@@ -106,6 +197,10 @@ pub enum Section<'a> {
 }
 
 impl<'a> Section<'a> {
+    pub fn section_type(&self) -> SectionType {
+        self.header().section_type
+    }
+
     pub fn header(&self) -> &SectionHeader {
         match self {
             &Section::Custom(ref s) => &s.section_header,
