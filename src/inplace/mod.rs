@@ -398,6 +398,7 @@ impl<'a> Iterator for CodeIter<'a> {
 }
 
 pub struct Body<'a> {
+    pub range: Range<u32>,
     pub locals: Cursor<'a>,
     pub expr: Cursor<'a>,
 }
@@ -833,7 +834,9 @@ impl<'a> ModuleRead<'a> for Cursor<'a> {
         let locals_len = self.pos() - pos;
         let expr = self.split((size as usize) - locals_len);
 
-        Body { locals, expr }
+        let range = pos as u32 .. pos as u32 + size;
+
+        Body { range, locals, expr }
     }    
 
     fn read_local(&mut self) -> Local {

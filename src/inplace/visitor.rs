@@ -146,29 +146,28 @@ pub fn visit<D: Delegate>(m: &Module, d: &mut D) -> Result<(), Error> {
                 Section::Code(ref code_section) => {
                     let c = h.count();
                     d.dispatch(Event::CodeStart { c })?;
-                    for code in code_section.iter() {
+                    for (n, code) in code_section.iter().enumerate() {
+                        let n = n as u32;
+                        let offset = code.range.start;
+                        let size = code.range.end - code.range.start;
+                        let locals = code.locals().count() as u32;
+                        d.dispatch(Event::Body { n, offset, size, locals })?;
                         for (i, local) in code.locals().enumerate() {
                             let i = i as u32;
                             let n = local.n;
                             let t = local.t;
                             d.dispatch(Event::Local { i, n, t })?;
                         }
-                        // for i in 0..locals {
-                        //     let n = self.read_count()?;
-                        //     let t = self.read_type()?;
-                        //     d.dispatch(Event::Local { i, n, t })?;
-                        // }
                         d.dispatch(Event::InstructionsStart)?;                
                         for expr in code.iter() {
                             let Instr { range, opcode: _, imm } = expr;
                             let op = Opcode::try_from(expr.opcode)?;
                             let data = &[];
                             let offset = range.start;
-                            let i = Instruction { offset, data, op: &op, imm };
-
-                            d.dispatch(Event::Instruction(i))?;
+                            d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }))?;
                         }
-                        d.dispatch(Event::InstructionsEnd)?;                        
+                        d.dispatch(Event::InstructionsEnd)?;
+                        d.dispatch(Event::BodyEnd)?;
                     }
                     // for (n, body) in code.iter().enumerate() {                        
                     //     let offset = body.pos()
