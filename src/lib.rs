@@ -41,7 +41,6 @@ pub use module::*;
 pub use delegate::*;
 pub use dumper::*;
 
-use core::fmt;
 use core::str;
 
 pub const MAGIC_COOKIE: u32 = 0x6d736100;
@@ -52,97 +51,12 @@ pub type WasmResult<T> = Result<T, Error>;
 
 
 
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Value(i32);
-
-impl From<i32> for Value {
-    fn from(other: i32) -> Value {
-        Value(other)
-    }
-}
-
-impl From<u32> for Value {
-    fn from(other: u32) -> Value {
-        Value(other as i32)
-    }
-}
-
-impl From<Value> for i32 {
-    fn from(other: Value) -> i32 {
-        other.0
-    }
-}
-
-impl From<Value> for u32 {
-    fn from(other: Value) -> u32 {
-        other.0 as u32
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ExternalKind {
     Function = 0x00,
     Table = 0x01,
     Memory = 0x02,
     Global = 0x03,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum TypeValue {
-    Any = 0x00,
-    I32 = 0x7f,
-    I64 = 0x7e,
-    F32 = 0x7d,
-    F64 = 0x7c,
-    AnyFunc = 0x70,
-    Func = 0x60,
-    Void = 0x40,
-}
-
-impl Default for TypeValue {
-    fn default() -> Self {
-        TypeValue::Any
-    }
-}
-
-impl From<u8> for TypeValue {
-    fn from(other: u8) -> Self {
-        match other {
-            0x00 => TypeValue::Any,
-            0x7f => TypeValue::I32,
-            0x7e  => TypeValue::I64,
-            0x7d => TypeValue::F32,
-            0x7c => TypeValue::F64,
-            0x70 => TypeValue::AnyFunc,
-            0x60 => TypeValue::Func,
-            0x40 => TypeValue::Void,
-            _ => panic!("Unrecognized TypeValue: 0x{:02x}", other)
-        }
-    }
-}
-
-impl From<TypeValue> for i8 {
-    fn from(other: TypeValue) -> Self {
-        other as i8
-    }
-}
-
-impl fmt::Display for TypeValue {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use TypeValue::*;
-        write!(f, "{}", match *self {
-            Any => "any",
-            I32 => "i32",
-            I64 => "i64",
-            F32 => "f32",
-            F64 => "f64",
-            AnyFunc => "anyfunc",
-            Func => "func",
-            Void => "void",
-        })
-    }
 }
 
 
