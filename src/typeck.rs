@@ -539,7 +539,9 @@ impl<'m> TypeChecker<'m> {
         info!("check_opcode1({:?})", op.text);
         Ok({
             self.pop_and_check_one_type(op.t1)?;
-            self.push_type(op.tr)?;
+            if op.tr != VOID {
+                self.push_type(op.tr)?;
+            }
         })
     }
 
@@ -547,7 +549,9 @@ impl<'m> TypeChecker<'m> {
         info!("check_opcode2({:?})", op.text);
         Ok({
             self.pop_and_check_two_types(op.t1, op.t2)?;
-            self.push_type(op.tr)?;            
+            if op.tr != VOID {
+                self.push_type(op.tr)?;            
+            }
         })
     }
 
