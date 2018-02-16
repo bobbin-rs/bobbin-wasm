@@ -366,19 +366,6 @@ impl<'a> fmt::Debug for Element<'a> {
     }
 }
 
-pub struct Body<'a> {
-    pub buf: &'a [u8],
-}
-
-impl<'a> fmt::Debug for Body<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        Ok({
-            let indent = "    ";
-            writeln!(f, "{}<Body size={}>", indent, self.buf.len())?;
-            writeln!(f, "{}</Body>", indent)?;
-        })
-    }
-}
 
 pub struct Data<'a> {
     pub memory_index: u32,

@@ -1,7 +1,7 @@
 use error::Error;
 use types::*;
 use opcode::*;
-use inplace;
+use module::*;
 
 use typeck::{TypeChecker, LabelType};
 use cursor::Cursor;
@@ -111,8 +111,8 @@ impl Context {
     }
 }
 
-impl<'t> From<inplace::Signature<'t>> for Context {
-    fn from(other: inplace::Signature<'t>) -> Self {
+impl<'t> From<Signature<'t>> for Context {
+    fn from(other: Signature<'t>) -> Self {
         info!("{}", other);
         let mut c = Context::default();
         for p in other.parameters() {
@@ -445,7 +445,7 @@ impl<'m> Compiler<'m> {
 }
 
 impl<'m> Compiler<'m> {
-    pub fn compile(&mut self, m: &inplace::Module) -> Result<CompiledCode<'m>, Error> {
+    pub fn compile(&mut self, m: &Module) -> Result<CompiledCode<'m>, Error> {
         if let Some(import_section) = m.import_section() {
             for import in import_section.iter() {
                 info!("{:?}", import);
@@ -518,7 +518,7 @@ impl<'m> Compiler<'m> {
         Ok(CompiledCode { buf: self.w.split_mut() })
     }
 
-    pub fn compile_body(&mut self, m: &inplace::Module, body: &inplace::Body) -> Result<(), Error> {
+    pub fn compile_body(&mut self, m: &Module, body: &Body) -> Result<(), Error> {
         // self.body_fixup = self.w.write_code_start()?;
 
         self.type_checker.begin_function(self.context.return_type)?;
@@ -564,7 +564,7 @@ impl<'m> Compiler<'m> {
         Ok(())
     }
 
-    fn compile_instruction(&mut self, m: &inplace::Module, body: &inplace::Body, i: inplace::Instr) -> Result<(), Error> {
+    fn compile_instruction(&mut self, m: &Module, body: &Body, i: Instr) -> Result<(), Error> {
         use opcode::Immediate::*;
         use core::convert::TryFrom;
 

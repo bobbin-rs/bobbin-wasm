@@ -4,7 +4,7 @@ use Delegate;
 use event::*;
 use opcode::*;
 use types::*;
-use inplace::{Module, Section, Instr};
+use module::{Module, Section, Instr};
 
 use core::convert::TryFrom;
 

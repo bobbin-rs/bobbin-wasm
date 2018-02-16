@@ -1,7 +1,7 @@
 use error::Error;
 
 use types::*;
-use inplace::*;
+use module::*;
 use compiler::CompiledCode;
 use core::cell::Cell;
 use memory_inst::MemoryInst;

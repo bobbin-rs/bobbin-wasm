@@ -6,8 +6,6 @@
 extern crate byteorder;
 #[macro_use] extern crate log;
 
-pub mod inplace;
-
 pub mod error;
 pub mod opcode;
 pub mod types;

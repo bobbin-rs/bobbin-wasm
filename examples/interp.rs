@@ -16,7 +16,7 @@ use clap::{App, Arg, ArgMatches};
 use wasm::{TypeValue, ExportDesc};
 use wasm::interp;
 use wasm::memory_inst::MemoryInst;
-use wasm::inplace::{self, Module};
+use wasm::module::Module;
 
 
 #[derive(Debug)]
