@@ -160,9 +160,10 @@ pub fn visit<D: Delegate>(m: &Module, d: &mut D) -> Result<(), Error> {
                         // }
                         d.dispatch(Event::InstructionsStart)?;                
                         for expr in code.iter() {
-                            let Instr { offset, end: _, opcode: _, imm } = expr;
+                            let Instr { range, opcode: _, imm } = expr;
                             let op = Opcode::try_from(expr.opcode)?;
                             let data = &[];
+                            let offset = range.start;
                             let i = Instruction { offset, data, op: &op, imm };
 
                             d.dispatch(Event::Instruction(i))?;

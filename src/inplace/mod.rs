@@ -2,6 +2,7 @@ use SectionType;
 use cursor::Cursor;
 use opcode::*;
 
+use core::ops::Range;
 use core::fmt;
 use core::convert::TryFrom;
 
@@ -534,6 +535,7 @@ impl<'a> InstrIter<'a> {
             },                
         };
         let end = self.buf.pos() as u32;
+        let range = offset..end;
         // let data = self.buf.slice(offset as usize..end);            
 
         // if op.code == END && end == body_end {
@@ -543,13 +545,12 @@ impl<'a> InstrIter<'a> {
         //     self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }));
         // }
 
-        Instr { offset, end, opcode: op.code, imm }
+        Instr { range, opcode: op.code, imm }
     }
 }
 
 pub struct Instr { 
-    pub offset: u32, 
-    pub end: u32,
+    pub range: Range<u32>,
     pub opcode: u8,
     pub imm: Immediate 
 }
@@ -564,7 +565,7 @@ pub struct Instr {
 impl<'a> fmt::Debug for Instr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let op = Opcode::try_from(self.opcode).unwrap();
-        write!(f, "{:08x}: {:?} {:?}", self.offset, op.text, self.imm)
+        write!(f, "{:08x}: {:?} {:?}", self.range.start, op.text, self.imm)
     }
 }
 
