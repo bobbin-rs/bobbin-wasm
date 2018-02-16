@@ -1,5 +1,6 @@
-use {Error, Value};
-// use types::Initializer;
+use error::Error;
+
+use types::*;
 use super::*;
 use compiler::CompiledCode;
 use core::cell::Cell;

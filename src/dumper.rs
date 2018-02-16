@@ -1,7 +1,7 @@
 use {SectionType, Delegate, DelegateResult, Event};
 use opcode::*;
 use opcode;
-use module::*;
+use types::*;
 
 use core::str;
 use core::fmt::Write;

@@ -402,7 +402,7 @@ pub struct ImportIter<'a> {
 }
 
 impl<'a> Iterator for ImportIter<'a> {
-    type Item = ::module::Import<'a>;
+    type Item = Import<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
@@ -418,7 +418,7 @@ pub struct FunctionIter<'a> {
 }
 
 impl<'a> Iterator for FunctionIter<'a> {
-    type Item = ::module::Function;
+    type Item = Function;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
@@ -434,7 +434,7 @@ pub struct TableIter<'a> {
 }
 
 impl<'a> Iterator for TableIter<'a> {
-    type Item = ::module::Table;
+    type Item = Table;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
@@ -451,7 +451,7 @@ pub struct MemoryIter<'a> {
 }
 
 impl<'a> Iterator for MemoryIter<'a> {
-    type Item = ::module::Memory;
+    type Item = Memory;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
@@ -468,7 +468,7 @@ pub struct GlobalIter<'a> {
 }
 
 impl<'a> Iterator for GlobalIter<'a> {
-    type Item = ::module::Global;
+    type Item = Global;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
@@ -485,7 +485,7 @@ pub struct ExportIter<'a> {
 }
 
 impl<'a> Iterator for ExportIter<'a> {
-    type Item = ::module::Export<'a>;
+    type Item = Export<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
@@ -502,7 +502,7 @@ pub struct ElementIter<'a> {
 }
 
 impl<'a> Iterator for ElementIter<'a> {
-    type Item = ::module::Element<'a>;
+    type Item = Element<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
@@ -601,7 +601,7 @@ pub struct DataIter<'a> {
 }
 
 impl<'a> Iterator for DataIter<'a> {
-    type Item = ::module::Data<'a>;
+    type Item = Data<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
@@ -681,7 +681,7 @@ pub trait ModuleRead<'a> {
     fn read_global_type(&mut self) -> GlobalType;
     fn read_limits(&mut self) -> Limits;
     fn read_section_header(&mut self) -> SectionHeader<'a>;
-    fn read_type(&mut self) -> Type<'a>;
+    // fn read_type(&mut self) -> Type<'a>;
     fn read_function(&mut self) -> Function;
     fn read_table(&mut self) -> Table;
     fn read_memory(&mut self) -> Memory;
@@ -705,7 +705,7 @@ pub trait ModuleRead<'a> {
 
 use {TypeValue};
 use types::*;
-use module::{GlobalType, Type, Function, Table, Memory, ImportDesc, ExportDesc, Data, Element, Global, Export, Import};
+// use module::{GlobalType, Type, Function, Table, Memory, ImportDesc, ExportDesc, Data, Element, Global, Export, Import};
 
 impl<'a> ModuleRead<'a> for Cursor<'a> {
     fn read_identifier(&mut self) -> Identifier<'a> {
@@ -775,12 +775,12 @@ impl<'a> ModuleRead<'a> for Cursor<'a> {
         SectionHeader { section_type, buf }        
     }
 
-    fn read_type(&mut self) -> Type<'a> {
-        let _form = self.read_var_i7();
-        let parameters = self.read_type_values();
-        let returns = self.read_type_values();
-        Type { parameters, returns }
-    }
+    // fn read_type(&mut self) -> Type<'a> {
+    //     let _form = self.read_var_i7();
+    //     let parameters = self.read_type_values();
+    //     let returns = self.read_type_values();
+    //     Type { parameters, returns }
+    // }
 
     fn read_function(&mut self) -> Function {
         let signature_type_index = self.read_var_u32();

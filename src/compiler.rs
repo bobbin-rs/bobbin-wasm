@@ -1,8 +1,8 @@
-use {Error, Value, SectionType, TypeValue};
-
+use error::Error;
+use types::*;
 use opcode::*;
 use inplace;
-use module::*;
+
 use module::ModuleWrite;
 use typeck::{TypeChecker, LabelType};
 use cursor::Cursor;

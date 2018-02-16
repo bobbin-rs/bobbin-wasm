@@ -1,6 +1,7 @@
 use Error;
 use opcode::*;
 use core::fmt;
+use core::str;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -155,6 +156,255 @@ impl From<Value> for u32 {
         other.0 as u32
     }
 }
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GlobalType {
+    pub type_value: TypeValue,
+    pub mutability: u8,
+}
+
+#[derive(Debug)]
+pub enum ExportDesc {
+    Function(u32),
+    Table(u32),
+    Memory(u32),
+    Global(u32),
+}
+
+pub enum ImportDesc {
+    Type(u32),
+    Table(Table),
+    Memory(Memory),
+    Global(GlobalType),
+}
+
+impl fmt::Debug for ImportDesc {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ImportDesc::Type(n) => n.fmt(f),
+            ImportDesc::Table(ref t) => t.fmt(f),
+            ImportDesc::Memory(ref m) => m.fmt(f),
+            ImportDesc::Global(ref g) => g.fmt(f),
+        }
+    }
+}
+
+
+pub struct Type<'a> {
+    pub parameters: &'a [u8],
+    pub returns: &'a [u8],
+}
+
+
+impl<'a> fmt::Debug for Type<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Ok({
+            write!(f, "Type {{ {:?} -> {:?} }}", self.parameters, self.returns)?;
+            // let indent = "    ";
+            // writeln!(f, "{}<Type>", indent)?;
+            // for p in self.parameters {
+            //     let indent = "      ";
+            //     writeln!(f, "{}<parameter>{:?}</parameter>", indent, TypeValue::from(*p as i8))?;
+            // }
+            // for r in self.returns {
+            //     let indent = "      ";
+            //     writeln!(f, "{}<return>{:?}</return>", indent, TypeValue::from(*r as i8))?;
+            // }
+            // writeln!(f, "{}</Type>", indent)?;
+        })
+    }
+}
+
+impl<'a> Type<'a> {
+    pub fn new(parameters: &'a [u8], returns: &'a [u8]) -> Self {
+        Type { parameters, returns }
+    }
+    
+    // pub fn parameters(&self) -> TypeValuesIter<'a> {
+    //     TypeValuesIter { index: 0, buf: self.parameters }
+    // }
+
+    // pub fn returns(&self) -> TypeValuesIter<'a> {
+    //     TypeValuesIter { index: 0, buf: self.returns }
+    // }
+
+    // pub fn return_type(&self) -> Option<TypeValue> {
+    //     self.returns.first().map(|t| TypeValue::from(*t))
+    // }
+}
+
+
+pub struct Import<'a> {
+    pub module: Identifier<'a>,
+    pub export: Identifier<'a>,
+    pub desc: ImportDesc,    
+}
+
+impl<'a> fmt::Debug for Import<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Ok({
+            let indent = "    ";
+            writeln!(f, "{}<Import module={:?} export={:?}>", indent, 
+                str::from_utf8(self.module.0).unwrap(),
+                str::from_utf8(self.export.0).unwrap(),
+            )?;
+            write!(f, "  {:?}", self.desc)?;
+            writeln!(f, "{}</Import>", indent)?;
+        })
+    }
+}
+
+pub struct Function {
+    pub signature_type_index: u32,
+}
+
+impl fmt::Debug for Function {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Ok({
+            let indent = "    ";
+            writeln!(f, "{}<Function signature_type={}>", indent, self.signature_type_index)?;
+        })
+    }
+}
+
+pub struct Table {
+    pub element_type: TypeValue,
+    pub limits: Limits,
+}
+
+impl fmt::Debug for Table {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Ok({
+            let indent = "    ";
+            writeln!(f, "{}<Table type={:?} min={} max={:?}>", indent,
+                self.element_type, self.limits.min, self.limits.max
+            )?;
+        })
+    }
+}
+
+pub struct Memory {
+    pub limits: Limits,
+}
+
+impl fmt::Debug for Memory {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Ok({
+            let indent = "    ";
+            writeln!(f, "{}<Memory min={} max={:?}>", indent, 
+                self.limits.min, self.limits.max)?;
+        })
+    }
+}
+
+pub struct Global {
+    pub global_type: GlobalType,
+    pub init: Initializer,
+}
+
+impl fmt::Debug for Global {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Ok({
+            let indent = "    ";
+            writeln!(f, "{}<Global type={:?} opcode=0x{:02x} immediate=0x{:08x}>", 
+                indent, self.global_type, self.init.opcode, self.init.immediate)?;
+        })
+    }
+}
+
+pub struct Export<'a> {
+    pub identifier: Identifier<'a>,
+    pub export_desc: ExportDesc,
+}
+
+impl<'a> fmt::Debug for Export<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Ok({
+            let indent = "    ";
+            writeln!(f, "{}<Export id={:?} desc: {:?}>", indent, 
+                str::from_utf8(self.identifier.0).unwrap(),
+                self.export_desc,
+            )?;
+        })
+    }
+}
+
+pub struct Start {
+    pub function_index: u32,
+}
+
+impl fmt::Debug for Start {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Ok({
+            let indent = "    ";
+            writeln!(f, "{}<Start index={:?}>", indent, self.function_index)?;
+        })
+    }
+}
+
+pub struct Element<'a> {
+    pub table_index: u32,
+    pub offset: Initializer,
+    pub data: &'a [u8],
+}
+
+impl<'a> fmt::Debug for Element<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Ok({
+            let indent = "    ";
+            writeln!(f, "{}<Element index={} opcode={:02x} immediate={:02x}>", indent,
+                self.table_index, self.offset.opcode, self.offset.immediate,
+            )?;
+            write!(f, "{}  ", indent)?;
+            for d in self.data {
+                write!(f,"{:02x} ", *d)?;
+            }
+            writeln!(f, "")?;
+            writeln!(f, "{}</Element>", indent)?;
+        })
+    }
+}
+
+pub struct Body<'a> {
+    pub buf: &'a [u8],
+}
+
+impl<'a> fmt::Debug for Body<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Ok({
+            let indent = "    ";
+            writeln!(f, "{}<Body size={}>", indent, self.buf.len())?;
+            writeln!(f, "{}</Body>", indent)?;
+        })
+    }
+}
+
+pub struct Data<'a> {
+    pub memory_index: u32,
+    pub offset: Initializer,
+    pub data: &'a [u8],
+}
+
+
+impl<'a> fmt::Debug for Data<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Ok({
+            let indent = "    ";
+            writeln!(f, "{}<Data index={} opcode={:02x} immediate={:02x}>", indent,
+                self.memory_index, self.offset.opcode, self.offset.immediate,
+            )?;
+            write!(f, "{}  ", indent)?;
+            for d in self.data {
+                write!(f,"{:02x} ", *d)?;
+            }
+            writeln!(f, "")?;
+            writeln!(f, "{}</Data>", indent)?;
+        })
+    }
+}
+
+
 
 #[derive(Debug)]
 pub struct Identifier<'a>(pub &'a [u8]);
