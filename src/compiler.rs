@@ -468,9 +468,9 @@ impl<'m> Compiler<'m> {
 
         for i in body.iter() {
             // Instruction
-            if !(i.range.end == body.range.end && i.opcode == END) {
-                self.dispatch_instruction(i)?;
-            }
+            // if !(i.range.end == body.range.end && i.opcode == END) {
+                self.compile_instruction(body, i)?;
+            // }
         }
         // InstructionsEnd
         info!("{:08x}: L: {} V:{} | {} ", self.w.pos(), self.label_stack.len(), self.type_checker.type_stack_size(), "EXIT");
@@ -501,94 +501,12 @@ impl<'m> Compiler<'m> {
         Ok(())
     }
 
-}
-
-impl<'m> Delegate for Compiler<'m> {
-    fn dispatch(&mut self, evt: Event) -> DelegateResult {
-        use Event::*;
-        // info!("{:08x}: {:?}", self.w.pos(), evt);
-        match evt {
-
-            // CodeStart { c } => {
-            //     info!("{:08x}: Code Start", self.w.pos());
-            //     self.w.write_u32(c)?;
-            // },
-            // Body { n, offset: _, size: _, locals: _ } => {
-            //     self.context = Context::from(self.module.function_signature_type(n).unwrap());
-            //     self.body_fixup = self.w.write_code_start()?;
-            //     // self.w.write_u8(locals as u8)?;
-            //     info!("{:08x}: V:{} | func[{}] {:?}", self.w.pos(), self.type_checker.type_stack_size(), n, self.context);
-
-            //     self.type_checker.begin_function(self.context.return_type)?;
-            //     self.push_label(FIXUP_OFFSET)?;
-            // },
-            // Local { i: _, n, t } => {
-            //     if !self.cfg.compile { return Ok(()) }
-
-            //     info!("add_local: {} {}", n, t); 
-            //     self.context.add_local(n, t);
-                
-
-            //     // self.w.write_u8(n as u8)?;
-            //     // self.w.write_i8(t as i8)?;
-            // },
-            // InstructionsStart => {
-            //     if !self.cfg.compile { return Ok(()) }
-
-            //     self.w.write_alloca(self.context.locals_count as u32)?;                
-
-            // },
-            // Instruction(i) => {
-            //     if !self.cfg.compile { return Ok(()) }
-            //     // assert_eq!(self.depth, self.type_stack.len());
-            //     self.dispatch_instruction(i)?;
-            //     // assert_eq!(self.depth, self.type_stack.len());
-            // },
-            InstructionsEnd => {
-                if !self.cfg.compile { return Ok(()) }
-                info!("{:08x}: L: {} V:{} | {} ", self.w.pos(), self.label_stack.len(), self.type_checker.type_stack_size(), "EXIT");
-
-                //   CHECK_RESULT(GetReturnDropKeepCount(&drop_count, &keep_count));
-                //   CHECK_RESULT(typechecker_.EndFunction());
-                //   CHECK_RESULT(EmitDropKeep(drop_count, keep_count));
-                //   CHECK_RESULT(EmitOpcode(Opcode::Return));
-                //   PopLabel();
-
-                self.fixup()?;
-                let (drop, keep) = self.get_return_drop_keep_count()?;
-                self.type_checker.end_function()?;
-                self.w.write_drop_keep(drop, keep)?;                                    
-                self.w.write_opcode(RETURN)?;
-                self.pop_label()?;
-        
-                for entry in self.fixups.iter() {
-                    if let &Some(entry) = entry {   
-                        panic!("Orphan Fixup: {:?}", entry);
-                    }
-                }
-            },
-            BodyEnd => {
-                self.w.write_code_end(self.body_fixup)?;
-                info!("code end: {:08x}", self.w.pos());
-            },
-            // DataSegmentsStart { c } => {
-            //     self.w.write_u32(c)?;
-            // }
-            // DataSegment { n: _, index, offset, data } => {
-            //     self.w.write_u32(index.0)?;
-            //     self.w.write_initializer(offset)?;
-            //     self.w.write_bytes(data)?;
-            // },            
-            _ => {},    
-        }
-        Ok(())
-    }
-}
-
-impl<'m> Compiler<'m> {
-    fn dispatch_instruction(&mut self, i: inplace::Instr) -> DelegateResult {
+    fn compile_instruction(&mut self, body: &inplace::Body, i: inplace::Instr) -> DelegateResult {
         use opcode::Immediate::*;
         use core::convert::TryFrom;
+
+
+
 
         let op = Opcode::try_from(i.opcode).unwrap();
         {
@@ -610,8 +528,11 @@ impl<'m> Compiler<'m> {
                     self.type_checker.on_drop()?;
                     self.w.write_opcode(opc)?;
                 },                
-                END => {
+                END => if i.range.end == body.range.end && i.opcode == END {
+                    info!("Skipping implicit END");
+                } else {
                     info!("END");
+
                     let ty_label = self.type_checker.get_label(0)?;
                     let label_type = ty_label.label_type;
                     self.type_checker.on_end()?;
