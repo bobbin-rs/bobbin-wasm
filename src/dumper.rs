@@ -1,4 +1,5 @@
-use {SectionType, Delegate, DelegateResult, Event};
+use event::*;
+use visitor::*;
 use opcode::*;
 use opcode;
 use types::*;
@@ -9,8 +10,8 @@ use core::fmt::Write;
 
 pub struct HeaderDumper<W: Write> { pub w: W }
 
-impl<W: Write> Delegate for HeaderDumper<W> {
-    fn dispatch(&mut self, evt: Event) -> DelegateResult {
+impl<W: Write> Visitor for HeaderDumper<W> {
+    fn event(&mut self, evt: Event) -> VisitorResult {
         use ::event::Event::*;
         match evt {
             Start { name, version } => {
@@ -30,8 +31,8 @@ impl<W: Write> Delegate for HeaderDumper<W> {
 
 pub struct DetailsDumper<W: Write> { pub w: W }
 
-impl<W: Write> Delegate for DetailsDumper<W> {
-    fn dispatch(&mut self, evt: Event) -> DelegateResult {
+impl<W: Write> Visitor for DetailsDumper<W> {
+    fn event(&mut self, evt: Event) -> VisitorResult {
         use ::event::Event::*;
         match evt {
             Start { name, version } => {
@@ -138,8 +139,8 @@ impl<W: Write> Disassembler<W> {
     }
 }
 
-impl<W: Write> Delegate for Disassembler<W> {
-    fn dispatch(&mut self, evt: Event) -> DelegateResult {
+impl<W: Write> Visitor for Disassembler<W> {
+    fn event(&mut self, evt: Event) -> VisitorResult {
         use ::event::Event::*;
         match evt {
             Start { name, version } => {
