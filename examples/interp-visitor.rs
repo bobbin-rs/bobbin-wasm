@@ -79,8 +79,7 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     let mut compiler = wasm::compiler::Compiler::new_with_config(cfg, &mut code_buf[..]);
     let code = compiler.compile(&m)?;
     println!("CODE");
-    for i in 0..code.len() {
-        let b = code.body_range(i);
+    for (i, b) in code.iter().enumerate() {
         println!("  {}: {:08x} to {:08x}", i, b.start, b.end);
     }
 

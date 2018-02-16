@@ -200,6 +200,31 @@ impl<'a> CompiledCode<'a> {
         let body_end = cur.read_u32() as usize;
         body_beg .. body_end
     }
+
+    pub fn iter(&self) -> RangeIter {
+        RangeIter { code: self, count: self.body_count(), index: 0 }
+    }
+}
+
+pub struct RangeIter<'a> {
+    code: &'a CompiledCode<'a>,
+    count: usize,
+    index: usize,
+}
+
+impl<'a> Iterator for RangeIter<'a> {
+    type Item = Range<usize>;
+
+    fn next(&mut self) -> Option<Self::Item> { 
+        if self.index < self.count {
+            let index = self.index;
+            self.index += 1;
+
+            Some(self.code.body_range(index))
+        } else {
+            None
+        }
+    }
 }
 
 impl<'a> AsRef<[u8]> for CompiledCode<'a> {
