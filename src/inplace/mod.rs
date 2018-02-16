@@ -1,6 +1,6 @@
 
-pub mod module_inst;
-pub mod interp;
+// pub mod module_inst;
+// pub mod interp;
 
 use {Error, SectionType};
 use cursor::Cursor;
@@ -11,7 +11,7 @@ use core::fmt;
 use core::convert::TryFrom;
 
 use compiler::CompiledCode;
-use self::module_inst::ModuleInst;
+use module_inst::ModuleInst;
 use memory_inst::MemoryInst;
 
 
@@ -615,9 +615,9 @@ impl<'a> Iterator for DataIter<'a> {
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub struct Signature<'a> {
-    form: TypeValue,
-    parameters: &'a [u8],
-    returns: &'a [u8],
+    pub form: TypeValue,
+    pub parameters: &'a [u8],
+    pub returns: &'a [u8],
 }
 
 impl<'a> Signature<'a> {

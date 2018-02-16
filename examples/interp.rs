@@ -14,6 +14,7 @@ use std::path::Path;
 use clap::{App, Arg, ArgMatches};
 
 use wasm::{TypeValue, ExportDesc};
+use wasm::interp;
 use wasm::memory_inst::MemoryInst;
 use wasm::inplace::{self, Module};
 
@@ -92,7 +93,7 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     let mut buf = [0u8; 1024];
 
-    let mut interp = inplace::interp::Interp::new(&mut buf);
+    let mut interp = interp::Interp::new(&mut buf);
 
     if let Some(export_section) = m.export_section() {
         for e in export_section.iter() {

@@ -19,7 +19,7 @@ pub mod small_vec;
 pub mod compiler;
 // pub mod loader;
 pub mod typeck;
-// pub mod interp;
+pub mod interp;
 pub mod memory_inst;
 pub mod module;
 pub mod module_inst;
