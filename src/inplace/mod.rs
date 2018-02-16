@@ -140,6 +140,20 @@ impl<'a> Module<'a> {
         }
     }    
 
+    pub fn global(&self, index: usize) -> Option<Global> {
+        if let Some(global_section) = self.global_section() {
+            return global_section.iter().nth(index)
+        }
+        None
+    }
+    
+    pub fn signature_type(&self, index: usize) -> Option<Signature> {
+        if let Some(type_section) = self.type_section() {
+            return type_section.iter().nth(index)
+        }
+        None
+    }
+
     pub fn function_signature_type(&self, index: usize) -> Option<Signature> {
         if let Some(function_section) = self.function_section() {
             if let Some(function) = function_section.iter().nth(index) {

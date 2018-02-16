@@ -250,7 +250,6 @@ impl Default for Config {
 pub struct Compiler<'m> {
     cfg: Config,
     w: Writer<'m>,
-    module: Module<'m>,
     label_stack: Stack<'m, Label>,
     type_checker: TypeChecker<'m>,
     functions: SmallVec<'m, u32>,
@@ -268,7 +267,6 @@ impl<'m> Compiler<'m> {
     }
     pub fn new_with_config(cfg: Config, code_buf: &'m mut [u8]) -> Self {
         let mut w = Writer::new(code_buf);
-        let module = module::Module::new();
 
         // These should be not be allocated from module storage
         let label_stack = w.alloc_stack(16);        
@@ -287,7 +285,6 @@ impl<'m> Compiler<'m> {
         Compiler { 
             cfg,
             w, 
-            module, 
             label_stack,
             type_checker,
             functions,
@@ -298,10 +295,6 @@ impl<'m> Compiler<'m> {
             body_fixup,
             context,
         }
-    }
-
-    pub fn module(self) -> (Module<'m>, &'m mut[u8]) {
-        (self.module, self.w.into_slice())
     }
 
     fn push_label(&mut self, offset: u32) -> Result<(), Error> {
@@ -528,7 +521,7 @@ impl<'m> Compiler<'m> {
         Ok(CompiledCode { buf: self.w.split_mut() })
     }
 
-    pub fn compile_body(&mut self, _m: &inplace::Module, body: &inplace::Body) -> Result<(), Error> {
+    pub fn compile_body(&mut self, m: &inplace::Module, body: &inplace::Body) -> Result<(), Error> {
         // self.body_fixup = self.w.write_code_start()?;
 
         self.type_checker.begin_function(self.context.return_type)?;
@@ -542,7 +535,7 @@ impl<'m> Compiler<'m> {
         for i in body.iter() {
             // Instruction
             // if !(i.range.end == body.range.end && i.opcode == END) {
-                self.compile_instruction(body, i)?;
+                self.compile_instruction(m, body, i)?;
             // }
         }
         // InstructionsEnd
@@ -574,7 +567,7 @@ impl<'m> Compiler<'m> {
         Ok(())
     }
 
-    fn compile_instruction(&mut self, body: &inplace::Body, i: inplace::Instr) -> Result<(), Error> {
+    fn compile_instruction(&mut self, m: &inplace::Module, body: &inplace::Body, i: inplace::Instr) -> Result<(), Error> {
         use opcode::Immediate::*;
         use core::convert::TryFrom;
 
@@ -864,7 +857,7 @@ impl<'m> Compiler<'m> {
                 match opc {                    
                     GET_GLOBAL => {
 
-                        if let Some(global) = self.module.global(index.0) {
+                        if let Some(global) = m.global(index.0 as usize) {
                             let global_type = global.global_type;
                             self.type_checker.on_get_global(global_type.type_value)?;
                             self.w.write_opcode(GET_GLOBAL)?    ;
@@ -890,7 +883,7 @@ impl<'m> Compiler<'m> {
                         //   CHECK_RESULT(typechecker_.OnSetGlobal(global->typed_value.type));
                         //   CHECK_RESULT(EmitOpcode(Opcode::SetGlobal));
                         //   CHECK_RESULT(EmitI32(TranslateGlobalIndexToEnv(global_index)));                        
-                        if let Some(global) = self.module.global(index.0) {
+                        if let Some(global) = m.global(index.0 as usize) {
                             let global_type = global.global_type;
                             if global_type.mutability != 0 {
                                 return Err(Error::InvalidGlobal { id: index.0 });
@@ -909,26 +902,30 @@ impl<'m> Compiler<'m> {
             Call { index } => {
                 let id = index.0 as u32;
                 info!("CALL {}", id);
-                let signature = if let Some(signature) = self.module.function_signature_type(id) {
+                let signature = if let Some(signature) = m.function_signature_type(id as usize) {
                     signature
                 } else {
                     return Err(Error::InvalidFunction { id: id })
                 };
-                let (parameters, returns) = (signature.parameters, signature.returns);
-                if returns.len() > 1 {
-                    return Err(Error::UnexpectedReturnLength { got: returns.len() as u32})
-                }
+                info!("signature: {}", signature);
+                // if returns.len() > 1 {
+                //     return Err(Error::UnexpectedReturnLength { got: returns.len() as u32})
+                // }
 
                 let mut p_arr = [TypeValue::Any; 16];
                 let mut r_arr = [TypeValue::Any; 1];
-                for i in 0..parameters.len() {
-                    p_arr[i] = TypeValue::from(parameters[i]);
+                let mut p_len = 0;
+                for (i, p) in signature.parameters().enumerate() {
+                    p_arr[i] = TypeValue::from(p);
+                    p_len = i
                 }
-                for i in 0..returns.len() {
-                    r_arr[i] = TypeValue::from(returns[i]);
+                let mut r_len = 0;
+                for (i, r) in signature.returns().enumerate() {
+                    r_arr[i] = TypeValue::from(r);
+                    r_len = i;
                 }
-                let p_slice = &p_arr[..parameters.len()];
-                let r_slice = &r_arr[..returns.len()];
+                let p_slice = &p_arr[..p_len];
+                let r_slice = &r_arr[..r_len];
 
                 self.type_checker.on_call(p_slice, r_slice)?;
 
@@ -949,19 +946,29 @@ impl<'m> Compiler<'m> {
                 //   CHECK_RESULT(EmitI32(module_->table_index));
                 //   CHECK_RESULT(EmitI32(TranslateSigIndexToEnv(sig_index)));
                 info!("CALL_INDIRECT: {}", index.0);
-                if let Some(sig_type) = self.module.signature_type(index.0) {
-                    let (parameters, returns) = (sig_type.parameters, sig_type.returns);
+                if let Some(sig_type) = m.signature_type(index.0 as usize) {
+                    let signature = sig_type;
+
+                    info!("signature: {}", signature);
+                    // if returns.len() > 1 {
+                    //     return Err(Error::UnexpectedReturnLength { got: returns.len() as u32})
+                    // }
 
                     let mut p_arr = [TypeValue::Any; 16];
                     let mut r_arr = [TypeValue::Any; 1];
-                    for i in 0..parameters.len() {
-                        p_arr[i] = TypeValue::from(parameters[i]);
+                    let mut p_len = 0;
+                    for (i, p) in signature.parameters().enumerate() {
+                        p_arr[i] = TypeValue::from(p);
+                        p_len = i
                     }
-                    for i in 0..returns.len() {
-                        r_arr[i] = TypeValue::from(returns[i]);
+                    let mut r_len = 0;
+                    for (i, r) in signature.returns().enumerate() {
+                        r_arr[i] = TypeValue::from(r);
+                        r_len = i;
                     }
-                    let p_slice = &p_arr[..parameters.len()];
-                    let r_slice = &r_arr[..returns.len()];
+                    let p_slice = &p_arr[..p_len];
+                    let r_slice = &r_arr[..r_len];
+
                     info!("  => {:?} => {:?}", p_slice, r_slice);
                     self.type_checker.on_call_indirect(p_slice, r_slice)?;
 
