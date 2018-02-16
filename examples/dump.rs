@@ -1,5 +1,7 @@
 extern crate wasm;
 extern crate clap;
+#[macro_use] extern crate log;
+extern crate env_logger;
 
 use std::process;
 use std::io::{self, Read};
@@ -8,7 +10,9 @@ use std::path::Path;
 
 use clap::{App, Arg, ArgMatches};
 
-use wasm::{Reader, BinaryReader};
+// use wasm::{Reader, BinaryReader};
+use wasm::visitor;
+use wasm::inplace::{Module};
 
 #[derive(Debug)]
 pub enum Error {
@@ -29,6 +33,8 @@ impl From<wasm::Error> for Error {
 }
 
 pub fn main() {
+    env_logger::init();
+    info!("running!");
     let matches = App::new("dump")
         .arg(Arg::with_name("path")
             .required(true))
@@ -52,25 +58,28 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     let mut data: Vec<u8> = Vec::new();
     file.read_to_end(&mut data)?;
 
-    let path = path.file_name().unwrap().to_str().unwrap();
+    // let path = path.file_name().unwrap().to_str().unwrap();
     let mut out = String::new();
 
-    if matches.is_present("headers") {
-        let r = Reader::new(&mut data[..]);
-        let mut d = wasm::dumper::HeaderDumper{ w: &mut out};
-        BinaryReader::new(&mut d, r).read(path)?;        
+    
+    let m = Module::from(data.as_ref());
+    
+    if matches.is_present("headers") {        
+    
+        let mut d = wasm::dumper::HeaderDumper{ w: &mut out };
+        
+        visitor::visit(&m, &mut d)?;
+        
     } 
     
     if matches.is_present("details") {
-        let r = Reader::new(&mut data[..]);
-        let mut d = wasm::dumper::DetailsDumper{ w: &mut out};
-        BinaryReader::new(&mut d, r).read(path)?;                
+        let mut d = wasm::dumper::DetailsDumper{ w: &mut out };
+        visitor::visit(&m, &mut d)?;
     }
 
-    if matches.is_present("disassemble") {
-        let r = Reader::new(&mut data[..]);
-        let mut d = wasm::dumper::Disassembler::new(&mut out);
-        BinaryReader::new(&mut d, r).read(path)?;                
+    if matches.is_present("disassemble") {        
+        let mut d = wasm::dumper::Disassembler::new(&mut out );
+        visitor::visit(&m, &mut d)?;
     }
     print!("{}", out);
 

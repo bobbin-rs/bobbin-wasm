@@ -13,8 +13,10 @@ use std::path::Path;
 // use log::Level;
 use clap::{App, Arg, ArgMatches};
 
-use wasm::{Reader, BinaryReader, TypeValue, SectionType, ExportDesc};
+use wasm::{TypeValue, ExportDesc};
 use wasm::memory_inst::MemoryInst;
+use wasm::inplace::{self, Module};
+
 
 #[derive(Debug)]
 pub enum Error {
@@ -61,74 +63,68 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     let _out = String::new();
 
-    let mut cfg = wasm::loader::Config::default();
-    if matches.is_present("no-compile") {
-        cfg.compile = false;
-    }
+    let m = Module::from(data.as_ref());
 
-    let mut module_buf = [0u8; 4096];
-    let r = Reader::new(&mut data[..]);
-    
-    let mut loader = wasm::loader::Loader::new_with_config(cfg, &mut module_buf[..]);
-    BinaryReader::new(&mut loader, r).read(path)?;        
-    let (m, buf) = loader.module();
-    if matches.is_present("dump") {
-        print!("{:?}", m);
-    }
+    let mut code_buf = [0u8; 4096];
+
+
+    let cfg = wasm::compiler::Config::default();
+    let mut compiler = wasm::compiler::Compiler::new_with_config(cfg, &mut code_buf[..]);
+    let code = compiler.compile(&m)?;
+
+    // println!("CODE");
+    // for (i, b) in code.iter().enumerate() {
+    //     println!("  {}: {:08x} to {:08x}", i, b.start, b.end);
+    // }
 
     let mut memory_buf = [0u8; 256];
     let memory = MemoryInst::new(&mut memory_buf, 1, None);
 
-    let (mi, _buf) = m.instantiate(buf, &memory)?;
+    // let (mi, _buf) = lm.instantiate(buf, &memory)?;
 
-    // println!("Memory: {:?}", mi.memory_inst());
+    let mut buf = [0u8; 2048];
+
+    let (mi, _buf) = m.instantiate(&mut buf, &memory, &code)?;
 
     // Interpreter
 
-    use wasm::interp::Interp;
     use std::convert::TryFrom;
 
     let mut buf = [0u8; 1024];
 
-    let mut interp = Interp::new(&mut buf);
+    let mut interp = inplace::interp::Interp::new(&mut buf);
 
-    for s in m.iter() {
-        if s.section_type == SectionType::Export {
-            for e in s.exports() {
+    if let Some(export_section) = m.export_section() {
+        for e in export_section.iter() {
+            if let ExportDesc::Function(index) = e.export_desc {
+                let t = m.function_signature_type(index as usize).unwrap();
+                let id = std::str::from_utf8(e.identifier.0).unwrap();
+                match interp.run(&mi, index as usize) {
+                    Ok(_) => {
+                        if t.returns().count() == 1 {
+                            if interp.stack_len() == 1 {
+                                println!("{}() => {}:{}", id, TypeValue::try_from(t.returns().nth(0).unwrap()).unwrap(), interp.pop().unwrap() as u32);
+                            } else {
+                                println!("---- Stack Dump ----");
 
-                if let ExportDesc::Function(index) = e.export_desc {
-                    let t = m.function_signature_type(index).unwrap();
-                    let id = std::str::from_utf8(e.identifier.0).unwrap();
-                    match interp.run(&mi, index as usize) {
-                        Ok(_) => {
-                            if t.returns.len() == 1 {
-                                if interp.stack_len() == 1 {
-                                    println!("{}() => {}:{}", id, TypeValue::try_from(t.returns[0]).unwrap(), interp.pop().unwrap() as u32);
-                                } else {
-                                    println!("---- Stack Dump ----");
-
-                                    let mut i = 0;
-                                    while let Ok(value) = interp.pop() {
-                                        println!("{}: {:?}", i, value);
-                                        i += 1;
-                                    }
-                                    println!("---- END ----");
+                                let mut i = 0;
+                                while let Ok(value) = interp.pop() {
+                                    println!("{}: {:?}", i, value);
+                                    i += 1;
                                 }
+                                println!("---- END ----");
                             }
-                        }, 
-                        Err(err) => {
-                            println!("{}() => {:?}", id, err);
                         }
+                    }, 
+                    Err(err) => {
+                        println!("{}() => {:?}", id, err);
                     }
-
-
                 }
+
+
             }
-            
         }
     }
-
-
     
     Ok(())
 }
