@@ -27,6 +27,7 @@ pub mod binary_reader;
 pub mod event;
 pub mod delegate;
 pub mod dumper;
+pub mod visitor;
 
 pub use error::*;
 pub use types::*;

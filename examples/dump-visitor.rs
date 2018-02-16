@@ -11,7 +11,8 @@ use std::path::Path;
 use clap::{App, Arg, ArgMatches};
 
 // use wasm::{Reader, BinaryReader};
-use wasm::inplace::{visitor, Module};
+use wasm::visitor;
+use wasm::inplace::{Module};
 
 #[derive(Debug)]
 pub enum Error {

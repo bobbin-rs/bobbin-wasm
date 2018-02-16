@@ -13,9 +13,9 @@ use std::path::Path;
 // use log::Level;
 use clap::{App, Arg, ArgMatches};
 
-use wasm::{TypeValue, SectionType, ExportDesc};
+use wasm::{TypeValue, ExportDesc};
 use wasm::memory_inst::MemoryInst;
-use wasm::inplace::{self, visitor, Module};
+use wasm::inplace::{self, Module};
 
 
 #[derive(Debug)]

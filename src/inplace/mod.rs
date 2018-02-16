@@ -1,6 +1,5 @@
 
 pub mod module_inst;
-pub mod visitor;
 pub mod interp;
 
 use {Error, SectionType};
@@ -622,6 +621,9 @@ pub struct Signature<'a> {
 }
 
 impl<'a> Signature<'a> {
+    pub fn form(&self) -> TypeValue { 
+        self.form
+    }
     pub fn parameters(&self) -> TypeValueIter {
         TypeValueIter { buf: Cursor::new(self.parameters) }
     }

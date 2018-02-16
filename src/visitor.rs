@@ -1,13 +1,17 @@
-use Error;
+use {Error, TypeValue};
 
 use Delegate;
 use event::*;
-use super::*;
+use opcode::*;
+use types::*;
+use inplace::{Module, Section, Instr};
+
+use core::convert::TryFrom;
 
 pub fn visit<D: Delegate>(m: &Module, d: &mut D) -> Result<(), Error> {
     Ok({
         let name = "abc.wasm";
-        let version = m.version;
+        let version = m.version();
         d.dispatch(Event::Start { name, version })?;
         for s in m.sections() {
             let h = s.header();
@@ -24,25 +28,25 @@ pub fn visit<D: Delegate>(m: &Module, d: &mut D) -> Result<(), Error> {
                     d.dispatch(Event::TypesStart { c })?;
                     for (n, sig) in t.iter().enumerate() {
                         let n = n as u32;
-                        let form = sig.form;
+                        let form = sig.form();
                         d.dispatch(Event::TypeStart { n , form })?;
 
                         {
-                            let c = sig.parameters.len() as u32;
+                            let c = sig.parameters().count() as u32;
                             d.dispatch(Event::TypeParametersStart { c })?;
-                            for (n, t) in sig.parameters.iter().enumerate() {
+                            for (n, t) in sig.parameters().enumerate() {
                                 let n = n as u32;
-                                let t = TypeValue::from(*t);
+                                let t = TypeValue::from(t);
                                 d.dispatch(Event::TypeParameter { n, t })?;
                             }
                             d.dispatch(Event::TypeParametersEnd {  })?;
                         }
                         {
-                            let c = sig.returns.len() as u32;
+                            let c = sig.returns().count() as u32;
                             d.dispatch(Event::TypeReturnsStart { c })?;
-                            for (n, t) in sig.returns.iter().enumerate() {
+                            for (n, t) in sig.returns().enumerate() {
                                 let n = n as u32;
-                                let t = TypeValue::from(*t);
+                                let t = TypeValue::from(t);
                                 d.dispatch(Event::TypeReturn { n, t })?;
                             }
                             d.dispatch(Event::TypeReturnsEnd {  })?;
