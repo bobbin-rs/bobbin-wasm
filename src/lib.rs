@@ -49,24 +49,6 @@ pub const FIXUP: u32 = 0xffff_ffff;
 
 pub type WasmResult<T> = Result<T, Error>;
 
-
-#[derive(Debug, Clone, Copy)]
-pub struct Function {
-    offset: u32,
-    signature: u32,
-}
-
-impl Function {
-    pub fn new(offset: u32, signature: u32) -> Self {
-        Function { offset, signature }
-    }
-}
-
-pub trait Handler {
-    fn call(&mut self, id: u32, args: &[Value]) -> Option<Value>;
-}
-
-
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum SectionType {
     Custom = 0x0,
