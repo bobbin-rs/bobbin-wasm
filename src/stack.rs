@@ -74,12 +74,14 @@ impl<'a, T: 'a + Copy> Stack<'a, T> {
 
     #[inline]
     pub fn push(&mut self, value: T) -> StackResult<()> {
-        Ok(self.buf[self.pre_incr()?] = value)
+        let pos = self.pre_incr()?;
+        Ok(self.buf[pos] = value)
     }
 
     #[inline]
     pub fn pop(&mut self) -> StackResult<T> {
-        Ok(self.buf[self.post_decr()?])
+        let pos = self.post_decr()?;
+        Ok(self.buf[pos])
     }
 
     /// Returns a copy of the item at the top of the stack.
