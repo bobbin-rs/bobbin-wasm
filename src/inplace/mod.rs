@@ -594,34 +594,51 @@ pub struct Signature<'a> {
 }
 
 impl<'a> Signature<'a> {
-    pub fn parameters(&self) -> &[u8] {
-        self.parameters
+    pub fn parameters(&self) -> TypeValueIter {
+        TypeValueIter { buf: Cursor::new(self.parameters) }
     }
 
-    pub fn returns(&self) -> &[u8] {
-        self.returns
+    pub fn returns(&self) -> TypeValueIter {
+        TypeValueIter { buf: Cursor::new(self.returns) }
     }
 }
 
 impl<'a> fmt::Display for Signature<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "(")?;
-        for (i, p) in self.parameters.iter().enumerate() {
+        for (i, p) in self.parameters().enumerate() {
             if i != 0 { write!(f, ", ")?; }
-            write!(f,"{}", TypeValue::from(*p))?;
+            write!(f,"{}", p)?;
         }
         write!(f, ") -> ")?;
         if self.returns.len() == 0 {
             write!(f, "nil")?;
         } else {
-            for (i, r) in self.returns.iter().enumerate() {
+            for (i, r) in self.returns().enumerate() {
                 if i != 0 { write!(f, ", ")?; }
-                write!(f,"{}", TypeValue::from(*r))?;
+                write!(f,"{}", r)?;
             }            
         }
         Ok(())
     }
 }
+
+pub struct TypeValueIter<'a> {
+    buf: Cursor<'a>,
+}
+
+impl<'a> Iterator for TypeValueIter<'a> {
+    type Item = TypeValue;
+
+    fn next(&mut self) -> Option<Self::Item> { 
+        if self.buf.len() > 0 {
+            Some(self.buf.read_type_value())
+        } else {
+            None
+        }
+    }
+}
+
 
 pub trait ModuleRead<'a> {
     fn read_identifier(&mut self) -> Identifier<'a>;
