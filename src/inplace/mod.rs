@@ -439,7 +439,7 @@ pub struct InstrIter<'a> {
 }
 
 impl<'a> Iterator for InstrIter<'a> {
-    type Item = Instr;
+    type Item = Instr<'a>;
 
     fn next(&mut self) -> Option<Self::Item> { 
         if self.buf.len() > 0 {
@@ -451,7 +451,7 @@ impl<'a> Iterator for InstrIter<'a> {
 }
 
 impl<'a> InstrIter<'a> {
-    fn next_instr(&mut self) -> Instr {
+    fn next_instr(&mut self) -> Instr<'a> {
         use self::ImmediateType::*;
 
         let offset = self.buf.pos() as u32;
@@ -463,11 +463,13 @@ impl<'a> InstrIter<'a> {
                 Immediate::Block { signature }
             },
             BranchDepth => {
-                let depth = self.buf.read_depth();
+                let depth = self.buf.read_depth() as u8;
                 Immediate::Branch { depth }
             },
             BranchTable => {
-                // let count = self.buf.read_count();
+                let count = self.buf.read_count() as usize;
+                let table = self.buf.slice(count + 1);
+                Immediate::BranchTable { table }
                 // let imm = Immediate::BranchTable { count };
                 // {
                 //     let end = self.buf.pos();
@@ -490,7 +492,6 @@ impl<'a> InstrIter<'a> {
                 //     self.d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }));
                 // }
                 // return Ok(()) 
-                unimplemented!()               
             },
             Local => {                
                 let index = self.buf.read_local_index();
@@ -550,10 +551,10 @@ impl<'a> InstrIter<'a> {
     }
 }
 
-pub struct Instr { 
+pub struct Instr<'a> { 
     pub range: Range<u32>,
     pub opcode: u8,
-    pub imm: Immediate 
+    pub imm: Immediate<'a> 
 }
 
 // impl<'a> WriteTo for Instruction<'a> {
@@ -563,7 +564,7 @@ pub struct Instr {
 //     }
 // }
 
-impl<'a> fmt::Debug for Instr {
+impl<'a> fmt::Debug for Instr<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let op = Opcode::try_from(self.opcode).unwrap();
         write!(f, "{:08x}: {:?} {:?}", self.range.start, op.text, self.imm)

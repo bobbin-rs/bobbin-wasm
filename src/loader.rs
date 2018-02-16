@@ -704,7 +704,7 @@ impl<'m> Loader<'m> {
 
                     self.w.write_opcode(op)?;
                     let pos = self.w.pos();
-                    self.add_fixup(depth, pos as u32)?;
+                    self.add_fixup(depth as u32, pos as u32)?;
                     self.w.write_u32(FIXUP_OFFSET)?;    
 
                     // CHECK_RESULT(GetBrDropKeepCount(depth, &drop_count, &keep_count));
@@ -722,7 +722,7 @@ impl<'m> Loader<'m> {
 
                     self.w.write_opcode(BR)?;
                     let pos = self.w.pos();
-                    self.add_fixup(depth, pos as u32)?;
+                    self.add_fixup(depth as u32, pos as u32)?;
                     self.w.write_u32(FIXUP_OFFSET)?;    
 
                     let pos = self.w.pos();
@@ -747,11 +747,13 @@ impl<'m> Loader<'m> {
                 // self.add_fixup(depth, pos as u32)?;
                 // self.w.write_u32(FIXUP_OFFSET)?;                
             },
-            BranchTable { count } => {
+            BranchTable { table } => {
                 // BR_TABLE COUNT:u32 TABLE_OFFSET:u32
                 // INTERP_DATA SIZE:u32
                 // [OFFSET:u32 DROP:u32 KEEP:u32]
                 // OFFSET:u32 DROP:u32 KEEP:u32
+
+                let count = table.len() as u32;
 
                 self.type_checker.begin_br_table()?;
                 self.w.write_opcode(BR_TABLE)?;
@@ -770,19 +772,27 @@ impl<'m> Loader<'m> {
                 self.w.write_u32_at(pos as u32, table_pos)?;
 
                 // Branch Table Starts Here
-            },
-            BranchTableDepth { n: _, depth } => {
-                self.type_checker.on_br_table_target(depth as usize)?;
-                self.write_br_table_offset(depth)?;
-            },
-            BranchTableDefault { depth } => {
-                info!("branch table default");
-                self.type_checker.on_br_table_target(depth as usize)?;
-                self.write_br_table_offset(depth)?;
 
-                self.type_checker.end_br_table()?;              
-                info!("branch table default done");
+                for depth in table.iter() {
+                    self.type_checker.on_br_table_target(*depth as usize)?;
+                    self.write_br_table_offset(*depth as u32)?;
+                }
+
+                self.type_checker.end_br_table()?;
+                info!("branch table default done");   
             },
+            // BranchTableDepth { n: _, depth } => {
+            //     self.type_checker.on_br_table_target(depth as usize)?;
+            //     self.write_br_table_offset(depth)?;
+            // },
+            // BranchTableDefault { depth } => {
+            //     info!("branch table default");
+            //     self.type_checker.on_br_table_target(depth as usize)?;
+            //     self.write_br_table_offset(depth)?;
+
+            //     self.type_checker.end_br_table()?;              
+            //     info!("branch table default done");
+            // },
             Local { index } => {
                 // Emits OP DEPTH_TO_LOCAL
                 let id = index.0;

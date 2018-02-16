@@ -30,9 +30,9 @@ pub enum Error {
     InvalidOpCode(u8),
 }
 
-pub type Depth = u32;
-pub type BranchCount = u32;
-pub type CallIndirectCount = u32;
+pub type Depth = u8;
+// pub type BranchCount = u32;
+// pub type CallIndirectCount = u32;
 
 pub const ___: TypeValue = TypeValue::Void;
 pub const I32: TypeValue = TypeValue::I32;
@@ -120,13 +120,14 @@ impl From<u8> for ImmediateType {
     }
 }
 
-pub enum Immediate {
+pub enum Immediate<'a> {
     None,
     Block { signature: TypeValue },
     Branch { depth: Depth },
-    BranchTable { count: BranchCount },
-    BranchTableDepth { n: u32, depth: Depth },
-    BranchTableDefault { depth: Depth },
+    BranchTable { table: &'a [Depth] },
+    // BranchTable { count: BranchCount },
+    // BranchTableDepth { n: u32, depth: Depth },
+    // BranchTableDefault { depth: Depth },
     Local { index: LocalIndex },
     Global { index: GlobalIndex },
     Call { index: FuncIndex },
@@ -140,7 +141,7 @@ pub enum Immediate {
 }
 
 
-impl fmt::Debug for Immediate {
+impl<'a> fmt::Debug for Immediate<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::Immediate::*;
         match *self {
@@ -155,9 +156,18 @@ impl fmt::Debug for Immediate {
             } else {
                 Ok(())
             },
-            BranchTable { count } => write!(f, " [{}]", count),
-            BranchTableDepth { n: _, depth } => write!(f, " {}", depth),
-            BranchTableDefault { depth } => write!(f, " {}", depth),
+            BranchTable { table } => {
+                write!(f, "[")?;
+                for (i, d) in table.iter().enumerate() {
+                    if i != 0 { write!(f, ", ")?; }
+                    write!(f, "{}", d)?;
+                }
+                write!(f, "]")?;
+                Ok(())
+            }
+            // BranchTable { count } => write!(f, " [{}]", count),
+            // BranchTableDepth { n: _, depth } => write!(f, " {}", depth),
+            // BranchTableDefault { depth } => write!(f, " {}", depth),
             Local { ref index } => write!(f, " {}", index.0),
             Global { ref index } => write!(f, " {}", index.0),
             Call { ref index } => write!(f, " {}", index.0),
@@ -177,7 +187,7 @@ pub struct Instruction<'a> {
     pub offset: u32, 
     pub data: &'a [u8], 
     pub op: &'a Opcode, 
-    pub imm: Immediate 
+    pub imm: Immediate<'a>
 }
 
 // impl<'a> WriteTo for Instruction<'a> {
