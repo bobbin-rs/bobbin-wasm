@@ -77,7 +77,12 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     let mut code_buf = [0u8; 4096];
     let cfg = wasm::compiler::Config::default();
     let mut compiler = wasm::compiler::Compiler::new_with_config(cfg, &mut code_buf[..]);
-    let _code = compiler.compile(&m)?;
+    let code = compiler.compile(&m)?;
+    println!("CODE");
+    for i in 0..code.len() {
+        let b = code.body_range(i);
+        println!("  {}: {:08x} to {:08x}", i, b.start, b.end);
+    }
 
     if matches.is_present("dump") {
         print!("{:?}", lm);

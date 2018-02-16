@@ -6,12 +6,13 @@ use module;
 use module::*;
 use module::ModuleWrite;
 use typeck::{TypeChecker, LabelType};
+use cursor::Cursor;
 use writer::Writer;
 use stack::Stack;
 use small_vec::SmallVec;
 
 use core::fmt;
-use core::ops::Index;
+use core::ops::{Range, Index};
 
 pub const FIXUP_OFFSET: u32 = 0xffff_ffff;
 
@@ -175,6 +176,35 @@ impl fmt::Debug for Context {
         }
         write!(f, " }}")?;
         Ok(())
+    }
+}
+
+pub struct CompiledCode<'a> {
+    buf: &'a [u8]
+}
+
+impl<'a> CompiledCode<'a> {
+    pub fn len(&self) -> usize {
+        self.buf.len()
+    }
+
+    pub fn body_count(&self) -> usize {
+        Cursor::new(self.buf).read_u32() as usize
+    }
+
+    pub fn body_range(&self, index: usize) -> Range<usize> {
+        let mut cur = Cursor::new(self.buf);
+        assert!(index < cur.read_u32() as usize);
+        cur.advance(index * 8);
+        let body_beg = cur.read_u32() as usize;
+        let body_end = cur.read_u32() as usize;
+        body_beg .. body_end
+    }
+}
+
+impl<'a> AsRef<[u8]> for CompiledCode<'a> {
+    fn as_ref(&self) -> &[u8] {
+        self.buf
     }
 }
 
@@ -398,7 +428,7 @@ impl<'m> Compiler<'m> {
 }
 
 impl<'m> Compiler<'m> {
-    pub fn compile(&mut self, m: &inplace::Module) -> Result<&'m [u8], Error> {
+    pub fn compile(&mut self, m: &inplace::Module) -> Result<CompiledCode<'m>, Error> {
         if let Some(import_section) = m.import_section() {
             for import in import_section.iter() {
                 info!("{:?}", import);
@@ -437,9 +467,22 @@ impl<'m> Compiler<'m> {
 
         let code_section = m.code_section().ok_or_else(|| Error::MissingSection { id: SectionType::Code })?;
 
+        // Write Index
+
+        self.w.write_u32(0)?;
+
+        let mut n = 0;
+        for _ in code_section.iter().enumerate() {
+            self.w.write_u32(0)?; // Offset
+            self.w.write_u32(0)?; // Size
+            n += 1;
+        }
+        self.w.write_u32_at(n, 0)?;
+
         info!("{:08x}: Code Start", self.w.pos());
         
         for (n, body) in code_section.iter().enumerate() {
+            let body_beg = self.w.pos() as u32;
             self.context = Context::from(m.function_signature_type(n).unwrap());
 
             for local in body.locals() {
@@ -449,8 +492,11 @@ impl<'m> Compiler<'m> {
             info!("{:08x}: V:{} | func[{}] {:?}", self.w.pos(), self.type_checker.type_stack_size(), n, self.context);  
 
             self.compile_body(m, &body)?;
+            let body_end = self.w.pos() as u32;
+            self.w.write_u32_at(body_beg, 4 + n * 8)?;
+            self.w.write_u32_at(body_end, 4 + n * 8 + 4)?;
         }
-        Ok(self.w.split_mut())
+        Ok(CompiledCode { buf: self.w.split_mut() })
     }
 
     pub fn compile_body(&mut self, _m: &inplace::Module, body: &inplace::Body) -> Result<(), Error> {
