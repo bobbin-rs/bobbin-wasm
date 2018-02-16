@@ -66,9 +66,9 @@ impl<'a> Interp<'a> {
 
         let code_buf = mi.code().as_ref();
 
-        for i in 0..code_buf.len() {
-            info!("{:04x}: {:02x}", i, code_buf[i]);
-        }
+        // for i in 0..code_buf.len() {
+        //     info!("{:04x}: {:02x}", i, code_buf[i]);
+        // }
 
 
         // let code_section = m.section(SectionType::Code).unwrap();

@@ -917,15 +917,18 @@ impl<'m> Compiler<'m> {
                 let mut p_len = 0;
                 for (i, p) in signature.parameters().enumerate() {
                     p_arr[i] = TypeValue::from(p);
-                    p_len = i
+                    p_len = i + 1;
                 }
                 let mut r_len = 0;
                 for (i, r) in signature.returns().enumerate() {
+                    info!("{}, {}", i, r);
                     r_arr[i] = TypeValue::from(r);
-                    r_len = i;
+                    r_len = i + 1;
                 }
                 let p_slice = &p_arr[..p_len];
                 let r_slice = &r_arr[..r_len];
+
+                info!("{:?} {:?}", p_slice, r_slice);
 
                 self.type_checker.on_call(p_slice, r_slice)?;
 
@@ -959,12 +962,12 @@ impl<'m> Compiler<'m> {
                     let mut p_len = 0;
                     for (i, p) in signature.parameters().enumerate() {
                         p_arr[i] = TypeValue::from(p);
-                        p_len = i
+                        p_len = i + 1;
                     }
                     let mut r_len = 0;
                     for (i, r) in signature.returns().enumerate() {
                         r_arr[i] = TypeValue::from(r);
-                        r_len = i;
+                        r_len = i + 1;
                     }
                     let p_slice = &p_arr[..p_len];
                     let r_slice = &r_arr[..r_len];
