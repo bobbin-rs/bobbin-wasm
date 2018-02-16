@@ -45,21 +45,3 @@ pub use dumper::*;
 pub const MAGIC_COOKIE: u32 = 0x6d736100;
 pub const VERSION: u32 = 0x1;
 pub const FIXUP: u32 = 0xffff_ffff;
-
-pub type WasmResult<T> = Result<T, Error>;
-
-pub type DelegateResult = Result<(), Error>;
-
-pub trait Delegate {
-    fn dispatch(&mut self, evt: event::Event) -> DelegateResult;
-}
-
-pub trait WriteTo {
-    fn write_to(&self, w: &mut Writer) -> WasmResult<()>;
-}
-
-// pub trait NewFrom {
-//     fn new_from(m: &mut Module, c: &mut Cursor) -> WasmResult<Self> {
-
-//     }
-// }
