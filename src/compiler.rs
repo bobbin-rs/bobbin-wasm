@@ -468,7 +468,9 @@ impl<'m> Compiler<'m> {
 
         for i in body.iter() {
             // Instruction
-            self.dispatch_instruction(i)?;
+            if !(i.range.end == body.range.end && i.opcode == END) {
+                self.dispatch_instruction(i)?;
+            }
         }
         // InstructionsEnd
         info!("{:08x}: L: {} V:{} | {} ", self.w.pos(), self.label_stack.len(), self.type_checker.type_stack_size(), "EXIT");
