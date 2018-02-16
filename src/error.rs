@@ -1,4 +1,4 @@
-use TypeValue;
+use {TypeValue, SectionType};
 use opcode;
 use stack;
 
@@ -18,6 +18,8 @@ pub enum Error {
     UndefinedTableIndex { id: i32 },
     SignatureMismatch,
     TypeCheck(&'static str),
+
+    MissingSection { id: SectionType },
 
     InvalidHeader,
     InvalidSection { id: u32 },

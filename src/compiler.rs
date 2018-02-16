@@ -1,6 +1,7 @@
-use {Error, Event, Value, TypeValue, Delegate, DelegateResult};
+use {Error, Event, Value, SectionType, TypeValue, Delegate, DelegateResult};
 
 use opcode::*;
+use inplace;
 use module;
 use module::*;
 use module::ModuleWrite;
@@ -374,9 +375,26 @@ impl<'m> Compiler<'m> {
 }
 
 impl<'m> Compiler<'m> {
-    pub fn compile(&mut self, _m: &::inplace::Module) -> Result<&'m [u8], Error> {        
+    pub fn compile(&mut self, m: &inplace::Module) -> Result<&'m [u8], Error> {
+        info!("compile");
+        let code_section = m.code_section().ok_or_else(|| Error::MissingSection { id: SectionType::Code })?;
+        for body in code_section.iter() {
+            self.compile_body(m, &body)?;
+        }
         Ok(self.w.split_mut())
     }
+
+    pub fn compile_body(&mut self, _m: &inplace::Module, body: &inplace::Body) -> Result<(), Error> {
+        info!("compile_body({:?})", body);
+        for local in body.locals() {
+            info!("{:?}", local);
+        }
+        for instr in body.iter() {
+            info!("{:?}", instr);
+        }
+        Ok(())
+    }
+
 }
 
 impl<'m> Delegate for Compiler<'m> {

@@ -492,6 +492,7 @@ impl<'a> Iterator for CodeIter<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct Body<'a> {
     pub range: Range<u32>,
     pub locals: Cursor<'a>,
@@ -507,6 +508,7 @@ impl<'a> Body<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct Local {
     pub n: u32,
     pub t: TypeValue,
@@ -553,7 +555,7 @@ pub struct Instr<'a> {
 impl<'a> fmt::Debug for Instr<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let op = Opcode::try_from(self.opcode).unwrap();
-        write!(f, "{:08x}: {:?} {:?}", self.range.start, op.text, self.imm)
+        write!(f, "{:08x}: {}{:?}", self.range.start, op.text, self.imm)
     }
 }
 
