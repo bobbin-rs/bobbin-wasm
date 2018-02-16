@@ -15,6 +15,7 @@ pub mod reader;
 pub mod writer;
 pub mod stack;
 pub mod small_vec;
+pub mod compiler;
 pub mod loader;
 pub mod typeck;
 pub mod interp;

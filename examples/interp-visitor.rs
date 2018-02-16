@@ -63,32 +63,30 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     let _out = String::new();
 
-    let mut cfg = wasm::loader::Config::default();
-    if matches.is_present("no-compile") {
-        cfg.compile = false;
-    }
 
     let mut module_buf = [0u8; 4096];
     let m = Module::from(data.as_ref());
 
-    // let r = Reader::new(&mut data[..]);
-    
+    let cfg = wasm::loader::Config::default();
     let mut loader = wasm::loader::Loader::new_with_config(cfg, &mut module_buf[..]);
-    // BinaryReader::new(&mut loader, r).read(path)?;        
     visitor::visit(&m, &mut loader)?;
 
+    let (lm, buf) = loader.module();
 
-    let (m, buf) = loader.module();
+
+    let mut code_buf = [0u8; 4096];
+    let cfg = wasm::compiler::Config::default();
+    let mut compiler = wasm::compiler::Compiler::new_with_config(cfg, &mut code_buf[..]);
+    let _code = compiler.compile(&m)?;
+
     if matches.is_present("dump") {
-        print!("{:?}", m);
+        print!("{:?}", lm);
     }
 
     let mut memory_buf = [0u8; 256];
     let memory = MemoryInst::new(&mut memory_buf, 1, None);
 
-    let (mi, _buf) = m.instantiate(buf, &memory)?;
-
-    // println!("Memory: {:?}", mi.memory_inst());
+    let (mi, _buf) = lm.instantiate(buf, &memory)?;
 
     // Interpreter
 
@@ -99,12 +97,12 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     let mut interp = Interp::new(&mut buf);
 
-    for s in m.iter() {
+    for s in lm.iter() {
         if s.section_type == SectionType::Export {
             for e in s.exports() {
 
                 if let ExportDesc::Function(index) = e.export_desc {
-                    let t = m.function_signature_type(index).unwrap();
+                    let t = lm.function_signature_type(index).unwrap();
                     let id = std::str::from_utf8(e.identifier.0).unwrap();
                     match interp.run(&mi, index as usize) {
                         Ok(_) => {
