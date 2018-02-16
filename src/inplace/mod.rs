@@ -131,6 +131,17 @@ impl<'a> Module<'a> {
             None
         }
     }    
+
+    pub fn function_signature_type(&self, index: usize) -> Option<Signature> {
+        if let Some(function_section) = self.function_section() {
+            if let Some(function) = function_section.iter().nth(index) {
+                if let Some(type_section) = self.type_section() {
+                    return type_section.iter().nth(function.signature_type_index as usize)
+                }
+            }
+        }
+        None
+    }
 }
 
 pub struct SectionIter<'a> {

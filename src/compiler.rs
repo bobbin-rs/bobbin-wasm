@@ -76,6 +76,11 @@ impl Context {
         &self.parameters[..self.parameters_count]
     }
 
+    fn add_parameter(&mut self, p: TypeValue) {
+        self.parameters[self.parameters_count] = p;
+        self.parameters_count += 1;
+    }
+
     fn set_parameters(&mut self, parameters: &[u8]) {
         for (i, p) in parameters.iter().enumerate() {
             self.parameters[i] = TypeValue::from(*p);
@@ -107,6 +112,24 @@ impl Context {
     }
 }
 
+impl<'t> From<inplace::Signature<'t>> for Context {
+    fn from(other: inplace::Signature<'t>) -> Self {
+        info!("{}", other);
+        let mut c = Context::default();
+        for p in other.parameters() {
+            c.add_parameter(p);
+        }
+        for r in other.returns() {
+            info!("add return: {}", r);
+            c.set_return(r);
+            info!("return: {}", c.return_type());
+            break;
+        }
+        info!("{:?}", c);
+        c
+    }
+
+}
 impl<'t> From<Type<'t>> for Context {
     fn from(other: Type<'t>) -> Self {
         let mut c = Context::default();
@@ -135,11 +158,11 @@ impl fmt::Debug for Context {
         write!(f, "Context {{ (")?;
         for i in 0..self.parameters_count {
             if i > 0 { write!(f, ", ")?; }
-            write!(f, "{:?}", self.parameters[i])?;
+            write!(f, "{}", self.parameters[i])?;
         }
         write!(f, ") -> ")?;
         if self.return_type != VOID {
-            write!(f, "{:?}", self.return_type)?;
+            write!(f, "{}", self.return_type)?;
         }        
         if self.locals_count > 0 {
             write!(f, "locals[")?;
@@ -376,19 +399,63 @@ impl<'m> Compiler<'m> {
 
 impl<'m> Compiler<'m> {
     pub fn compile(&mut self, m: &inplace::Module) -> Result<&'m [u8], Error> {
-        info!("compile");
+        if let Some(import_section) = m.import_section() {
+            for import in import_section.iter() {
+                info!("{:?}", import);
+                match import.desc {
+                    ImportDesc::Type(index) => {
+                        self.functions.push(index);
+                    },
+                    _ => {},
+                }
+            }
+        }
+
+        if let Some(function_section) = m.function_section() {
+            for Function { signature_type_index } in function_section.iter() {
+                info!("function: {}", signature_type_index);
+                self.functions.push(signature_type_index);                
+            }
+        }
+
+        if let Some(element_section) = m.element_section() {            
+            for Element { table_index, offset, data } in element_section.iter() {
+                let Value(elt_offset) = offset.value()?;
+
+                info!("table: {} {:?} {:?}", table_index, offset, data);
+                let mut i = 0;
+                let mut o = elt_offset as usize;
+                while i < data.len() {
+                    let d = data[i] as u32;
+                    info!("   {:08x}: {:08x}", o, d);
+                    self.table[o] = d;
+                    o += 1;
+                    i += 1;
+                }
+            }
+        }
+
         let code_section = m.code_section().ok_or_else(|| Error::MissingSection { id: SectionType::Code })?;
-        for body in code_section.iter() {
+        for (n, body) in code_section.iter().enumerate() {
+            self.context = Context::from(m.function_signature_type(n).unwrap());    
+            for local in body.locals() {
+                self.context.add_local(local.n, local.t);
+            }                  
+            info!("{:08x}: V:{} | func[{}] {:?}", self.w.pos(), self.type_checker.type_stack_size(), n, self.context);  
             self.compile_body(m, &body)?;
         }
         Ok(self.w.split_mut())
     }
 
     pub fn compile_body(&mut self, _m: &inplace::Module, body: &inplace::Body) -> Result<(), Error> {
-        info!("compile_body({:?})", body);
-        for local in body.locals() {
-            info!("{:?}", local);
-        }
+
+
+        self.body_fixup = self.w.write_code_start()?;
+
+        self.type_checker.begin_function(self.context.return_type)?;
+        self.push_label(FIXUP_OFFSET)?;
+
+
         for instr in body.iter() {
             info!("{:?}", instr);
         }
@@ -402,119 +469,117 @@ impl<'m> Delegate for Compiler<'m> {
         use Event::*;
         // info!("{:08x}: {:?}", self.w.pos(), evt);
         match evt {
-            Start { name, version } => {
-                self.module.set_name(self.w.copy_str(name));
-                self.module.set_version(version);
-            },
-            SectionStart { s_type, s_beg: _, s_end:_ , s_len: _, s_count: _ } => {
-                self.section_fixup = self.w.write_section_start(s_type)?;
-            },
-            SectionEnd => {
-                self.w.write_section_end(self.section_fixup)?;
-                self.module.extend(self.w.split());
-            },
-            TypesStart { c } => {
-                self.w.write_u32(c)?;
-            },
-            TypeParametersStart { c } => {
-                self.w.write_u8(c as u8)?;
-            },
-            TypeParameter { n: _, t } => {
-                self.w.write_u8(t as u8)?;
-            },
-            TypeReturnsStart { c } => {
-                self.w.write_u8(c as u8)?;
-            },
-            TypeReturn { n: _, t } => {
-                self.w.write_u8(t as u8)?;
-            },
-            ImportsStart { c } => {
-                self.w.write_u32(c)?;
-            },            
-            Import { n: _, module, export, desc } => {
-                match desc {
-                    ImportDesc::Type(index) => {
-                        self.functions.push(index);
-                    },
-                    _ => {},
-                }
-                self.w.write_import(module::Import { module, export, desc })?;
-            }
-            FunctionsStart { c } => {
-                self.w.write_u32(c)?;
-            },
-            Function { n: _, index } => {
-                self.functions.push(index.0);
-                self.w.write_u32(index.0)?;
-            },
-            TablesStart { c } => {
-                self.w.write_u32(c)?;
-            },
-            Table { n: _, element_type, limits } => {
-                self.w.write_table(module::Table { element_type, limits })?
-            },
-            MemsStart { c } => {
-                self.w.write_u32(c)?;
-            },
-            Mem { n: _, limits } => {
-                self.w.write_memory(module::Memory { limits })?;
-            },
-            GlobalsStart { c } => {
-                self.w.write_u32(c)?;
-            },
-            Global { n: _, t, mutability, init } => {
-                self.w.write_global_type(module::GlobalType { type_value: t, mutability })?;
-                self.w.write_initializer(init)?;
+            // Start { name, version } => {
+            //     self.module.set_name(self.w.copy_str(name));
+            //     self.module.set_version(version);
+            // },
+            // SectionStart { s_type, s_beg: _, s_end:_ , s_len: _, s_count: _ } => {
+            //     self.section_fixup = self.w.write_section_start(s_type)?;
+            // },
+            // SectionEnd => {
+            //     self.w.write_section_end(self.section_fixup)?;
+            //     self.module.extend(self.w.split());
+            // },
+            // TypesStart { c } => {
+            //     self.w.write_u32(c)?;
+            // },
+            // TypeParametersStart { c } => {
+            //     self.w.write_u8(c as u8)?;
+            // },
+            // TypeParameter { n: _, t } => {
+            //     self.w.write_u8(t as u8)?;
+            // },
+            // TypeReturnsStart { c } => {
+            //     self.w.write_u8(c as u8)?;
+            // },
+            // TypeReturn { n: _, t } => {
+            //     self.w.write_u8(t as u8)?;
+            // },
+            // ImportsStart { c } => {
+            //     self.w.write_u32(c)?;
+            // },            
+            // Import { n: _, module, export, desc } => {
+            //     match desc {
+            //         ImportDesc::Type(index) => {
+            //             self.functions.push(index);
+            //         },
+            //         _ => {},
+            //     }
+            //     self.w.write_import(module::Import { module, export, desc })?;
+            // }
+            // FunctionsStart { c } => {
+            //     self.w.write_u32(c)?;
+            // },
+            // Function { n: _, index } => {
+            //     self.functions.push(index.0);
+            //     self.w.write_u32(index.0)?;
+            // },
+            // TablesStart { c } => {
+            //     self.w.write_u32(c)?;
+            // },
+            // Table { n: _, element_type, limits } => {
+            //     self.w.write_table(module::Table { element_type, limits })?
+            // },
+            // MemsStart { c } => {
+            //     self.w.write_u32(c)?;
+            // },
+            // Mem { n: _, limits } => {
+            //     self.w.write_memory(module::Memory { limits })?;
+            // },
+            // GlobalsStart { c } => {
+            //     self.w.write_u32(c)?;
+            // },
+            // Global { n: _, t, mutability, init } => {
+            //     self.w.write_global_type(module::GlobalType { type_value: t, mutability })?;
+            //     self.w.write_initializer(init)?;
 
-            }
-            ExportsStart { c } => {
-                self.w.write_u32(c)?;
-            },
-            Export { n: _, id, desc } => {
-                self.w.write_identifier(id)?;    
-            // 0x00 => ExportDesc::Function(index),
-            // 0x01 => ExportDesc::Table(index),
-            // 0x02 => ExportDesc::Memory(index),
-            // 0x03 => ExportDesc::Global(index),                
-                let (kind, index) = match desc {
-                    ExportDesc::Function(i) => (0x00, i),
-                    ExportDesc::Table(i) => (0x01, i),
-                    ExportDesc::Memory(i) => (0x02, i),
-                    ExportDesc::Global(i) => (0x03, i),
-                };
-                self.w.write_u8(kind)?;
-                self.w.write_u32(index)?;
-            },
-            StartFunction { index } => {
-                self.w.write_u32(index.0)?;                
-            },
-            ElementsStart { c } => {
-                self.w.write_u32(c)?;
-            },
-            Element { n: _, index, offset, data } => {
-                info!("Initializing Table {}", index.0);
-                let Value(elt_offset) = offset.value()?;
+            // }
+            // ExportsStart { c } => {
+            //     self.w.write_u32(c)?;
+            // },
+            // Export { n: _, id, desc } => {
+            //     self.w.write_identifier(id)?;    
+            // // 0x00 => ExportDesc::Function(index),
+            // // 0x01 => ExportDesc::Table(index),
+            // // 0x02 => ExportDesc::Memory(index),
+            // // 0x03 => ExportDesc::Global(index),                
+            //     let (kind, index) = match desc {
+            //         ExportDesc::Function(i) => (0x00, i),
+            //         ExportDesc::Table(i) => (0x01, i),
+            //         ExportDesc::Memory(i) => (0x02, i),
+            //         ExportDesc::Global(i) => (0x03, i),
+            //     };
+            //     self.w.write_u8(kind)?;
+            //     self.w.write_u32(index)?;
+            // },
+            // StartFunction { index } => {
+            //     self.w.write_u32(index.0)?;                
+            // },
+            // ElementsStart { c } => {
+            //     self.w.write_u32(c)?;
+            // },
+            // Element { n: _, index, offset, data } => {
+            //     let Value(elt_offset) = offset.value()?;
 
-                self.w.write_u32(index.0)?;
-                self.w.write_initializer(offset)?;
-                if let Some(data) = data {
-                    self.w.write_bytes(data)?;
-
-                    let mut i = 0;
-                    let mut o = elt_offset as usize;
-                    while i < data.len() {
-                        let d = data[i] as u32;
-                        info!("   {:08x}: {:08x}", o, d);
-                        self.table[o] = d;
-                        o += 1;
-                        i += 1;
-                    }            
-                }
-            },
-            CodeStart { c } => {
-                info!("{:08x}: Code Start", self.w.pos());
-                self.w.write_u32(c)?;
-            },
+            //     self.w.write_u32(index.0)?;
+            //     self.w.write_initializer(offset)?;
+            //     info!("Initializing Table {}", index.0);
+            //     if let Some(data) = data {
+            //         let mut i = 0;
+            //         let mut o = elt_offset as usize;
+            //         while i < data.len() {
+            //             let d = data[i] as u32;
+            //             info!("   {:08x}: {:08x}", o, d);
+            //             self.table[o] = d;
+            //             o += 1;
+            //             i += 1;
+            //         }            
+            //     }
+            // },
+            // CodeStart { c } => {
+            //     info!("{:08x}: Code Start", self.w.pos());
+            //     self.w.write_u32(c)?;
+            // },
             Body { n, offset: _, size: _, locals: _ } => {
                 self.context = Context::from(self.module.function_signature_type(n).unwrap());
                 self.body_fixup = self.w.write_code_start()?;
@@ -573,14 +638,14 @@ impl<'m> Delegate for Compiler<'m> {
                 self.w.write_code_end(self.body_fixup)?;
                 info!("code end: {:08x}", self.w.pos());
             },
-            DataSegmentsStart { c } => {
-                self.w.write_u32(c)?;
-            }
-            DataSegment { n: _, index, offset, data } => {
-                self.w.write_u32(index.0)?;
-                self.w.write_initializer(offset)?;
-                self.w.write_bytes(data)?;
-            },            
+            // DataSegmentsStart { c } => {
+            //     self.w.write_u32(c)?;
+            // }
+            // DataSegment { n: _, index, offset, data } => {
+            //     self.w.write_u32(index.0)?;
+            //     self.w.write_initializer(offset)?;
+            //     self.w.write_bytes(data)?;
+            // },            
             _ => {},    
         }
         Ok(())
