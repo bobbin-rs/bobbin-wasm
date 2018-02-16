@@ -27,6 +27,7 @@ impl Default for Config {
 
 
 pub struct Interp<'a> {
+    #[allow(dead_code)]
     cfg: Config,
     value_stack: Stack<'a, Value>,
     call_stack: Stack<'a, u32>,

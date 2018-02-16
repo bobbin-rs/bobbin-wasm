@@ -59,14 +59,6 @@ impl<'a> Reader<'a> {
     }    
 
     #[inline]
-    fn read_at<T, F: FnOnce(&[u8])->T>(&self, offset: usize, size: usize, f: F) -> ReaderResult<T> {        
-        let beg = offset;
-        let end = offset + size;
-        if end > self.buf.len() { return Err(Error::End) }
-        Ok(f(&self.buf[beg..end]))
-    }    
-
-    #[inline]
     pub fn read_u8(&mut self) -> ReaderResult<u8> { 
         self.read(1, |buf| buf[0])
     }
