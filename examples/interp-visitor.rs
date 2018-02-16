@@ -98,7 +98,6 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     // Interpreter
 
-    use wasm::interp::Interp;
     use std::convert::TryFrom;
 
     let mut buf = [0u8; 1024];

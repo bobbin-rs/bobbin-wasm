@@ -1,4 +1,4 @@
-use {Error, Value, SectionType};
+use {Error, Value};
 
 // use module_inst::{ FuncInst};
 use super::module_inst::{ModuleInst, FuncInst};
@@ -59,48 +59,15 @@ impl<'a> Interp<'a> {
     }
 
     pub fn run(&mut self, mi: &ModuleInst, func_index: usize) -> Result<(), Error> {
-        // let body = mi.module().body(func_index as u32);
-        let m = mi.module();
-        // let func = m.function(func_index as u32).unwrap();
-        // let func_type = m.signature_type(func.signature_type_index).unwrap();
-
         let code_buf = mi.code().as_ref();
-
-        // for i in 0..code_buf.len() {
-        //     info!("{:04x}: {:02x}", i, code_buf[i]);
-        // }
-
-
-        // let code_section = m.section(SectionType::Code).unwrap();
-        // let code_buf = &code_section.buf;
-        // let code_buf = unsafe {
-        //     use core::slice;
-        //     let new_len = code_buf.len() + 5;
-        //     let new_ptr = code_buf.as_ptr().offset(-5);
-        //     slice::from_raw_parts(new_ptr, new_len)
-        // };
-        // let mut code = Reader::new(&code_buf);
 
         info!("code section len: {:08x}", code_buf.len());
 
         let body_range = mi.code().body_range(func_index);        
         info!("body: {:08x} to {:08x}", body_range.start, body_range.end);
 
-
-        // let body = m.body(func_index as u32).unwrap();
-
-        // info!("body: size={}", body.buf.len());
-
-        // let body_pos = code_buf.as_ptr().offset_to(body.buf.as_ptr()).unwrap() as usize;
-        // info!("body pos: {:08x}", body_pos);
-        // code.set_pos(body_pos);
         let mut code = Reader::new(code_buf);
         code.set_pos(body_range.start);
-
-        // for (i, b) in code_buf.iter().enumerate() {
-        //     let here = if i == code.pos() { " <=" } else { "" };
-        //     info!("{:04x}: {:02x}{}", i, b, here);
-        // }
 
         let mut _count = 0;
 

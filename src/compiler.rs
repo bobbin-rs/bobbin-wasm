@@ -2,7 +2,6 @@ use {Error, Value, SectionType, TypeValue};
 
 use opcode::*;
 use inplace;
-use module;
 use module::*;
 use module::ModuleWrite;
 use typeck::{TypeChecker, LabelType};
@@ -230,7 +229,6 @@ impl<'a> Iterator for RangeIter<'a> {
 
 impl<'a> AsRef<[u8]> for CompiledCode<'a> {
     fn as_ref(&self) -> &[u8] {
-        let count = self.body_count();
         self.buf
     }
 }
