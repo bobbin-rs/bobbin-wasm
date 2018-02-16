@@ -50,16 +50,6 @@ pub const FIXUP: u32 = 0xffff_ffff;
 pub type WasmResult<T> = Result<T, Error>;
 
 
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum ExternalKind {
-    Function = 0x00,
-    Table = 0x01,
-    Memory = 0x02,
-    Global = 0x03,
-}
-
-
 #[derive(Debug, Clone, Copy)]
 pub struct Function {
     offset: u32,
