@@ -8,6 +8,7 @@ extern crate byteorder;
 
 pub mod inplace;
 
+pub mod error;
 pub mod opcode;
 pub mod types;
 pub mod cursor;
@@ -27,6 +28,7 @@ pub mod event;
 pub mod delegate;
 pub mod dumper;
 
+pub use error::*;
 pub use types::*;
 pub use event::*;
 pub use cursor::*;
@@ -46,71 +48,6 @@ pub const FIXUP: u32 = 0xffff_ffff;
 
 pub type WasmResult<T> = Result<T, Error>;
 
-#[derive(Debug, PartialEq)]
-pub enum Error {
-    Unreachable,
-    Return,
-    End,
-    Unimplemented,
-    InvalidBlockType,
-    ScopesFull,
-    FixupsFull,
-    OutOfBounds,
-    Leb128Overflow,
-    UndefinedTableIndex { id: i32 },
-    SignatureMismatch,
-    TypeCheck(&'static str),
-
-    InvalidHeader,
-    InvalidSection { id: u32 },
-    InvalidGlobalKind { id: u8 },
-    UnknownSignatureType,
-    UnknownExternalKind,
-    InvalidReturnType,
-    InvalidIfSignature,
-    InvalidReservedValue,
-    InvalidBranchTableDefault { id: u32, len: u32},
-    InvalidImport,
-    InvalidLocal { id: u32 },
-    InvalidGlobal { id: u32 },
-    InvalidFunction { id: u32 },
-    InvalidSignature { id: u32 },
-    UnexpectedData { wanted: u32, got: u32 },
-    UnexpectedStackDepth { wanted: u32, got: u32},
-    UnexpectedTypeStackDepth { wanted: u32, got: u32},
-    UnexpectedType { wanted: TypeValue, got: TypeValue },
-    UnexpectedReturnValue { wanted: TypeValue, got: TypeValue},
-    UnexpectedReturnLength { got: u32 },
-    FmtError(fmt::Error),
-    Utf8Error(str::Utf8Error),
-    OpcodeError(opcode::Error),
-    StackError(stack::Error),
-}
-
-impl From<fmt::Error> for Error {
-    fn from(other: fmt::Error) -> Error {
-        Error::FmtError(other)
-    }
-}
-
-impl From<opcode::Error> for Error {
-    fn from(other: opcode::Error) -> Error {
-        Error::OpcodeError(other)
-    }
-}
-
-impl From<stack::Error> for Error {
-    fn from(other: stack::Error) -> Error {
-        Error::StackError(other)
-    }
-}
-
-
-impl From<str::Utf8Error> for Error {
-    fn from(other: str::Utf8Error) -> Error {
-        Error::Utf8Error(other)
-    }
-}
 
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]

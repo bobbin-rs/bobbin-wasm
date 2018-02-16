@@ -374,8 +374,7 @@ impl<'m> Compiler<'m> {
 }
 
 impl<'m> Compiler<'m> {
-    pub fn compile(&mut self, _m: &::inplace::Module) -> Result<&'m [u8], Error> {
-
+    pub fn compile(&mut self, _m: &::inplace::Module) -> Result<&'m [u8], Error> {        
         Ok(self.w.split_mut())
     }
 }
