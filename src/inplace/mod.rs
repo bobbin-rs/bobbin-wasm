@@ -1,4 +1,9 @@
-use SectionType;
+
+pub mod module_inst;
+pub mod visitor;
+pub mod interp;
+
+use {Error, SectionType};
 use cursor::Cursor;
 use opcode::*;
 
@@ -6,7 +11,10 @@ use core::ops::Range;
 use core::fmt;
 use core::convert::TryFrom;
 
-pub mod visitor;
+use compiler::CompiledCode;
+use self::module_inst::ModuleInst;
+use memory_inst::MemoryInst;
+
 
 pub struct FixupCount(usize);
 pub struct FixupLen(usize);
@@ -142,6 +150,11 @@ impl<'a> Module<'a> {
         }
         None
     }
+
+    pub fn instantiate<'b, 'mem, 'code>(&'a self, buf: &'b mut [u8], memory: &'mem MemoryInst<'mem>, code: &'code CompiledCode<'code>) -> Result<(ModuleInst<'a, 'b, 'mem, 'code>, &'b mut [u8]), Error> {
+        ModuleInst::new(self, buf, memory, code)
+    }
+    
 }
 
 pub struct SectionIter<'a> {

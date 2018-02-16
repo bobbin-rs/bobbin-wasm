@@ -15,7 +15,7 @@ use clap::{App, Arg, ArgMatches};
 
 use wasm::{TypeValue, SectionType, ExportDesc};
 use wasm::memory_inst::MemoryInst;
-use wasm::inplace::{visitor, Module};
+use wasm::inplace::{self, visitor, Module};
 
 
 #[derive(Debug)]
@@ -90,7 +90,11 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     let mut memory_buf = [0u8; 256];
     let memory = MemoryInst::new(&mut memory_buf, 1, None);
 
-    let (mi, _buf) = lm.instantiate(buf, &memory)?;
+    // let (mi, _buf) = lm.instantiate(buf, &memory)?;
+
+
+    let (mi, _buf) = m.instantiate(buf, &memory, &code)?;
+
 
     // Interpreter
 
@@ -99,7 +103,7 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     let mut buf = [0u8; 1024];
 
-    let mut interp = Interp::new(&mut buf);
+    let mut interp = inplace::interp::Interp::new(&mut buf);
 
     for s in lm.iter() {
         if s.section_type == SectionType::Export {
