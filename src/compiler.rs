@@ -1,4 +1,4 @@
-use {Error, Event, Value, SectionType, TypeValue, Delegate, DelegateResult};
+use {Error, Value, SectionType, TypeValue};
 
 use opcode::*;
 use inplace;
@@ -501,7 +501,7 @@ impl<'m> Compiler<'m> {
         Ok(())
     }
 
-    fn compile_instruction(&mut self, body: &inplace::Body, i: inplace::Instr) -> DelegateResult {
+    fn compile_instruction(&mut self, body: &inplace::Body, i: inplace::Instr) -> Result<(), Error> {
         use opcode::Immediate::*;
         use core::convert::TryFrom;
 
