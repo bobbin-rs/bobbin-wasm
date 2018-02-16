@@ -160,11 +160,13 @@ pub fn visit<D: Delegate>(m: &Module, d: &mut D) -> Result<(), Error> {
                         }
                         d.dispatch(Event::InstructionsStart)?;                
                         for expr in code.iter() {
-                            let Instr { range, opcode: _, imm } = expr;
-                            let op = Opcode::try_from(expr.opcode)?;
+                            let Instr { range, opcode, imm } = expr;
+                            let op = Opcode::try_from(opcode)?;
                             let data = &[];
                             let offset = range.start;
-                            d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }))?;
+                            if !(range.end == code.range.end && opcode == END) {
+                                d.dispatch(Event::Instruction(Instruction { offset, data, op: &op, imm }))?;
+                            }
                         }
                         d.dispatch(Event::InstructionsEnd)?;
                         d.dispatch(Event::BodyEnd)?;
