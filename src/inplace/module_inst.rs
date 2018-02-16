@@ -216,6 +216,9 @@ impl<'m, 'a, 'mem, 'code> ModuleInst<'m, 'a, 'mem, 'code> {
             }
         })        
     }    
+    pub fn code(&self) -> &CompiledCode {
+        self.code
+    }
 
     // pub fn body(&self, index: usize) -> Option<Body> {
     //     self.m.body(index as u32)

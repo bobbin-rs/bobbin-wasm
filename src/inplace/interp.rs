@@ -1,6 +1,7 @@
 use {Error, Value, SectionType};
 
-use module_inst::{ModuleInst, FuncInst};
+// use module_inst::{ FuncInst};
+use super::module_inst::{ModuleInst, FuncInst};
 use reader::Reader;
 use writer::Writer;
 use stack::Stack;
@@ -62,26 +63,39 @@ impl<'a> Interp<'a> {
         let m = mi.module();
         // let func = m.function(func_index as u32).unwrap();
         // let func_type = m.signature_type(func.signature_type_index).unwrap();
-        let code_section = m.section(SectionType::Code).unwrap();
-        let code_buf = &code_section.buf;
-        let code_buf = unsafe {
-            use core::slice;
-            let new_len = code_buf.len() + 5;
-            let new_ptr = code_buf.as_ptr().offset(-5);
-            slice::from_raw_parts(new_ptr, new_len)
-        };
-        let mut code = Reader::new(&code_buf);
+
+        let code_buf = mi.code().as_ref();
+
+        for i in 0..code_buf.len() {
+            info!("{:04x}: {:02x}", i, code_buf[i]);
+        }
+
+
+        // let code_section = m.section(SectionType::Code).unwrap();
+        // let code_buf = &code_section.buf;
+        // let code_buf = unsafe {
+        //     use core::slice;
+        //     let new_len = code_buf.len() + 5;
+        //     let new_ptr = code_buf.as_ptr().offset(-5);
+        //     slice::from_raw_parts(new_ptr, new_len)
+        // };
+        // let mut code = Reader::new(&code_buf);
 
         info!("code section len: {:08x}", code_buf.len());
 
+        let body_range = mi.code().body_range(func_index);        
+        info!("body: {:08x} to {:08x}", body_range.start, body_range.end);
 
-        let body = m.body(func_index as u32).unwrap();
+
+        // let body = m.body(func_index as u32).unwrap();
 
         // info!("body: size={}", body.buf.len());
 
-        let body_pos = code_buf.as_ptr().offset_to(body.buf.as_ptr()).unwrap() as usize;
+        // let body_pos = code_buf.as_ptr().offset_to(body.buf.as_ptr()).unwrap() as usize;
         // info!("body pos: {:08x}", body_pos);
-        code.set_pos(body_pos);
+        // code.set_pos(body_pos);
+        let mut code = Reader::new(code_buf);
+        code.set_pos(body_range.start);
 
         // for (i, b) in code_buf.iter().enumerate() {
         //     let here = if i == code.pos() { " <=" } else { "" };
@@ -160,11 +174,13 @@ impl<'a> Interp<'a> {
                         &FuncInst::Local { type_index: _, function_index } => {
                             // info!("Function Index {}", function_index);
                             // lookup body offset
-                            let body = m.body(function_index as u32).unwrap();
+                            let body_range = mi.code().body_range(function_index);
+                            // let body = m.body(function_index as u32).unwrap();
 
                             // info!("body: size={}", body.buf.len());
 
-                            let body_pos = code_buf.as_ptr().offset_to(body.buf.as_ptr()).unwrap() as usize;
+                            // let body_pos = code_buf.as_ptr().offset_to(body.buf.as_ptr()).unwrap() as usize;
+                            let body_pos = body_range.start;
                             // info!("body_pos: {:08x}", body_pos);
                             body_pos
                         },
@@ -218,8 +234,11 @@ impl<'a> Interp<'a> {
                                 return Err(Error::SignatureMismatch)
                             }
 
-                            let body = m.body(function_index as u32).unwrap();
-                            let offset = code_buf.as_ptr().offset_to(body.buf.as_ptr()).unwrap() as usize;
+                            let body_range = mi.code().body_range(function_index);
+                            let offset = body_range.start;
+
+                            // let body = m.body(function_index as u32).unwrap();
+                            // let offset = code_buf.as_ptr().offset_to(body.buf.as_ptr()).unwrap() as usize;
                             let pos = code.pos();
                             info!("  => {:08x} to {:08x}", pos, offset);
 

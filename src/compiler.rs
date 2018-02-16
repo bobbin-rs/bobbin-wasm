@@ -198,6 +198,7 @@ impl<'a> CompiledCode<'a> {
         cur.advance(index * 8);
         let body_beg = cur.read_u32() as usize;
         let body_end = cur.read_u32() as usize;
+        info!("{:08x} to {:08x}", body_beg, body_end);
         body_beg .. body_end
     }
 
@@ -229,6 +230,7 @@ impl<'a> Iterator for RangeIter<'a> {
 
 impl<'a> AsRef<[u8]> for CompiledCode<'a> {
     fn as_ref(&self) -> &[u8] {
+        let count = self.body_count();
         self.buf
     }
 }
@@ -518,6 +520,8 @@ impl<'m> Compiler<'m> {
 
             self.compile_body(m, &body)?;
             let body_end = self.w.pos() as u32;
+            info!("body beg: {:08x}", body_beg);
+            info!("body end: {:08x}", body_end);
             self.w.write_u32_at(body_beg, 4 + n * 8)?;
             self.w.write_u32_at(body_end, 4 + n * 8 + 4)?;
         }
@@ -525,9 +529,7 @@ impl<'m> Compiler<'m> {
     }
 
     pub fn compile_body(&mut self, _m: &inplace::Module, body: &inplace::Body) -> Result<(), Error> {
-
-
-        self.body_fixup = self.w.write_code_start()?;
+        // self.body_fixup = self.w.write_code_start()?;
 
         self.type_checker.begin_function(self.context.return_type)?;
         self.push_label(FIXUP_OFFSET)?;
@@ -566,8 +568,8 @@ impl<'m> Compiler<'m> {
         }        
 
         // BodyEnd
-        self.w.write_code_end(self.body_fixup)?;
-        info!("code end: {:08x}", self.w.pos());
+        // self.w.write_code_end(self.body_fixup)?;
+        // info!("code end: {:08x}", self.w.pos());
 
         Ok(())
     }
