@@ -15,6 +15,7 @@ use clap::{App, Arg, ArgMatches};
 
 use wasm::{TypeValue, ExportDesc};
 use wasm::interp;
+use wasm::module_inst::ModuleInst;
 use wasm::memory_inst::MemoryInst;
 use wasm::module::Module;
 
@@ -52,6 +53,47 @@ pub fn main() {
     }
 }
 
+// pub struct Environment<'a,> {
+//     buf: &'a mut [u8],
+//     code_buf: &'a mut [u8],
+//     memory: MemoryInst<'a>,
+//     module: Option<&'a Module<'a>>,
+//     module_inst: Option<&'a ModuleInst<'a, 'a, 'a, 'a>>,
+// }
+
+// impl<'a> Environment<'a> {
+//     pub fn new(buf: &'a mut [u8], code_buf: &'a mut [u8]) -> Self {   
+//         let (memory_buf, rest) = buf.split_at_mut(256);
+//         let memory = MemoryInst::new(memory_buf, 1, None);
+
+//         Environment { buf, memory, module: None }
+//     }
+
+//     pub fn load_module(&mut self, buf: &'a [u8]) -> Result<(Module<'a>, MemoryInst<'a>, &'a mut[u8])> {
+//         let m = Module::from(buf.as_ref());
+
+//         let cfg = wasm::compiler::Config::default();
+//         let mut compiler = wasm::compiler::Compiler::new_with_config(cfg, self.code_buf);
+//         let code = compiler.compile(&m)?;
+
+//         let (mi, rest) = m.instantiate(&mut buf, &self.memory, &code)?;        
+//         self.module = Some(&m);
+//         self.module_inst = Some(&mi);
+//         (m, mi, rest)        
+//     }
+// }
+
+// pub struct Executor<'a> {    
+//     env: Environment<'a>
+// }
+
+// impl<'a> Executor<'a> {
+//     pub fn new(env: Environment<'a>) -> Self {
+//         Executor {}
+//     }
+// }
+
+
 pub fn run(matches: ArgMatches) -> Result<(), Error> {
     let path = Path::new(matches.value_of("path").unwrap());
     let mut file = File::open(&path)?;
@@ -66,12 +108,10 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     let m = Module::from(data.as_ref());
 
+    let mut compiler_buf = [0u8; 4096];
+    let mut compiler = wasm::compiler::Compiler::new(&mut compiler_buf[..]);
     let mut code_buf = [0u8; 4096];
-
-
-    let cfg = wasm::compiler::Config::default();
-    let mut compiler = wasm::compiler::Compiler::new_with_config(cfg, &mut code_buf[..]);
-    let code = compiler.compile(&m)?;
+    let code = compiler.compile(&mut code_buf, &m)?;
 
     // println!("CODE");
     // for (i, b) in code.iter().enumerate() {

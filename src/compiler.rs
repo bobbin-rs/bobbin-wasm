@@ -247,7 +247,6 @@ impl Default for Config {
 
 pub struct Compiler<'m> {
     cfg: Config,
-    w: Writer<'m>,
     label_stack: Stack<'m, Label>,
     type_checker: TypeChecker<'m>,
     functions: SmallVec<'m, u32>,
@@ -260,11 +259,11 @@ pub struct Compiler<'m> {
 }
 
 impl<'m> Compiler<'m> {
-    pub fn new(module_buf: &'m mut [u8]) -> Self {
-        Compiler::new_with_config(Config::default(), module_buf)
+    pub fn new(buf: &'m mut [u8]) -> Self {
+        Compiler::new_with_config(Config::default(), buf)
     }
-    pub fn new_with_config(cfg: Config, code_buf: &'m mut [u8]) -> Self {
-        let mut w = Writer::new(code_buf);
+    pub fn new_with_config(cfg: Config, buf: &'m mut [u8]) -> Self {
+        let mut w = Writer::new(buf);
 
         // These should be not be allocated from module storage
         let label_stack = w.alloc_stack(16);        
@@ -282,7 +281,6 @@ impl<'m> Compiler<'m> {
         let context = Context::default();
         Compiler { 
             cfg,
-            w, 
             label_stack,
             type_checker,
             functions,
@@ -344,16 +342,16 @@ impl<'m> Compiler<'m> {
         Err(Error::FixupsFull)
     }
 
-    fn fixup(&mut self) -> Result<(), Error> {
+    fn fixup(&mut self, w: &mut Writer) -> Result<(), Error> {
         let depth = self.label_depth();        
         let offset = self.peek_label(0)?.offset;
-        let offset = if offset == FIXUP_OFFSET { self.w.pos() } else { offset as usize};
+        let offset = if offset == FIXUP_OFFSET { w.pos() } else { offset as usize};
         info!("fixup: {} -> 0x{:08x}", depth, offset);
         for entry in self.fixups.iter_mut() {
             let del = if let &mut Some(entry) = entry {
                 if entry.depth == depth {
                     info!(" {:?}", entry);
-                    self.w.write_u32_at(offset as u32, entry.offset as usize)?;
+                    w.write_u32_at(offset as u32, entry.offset as usize)?;
                     true
                 } else {
                     info!(" ! {} 0x{:04x}", entry.depth, entry.offset);                    
@@ -405,25 +403,25 @@ impl<'m> Compiler<'m> {
         })
     }
 
-    fn write_br_offset(&mut self, depth: u32, offset: u32) -> Result<(), Error> {
-        info!("write_br_offset({}, {:08x}) @ {:08x}", depth, offset, self.w.pos());
+    fn write_br_offset(&mut self, w: &mut Writer, depth: u32, offset: u32) -> Result<(), Error> {
+        info!("write_br_offset({}, {:08x}) @ {:08x}", depth, offset, w.pos());
         Ok({
             if offset == FIXUP_OFFSET {
-                let pos = self.w.pos();
+                let pos = w.pos();
                 self.add_fixup(depth, pos as u32)?;
             }
-            self.w.write_u32(offset)?;
+            w.write_u32(offset)?;
         })
     }
 
-    fn write_br_table_offset(&mut self, depth: u32) -> Result<(), Error> {
-        info!("write_br_table_offset({}) @ {:08x}", depth, self.w.pos());
+    fn write_br_table_offset(&mut self, w: &mut Writer, depth: u32) -> Result<(), Error> {
+        info!("write_br_table_offset({}) @ {:08x}", depth, w.pos());
         Ok({
             let (drop, keep) = self.get_br_drop_keep_count(depth as usize)?;
             let label = self.peek_label(depth as usize)?;
-            self.write_br_offset(depth, label.offset)?;
-            self.w.write_u32(drop)?;
-            self.w.write_u32(keep)?;
+            self.write_br_offset(w, depth, label.offset)?;
+            w.write_u32(drop)?;
+            w.write_u32(keep)?;
 
 //   CHECK_RESULT(GetBrDropKeepCount(depth, &drop_count, &keep_count));
 //   CHECK_RESULT(EmitBrOffset(depth, GetLabel(depth)->offset));
@@ -432,21 +430,22 @@ impl<'m> Compiler<'m> {
         })
     }
 
-    fn write_fixup_u32(&mut self) -> Result<usize, Error> {
-        let pos = self.w.pos();
-        self.w.write_u32(FIXUP_OFFSET)?;
+    fn write_fixup_u32(&mut self, w: &mut Writer) -> Result<usize, Error> {
+        let pos = w.pos();
+        w.write_u32(FIXUP_OFFSET)?;
         Ok(pos)
     }
 
-    fn apply_fixup_u32(&mut self, fixup: usize) -> Result<u32, Error> {
-        let len = self.w.pos() - (fixup + 4);
-        self.w.write_u32_at(len as u32, fixup)?;
+    fn apply_fixup_u32(&mut self, w: &mut Writer, fixup: usize) -> Result<u32, Error> {
+        let len = w.pos() - (fixup + 4);
+        w.write_u32_at(len as u32, fixup)?;
         Ok(len as u32)
     }
 }
 
 impl<'m> Compiler<'m> {
-    pub fn compile(&mut self, m: &Module) -> Result<CompiledCode<'m>, Error> {
+    pub fn compile<'c>(&mut self, code_buf: &'c mut [u8], m: &Module) -> Result<CompiledCode<'c>, Error> {
+        let mut w = Writer::new(code_buf);
         if let Some(import_section) = m.import_section() {
             for import in import_section.iter() {
                 info!("{:?}", import);
@@ -487,40 +486,40 @@ impl<'m> Compiler<'m> {
 
         // Write Index
 
-        self.w.write_u32(0)?;
+        w.write_u32(0)?;
 
         let mut n = 0;
         for _ in code_section.iter().enumerate() {
-            self.w.write_u32(0)?; // Offset
-            self.w.write_u32(0)?; // Size
+            w.write_u32(0)?; // Offset
+            w.write_u32(0)?; // Size
             n += 1;
         }
-        self.w.write_u32_at(n, 0)?;
+        w.write_u32_at(n, 0)?;
 
-        info!("{:08x}: Code Start", self.w.pos());
+        info!("{:08x}: Code Start", w.pos());
         
         for (n, body) in code_section.iter().enumerate() {
-            let body_beg = self.w.pos() as u32;
+            let body_beg = w.pos() as u32;
             self.context = Context::from(m.function_signature_type(n).unwrap());
 
             for local in body.locals() {
                 self.context.add_local(local.n, local.t);
             }                  
 
-            info!("{:08x}: V:{} | func[{}] {:?}", self.w.pos(), self.type_checker.type_stack_size(), n, self.context);  
+            info!("{:08x}: V:{} | func[{}] {:?}", w.pos(), self.type_checker.type_stack_size(), n, self.context);  
 
-            self.compile_body(m, &body)?;
-            let body_end = self.w.pos() as u32;
+            self.compile_body(&mut w, m, &body)?;
+            let body_end = w.pos() as u32;
             info!("body beg: {:08x}", body_beg);
             info!("body end: {:08x}", body_end);
-            self.w.write_u32_at(body_beg, 4 + n * 8)?;
-            self.w.write_u32_at(body_end, 4 + n * 8 + 4)?;
+            w.write_u32_at(body_beg, 4 + n * 8)?;
+            w.write_u32_at(body_end, 4 + n * 8 + 4)?;
         }
-        Ok(CompiledCode { buf: self.w.split_mut() })
+        Ok(CompiledCode { buf: w.split_mut() })
     }
 
-    pub fn compile_body(&mut self, m: &Module, body: &Body) -> Result<(), Error> {
-        // self.body_fixup = self.w.write_code_start()?;
+    pub fn compile_body<'c>(&mut self, w: &mut Writer<'c>, m: &Module, body: &Body) -> Result<(), Error> {
+        // self.body_fixup = w.write_code_start()?;
 
         self.type_checker.begin_function(self.context.return_type)?;
         self.push_label(FIXUP_OFFSET)?;
@@ -528,16 +527,16 @@ impl<'m> Compiler<'m> {
 
         // InstructionsStart
 
-        self.w.write_alloca(self.context.locals_count as u32)?;                
+        w.write_alloca(self.context.locals_count as u32)?;                
 
         for i in body.iter() {
             // Instruction
             // if !(i.range.end == body.range.end && i.opcode == END) {
-                self.compile_instruction(m, body, i)?;
+                self.compile_instruction(w, m, body, i)?;
             // }
         }
         // InstructionsEnd
-        info!("{:08x}: L: {} V:{} | {} ", self.w.pos(), self.label_stack.len(), self.type_checker.type_stack_size(), "EXIT");
+        info!("{:08x}: L: {} V:{} | {} ", w.pos(), self.label_stack.len(), self.type_checker.type_stack_size(), "EXIT");
 
         //   CHECK_RESULT(GetReturnDropKeepCount(&drop_count, &keep_count));
         //   CHECK_RESULT(typechecker_.EndFunction());
@@ -545,11 +544,11 @@ impl<'m> Compiler<'m> {
         //   CHECK_RESULT(EmitOpcode(Opcode::Return));
         //   PopLabel();
 
-        self.fixup()?;
+        self.fixup(w)?;
         let (drop, keep) = self.get_return_drop_keep_count()?;
         self.type_checker.end_function()?;
-        self.w.write_drop_keep(drop, keep)?;                                    
-        self.w.write_opcode(RETURN)?;
+        w.write_drop_keep(drop, keep)?;                                    
+        w.write_opcode(RETURN)?;
         self.pop_label()?;
 
         for entry in self.fixups.iter() {
@@ -559,13 +558,13 @@ impl<'m> Compiler<'m> {
         }        
 
         // BodyEnd
-        // self.w.write_code_end(self.body_fixup)?;
-        // info!("code end: {:08x}", self.w.pos());
+        // w.write_code_end(self.body_fixup)?;
+        // info!("code end: {:08x}", w.pos());
 
         Ok(())
     }
 
-    fn compile_instruction(&mut self, m: &Module, body: &Body, i: Instr) -> Result<(), Error> {
+    fn compile_instruction<'w>(&mut self, w: &mut Writer<'w>, m: &Module, body: &Body, i: Instr) -> Result<(), Error> {
         use opcode::Immediate::*;
         use core::convert::TryFrom;
 
@@ -578,7 +577,7 @@ impl<'m> Compiler<'m> {
             if op.code == END || op.code == ELSE {
                 indent -= 1;
             }
-            info!("{:08x}: L: {} V:{} | {:0width$}{}{:?}" , self.w.pos(), self.label_stack.len(), self.type_checker.type_stack_size(),  "", op.text, i.imm, width=indent);
+            info!("{:08x}: L: {} V:{} | {:0width$}{}{:?}" , w.pos(), self.label_stack.len(), self.type_checker.type_stack_size(),  "", op.text, i.imm, width=indent);
         }
 
         let opc = i.opcode;
@@ -586,11 +585,11 @@ impl<'m> Compiler<'m> {
             None => match opc {
                 SELECT => {
                     self.type_checker.on_select()?;
-                    self.w.write_opcode(opc)?;
+                    w.write_opcode(opc)?;
                 },
                 DROP => {
                     self.type_checker.on_drop()?;
-                    self.w.write_opcode(opc)?;
+                    w.write_opcode(opc)?;
                 },                
                 END => if i.range.end == body.range.end && i.opcode == END {
                     info!("Skipping implicit END");
@@ -602,12 +601,12 @@ impl<'m> Compiler<'m> {
                     self.type_checker.on_end()?;
                     if label_type == LabelType::If || label_type == LabelType::Else {
                         let label = self.top_label()?;
-                        let pos = self.w.pos();
+                        let pos = w.pos();
                         info!("fixup_offset: {:08x} at {:08x}", pos, label.fixup_offset);
-                        self.w.write_u32_at(pos as u32, label.fixup_offset as usize)?;                        
+                        w.write_u32_at(pos as u32, label.fixup_offset as usize)?;                        
                     }
                     info!("FIXUP");
-                    self.fixup()?;
+                    self.fixup(w)?;
                     info!("POP_LABEL");
                     self.pop_label()?;
                     info!("end done");
@@ -638,19 +637,19 @@ impl<'m> Compiler<'m> {
                     let fixup_cond_offset = label.fixup_offset;
 
                     // Write BR to end of block
-                    self.w.write_opcode(BR)?;
+                    w.write_opcode(BR)?;
                     // Write BR OFFSET fixup 
-                    let br_offset = self.w.pos() as u32;
+                    let br_offset = w.pos() as u32;
                     {
                         let mut label = self.top_label_ref()?;
                         label.fixup_offset = br_offset;
                     }
-                    self.w.write_u32(FIXUP_OFFSET)?;
+                    w.write_u32(FIXUP_OFFSET)?;
 
                     // Fixup BR_UNLESS OFFSET
-                    let br_pos = self.w.pos();
+                    let br_pos = w.pos();
                     info!("fixup_offset: {:08x} at {:08x}", br_pos, fixup_cond_offset);
-                    self.w.write_u32_at(br_pos as u32, fixup_cond_offset as usize)?;
+                    w.write_u32_at(br_pos as u32, fixup_cond_offset as usize)?;
                 },
                 RETURN => {                    
                     // Index drop_count, keep_count;
@@ -661,17 +660,17 @@ impl<'m> Compiler<'m> {
 
                     let (drop, keep) = self.get_return_drop_keep_count()?;
                     self.type_checker.on_return()?;
-                    self.w.write_drop_keep(drop, keep)?;                                    
-                    self.w.write_opcode(RETURN)?;
+                    w.write_drop_keep(drop, keep)?;                                    
+                    w.write_opcode(RETURN)?;
                 },                
                 _ => {
                     info!("{:?} {}", op, op.is_binop());
                     if op.is_binop() {
                         self.type_checker.on_binary(&op)?;
-                        self.w.write_opcode(opc)?;
+                        w.write_opcode(opc)?;
                     } else if op.is_unop() {
                         self.type_checker.on_unary(&op)?;
-                        self.w.write_opcode(opc)?;
+                        w.write_opcode(opc)?;
                     } else {
                         panic!("{} not implemented", op.text);
                     }
@@ -686,7 +685,7 @@ impl<'m> Compiler<'m> {
                 },
                 LOOP => {
                     self.type_checker.on_loop(sig)?;
-                    let pos = self.w.pos();
+                    let pos = w.pos();
                     self.push_label(pos as u32)?;                    
                 },
                 IF => {
@@ -697,10 +696,10 @@ impl<'m> Compiler<'m> {
                     // PushLabel(kInvalidIstreamOffset, fixup_offset);
                                         
                     self.type_checker.on_if(sig)?;
-                    self.w.write_opcode(INTERP_BR_UNLESS)?;                    
-                    let pos = self.w.pos();
+                    w.write_opcode(INTERP_BR_UNLESS)?;                    
+                    let pos = w.pos();
                     // push label with fixup pointer to BR_UNLESS offset
-                    self.w.write_u32(FIXUP_OFFSET)?;                    
+                    w.write_u32(FIXUP_OFFSET)?;                    
                     self.push_label_fixup(FIXUP_OFFSET, pos as u32)?; 
                 },
                 _ => unreachable!(),
@@ -709,12 +708,12 @@ impl<'m> Compiler<'m> {
                 BR => {
                     let (drop, keep) = self.get_br_drop_keep_count(depth as usize)?;
                     self.type_checker.on_br(depth as usize)?;
-                    self.w.write_drop_keep(drop, keep)?;
+                    w.write_drop_keep(drop, keep)?;
 
-                    self.w.write_opcode(opc)?;
-                    let pos = self.w.pos();
+                    w.write_opcode(opc)?;
+                    let pos = w.pos();
                     self.add_fixup(depth as u32, pos as u32)?;
-                    self.w.write_u32(FIXUP_OFFSET)?;    
+                    w.write_u32(FIXUP_OFFSET)?;    
 
                     // CHECK_RESULT(GetBrDropKeepCount(depth, &drop_count, &keep_count));
                     // CHECK_RESULT(typechecker_.OnBr(depth));
@@ -724,18 +723,18 @@ impl<'m> Compiler<'m> {
                     self.type_checker.on_br_if(depth as usize)?;
                     let (drop, keep) = self.get_br_drop_keep_count(depth as usize)?;
 
-                    self.w.write_opcode(INTERP_BR_UNLESS)?;
-                    let fixup_br_offset = self.w.pos();
-                    self.w.write_u32(FIXUP_OFFSET)?;    
-                    self.w.write_drop_keep(drop, keep)?;
+                    w.write_opcode(INTERP_BR_UNLESS)?;
+                    let fixup_br_offset = w.pos();
+                    w.write_u32(FIXUP_OFFSET)?;    
+                    w.write_drop_keep(drop, keep)?;
 
-                    self.w.write_opcode(BR)?;
-                    let pos = self.w.pos();
+                    w.write_opcode(BR)?;
+                    let pos = w.pos();
                     self.add_fixup(depth as u32, pos as u32)?;
-                    self.w.write_u32(FIXUP_OFFSET)?;    
+                    w.write_u32(FIXUP_OFFSET)?;    
 
-                    let pos = self.w.pos();
-                    self.w.write_u32_at(pos as u32, fixup_br_offset)?;
+                    let pos = w.pos();
+                    w.write_u32_at(pos as u32, fixup_br_offset)?;
                     
                     //   CHECK_RESULT(typechecker_.OnBrIf(depth));
                     //   CHECK_RESULT(GetBrDropKeepCount(depth, &drop_count, &keep_count));
@@ -749,12 +748,12 @@ impl<'m> Compiler<'m> {
                 _ => unimplemented!(),              
                 // let label = self.label_stack.peek(depth as usize)?;
                 // let (drop, keep) = self.get_drop_keep(&label)?;
-                // self.w.write_drop_keep(drop, keep)?;
+                // w.write_drop_keep(drop, keep)?;
 
-                // self.w.write_opcode(op)?;
-                // let pos = self.w.pos();
+                // w.write_opcode(op)?;
+                // let pos = w.pos();
                 // self.add_fixup(depth, pos as u32)?;
-                // self.w.write_u32(FIXUP_OFFSET)?;                
+                // w.write_u32(FIXUP_OFFSET)?;                
             },
             BranchTable { table } => {
                 // BR_TABLE COUNT:u32 TABLE_OFFSET:u32
@@ -765,26 +764,26 @@ impl<'m> Compiler<'m> {
                 let count = table.len() as u32;
 
                 self.type_checker.begin_br_table()?;
-                self.w.write_opcode(BR_TABLE)?;
-                self.w.write_u32(count as u32)?;
+                w.write_opcode(BR_TABLE)?;
+                w.write_u32(count as u32)?;
 
                 // Write offset of branch table
-                let table_pos = self.w.pos();
-                self.w.write_u32(FIXUP_OFFSET)?;
+                let table_pos = w.pos();
+                w.write_u32(FIXUP_OFFSET)?;
                 
                 // Write INTERP_DATA + SIZE
-                self.w.write_opcode(INTERP_DATA)?;
-                self.w.write_u32((count + 1) * BR_TABLE_ENTRY_SIZE)?;
+                w.write_opcode(INTERP_DATA)?;
+                w.write_u32((count + 1) * BR_TABLE_ENTRY_SIZE)?;
 
                 // Fixup branch table offset
-                let pos = self.w.pos();
-                self.w.write_u32_at(pos as u32, table_pos)?;
+                let pos = w.pos();
+                w.write_u32_at(pos as u32, table_pos)?;
 
                 // Branch Table Starts Here
 
                 for depth in table.iter() {
                     self.type_checker.on_br_table_target(*depth as usize)?;
-                    self.write_br_table_offset(*depth as u32)?;
+                    self.write_br_table_offset(w, *depth as u32)?;
                 }
 
                 self.type_checker.end_br_table()?;
@@ -797,31 +796,31 @@ impl<'m> Compiler<'m> {
                 // OFFSET:u32 DROP:u32 KEEP:u32
 
                 self.type_checker.begin_br_table()?;
-                self.w.write_opcode(BR_TABLE)?;
-                self.w.write_u32(count as u32)?;
+                w.write_opcode(BR_TABLE)?;
+                w.write_u32(count as u32)?;
 
                 // Write offset of branch table
-                let table_pos = self.w.pos();
-                self.w.write_u32(FIXUP_OFFSET)?;
+                let table_pos = w.pos();
+                w.write_u32(FIXUP_OFFSET)?;
                 
                 // Write INTERP_DATA + SIZE
-                self.w.write_opcode(INTERP_DATA)?;
-                self.w.write_u32((count + 1) * BR_TABLE_ENTRY_SIZE)?;
+                w.write_opcode(INTERP_DATA)?;
+                w.write_u32((count + 1) * BR_TABLE_ENTRY_SIZE)?;
 
                 // Fixup branch table offset
-                let pos = self.w.pos();
-                self.w.write_u32_at(pos as u32, table_pos)?;
+                let pos = w.pos();
+                w.write_u32_at(pos as u32, table_pos)?;
 
                 // Branch Table Starts Here            
             },
             BranchTableDepth { n: _, depth } => {
                 self.type_checker.on_br_table_target(depth as usize)?;
-                self.write_br_table_offset(depth as u32)?;
+                self.write_br_table_offset(w, depth as u32)?;
             },
             BranchTableDefault { depth } => {
                 info!("branch table default");
                 self.type_checker.on_br_table_target(depth as usize)?;
-                self.write_br_table_offset(depth as u32)?;
+                self.write_br_table_offset(w, depth as u32)?;
 
                 self.type_checker.end_br_table()?;              
                 info!("branch table default done");
@@ -847,8 +846,8 @@ impl<'m> Compiler<'m> {
                     _ => unreachable!()
                 };
                 info!("-- local_id: {}", local_id);
-                self.w.write_opcode(opc)?;
-                self.w.write_u32(local_id)?;                
+                w.write_opcode(opc)?;
+                w.write_u32(local_id)?;                
 
             }
             Global { index } => {
@@ -858,8 +857,8 @@ impl<'m> Compiler<'m> {
                         if let Some(global) = m.global(index.0 as usize) {
                             let global_type = global.global_type;
                             self.type_checker.on_get_global(global_type.type_value)?;
-                            self.w.write_opcode(GET_GLOBAL)?    ;
-                            self.w.write_u32(index.0)?;
+                            w.write_opcode(GET_GLOBAL)?    ;
+                            w.write_u32(index.0)?;
                         } else {
                             return Err(Error::InvalidGlobal{ id: index.0});
                         }
@@ -887,8 +886,8 @@ impl<'m> Compiler<'m> {
                                 return Err(Error::InvalidGlobal { id: index.0 });
                             }
                             self.type_checker.on_set_global(global_type.type_value)?;
-                            self.w.write_opcode(SET_GLOBAL)?    ;
-                            self.w.write_u32(index.0)?;
+                            w.write_opcode(SET_GLOBAL)?    ;
+                            w.write_u32(index.0)?;
                         } else {
                             return Err(Error::InvalidGlobal{ id: index.0});
                         }                        
@@ -931,8 +930,8 @@ impl<'m> Compiler<'m> {
                 self.type_checker.on_call(p_slice, r_slice)?;
 
 
-                self.w.write_opcode(opc)?;
-                self.w.write_u32(id as u32)?;
+                w.write_opcode(opc)?;
+                w.write_u32(id as u32)?;
             },
             CallIndirect { index, reserved: _ } => {
                 //   if (module_->table_index == kInvalidIndex) {
@@ -973,14 +972,14 @@ impl<'m> Compiler<'m> {
                     info!("  => {:?} => {:?}", p_slice, r_slice);
                     self.type_checker.on_call_indirect(p_slice, r_slice)?;
 
-                    self.w.write_opcode(CALL_INDIRECT)?;
-                    self.w.write_u32(index.0)?;                    
+                    w.write_opcode(CALL_INDIRECT)?;
+                    w.write_u32(index.0)?;                    
                 }            
             },
             I32Const { value } => {
                 self.type_checker.on_const(I32)?;
-                self.w.write_opcode(opc)?;
-                self.w.write_i32(value)?;
+                w.write_opcode(opc)?;
+                w.write_i32(value)?;
             },
             F32Const { value: _ } => { return Err(Error::Unimplemented) },
             I64Const { value: _ } => { return Err(Error::Unimplemented) },
@@ -1008,9 +1007,9 @@ impl<'m> Compiler<'m> {
                     },
                     _ => unimplemented!(),
                 }
-                self.w.write_opcode(opc)?;
-                self.w.write_u32(align)?;
-                self.w.write_u32(offset)?;
+                w.write_opcode(opc)?;
+                w.write_u32(align)?;
+                w.write_u32(offset)?;
             },
             Memory { reserved: _ } => {
                 match opc {
@@ -1022,7 +1021,7 @@ impl<'m> Compiler<'m> {
                     },
                     _ => unimplemented!()
                 }
-                self.w.write_opcode(opc)?;
+                w.write_opcode(opc)?;
             },
         } 
         Ok(())
@@ -1197,7 +1196,6 @@ impl<'a> ModuleWrite for Writer<'a> {
         Ok(())
     }
 
-    // fn write_end(&mut self) -> Result<(), Error> { self.w.write_opcode(END) }    
     fn write_alloca(&mut self, count: u32) -> Result<(), Error> {
         Ok(
             if count > 0 {
