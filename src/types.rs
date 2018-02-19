@@ -313,21 +313,10 @@ impl fmt::Debug for Global {
     }
 }
 
+#[derive(Debug)]
 pub struct Export<'a> {
     pub identifier: Identifier<'a>,
     pub export_desc: ExportDesc,
-}
-
-impl<'a> fmt::Debug for Export<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        Ok({
-            let indent = "    ";
-            writeln!(f, "{}<Export id={:?} desc: {:?}>", indent, 
-                str::from_utf8(self.identifier.0).unwrap(),
-                self.export_desc,
-            )?;
-        })
-    }
 }
 
 pub struct Start {
@@ -393,8 +382,14 @@ impl<'a> fmt::Debug for Data<'a> {
 
 
 
-#[derive(Debug)]
 pub struct Identifier<'a>(pub &'a [u8]);
+
+impl<'a> fmt::Debug for Identifier<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", unsafe { str::from_utf8_unchecked(self.0) } )
+    }
+}
+
 
 #[derive(Debug)]
 pub struct TypeIndex(pub u32);
