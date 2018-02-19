@@ -629,6 +629,10 @@ impl<'a> Signature<'a> {
     pub fn returns(&self) -> TypeValueIter {
         TypeValueIter { buf: Cursor::new(self.returns) }
     }
+
+    pub fn return_type(&self) -> Option<TypeValue> {
+        self.returns().nth(0).map(|t| TypeValue::from(t))
+    }
 }
 
 impl<'a> fmt::Display for Signature<'a> {

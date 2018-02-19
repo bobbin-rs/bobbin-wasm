@@ -1,5 +1,3 @@
-#![feature(try_from)]
-
 extern crate wasm;
 extern crate clap;
 #[macro_use] extern crate log;
@@ -13,7 +11,7 @@ use std::path::Path;
 // use log::Level;
 use clap::{App, Arg, ArgMatches};
 
-use wasm::{TypeValue, ExportDesc};
+use wasm::{ExportDesc};
 use wasm::interp;
 use wasm::memory_inst::MemoryInst;
 use wasm::module::Module;
@@ -122,8 +120,6 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     // Interpreter
 
-    use std::convert::TryFrom;
-
     let interp_buf = &mut [0u8; 1024];
 
     let mut interp = interp::Interp::new(interp_buf);
@@ -131,11 +127,10 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     if let Some(export_section) = m.export_section() {
         for e in export_section.iter() {
             if let ExportDesc::Function(index) = e.export_desc {
-                let t = m.function_signature_type(index as usize).unwrap();
-                let id = std::str::from_utf8(e.identifier.0).unwrap();
+                let id = e.identifier;
                 match interp.call(&mi, index as usize) {
                     Ok(Some(value)) => {
-                        println!("{}() => {}:{}", id, TypeValue::try_from(t.returns().nth(0).unwrap()).unwrap(), value.0);
+                        println!("{}() => {:?}", id, value);
                     },
                     Ok(None) => {
                         println!("{}() => nil", id);

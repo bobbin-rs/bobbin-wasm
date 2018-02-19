@@ -130,8 +130,22 @@ impl From<u8> for SectionType {
 }
 
 
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default, Clone, Copy, PartialEq, Eq)]
 pub struct Value(pub i32);
+
+impl fmt::Debug for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "i32:{}", self.0)
+    }
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+
 
 impl From<i32> for Value {
     fn from(other: i32) -> Value {
@@ -384,11 +398,24 @@ impl<'a> fmt::Debug for Data<'a> {
 
 pub struct Identifier<'a>(pub &'a [u8]);
 
-impl<'a> fmt::Debug for Identifier<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", unsafe { str::from_utf8_unchecked(self.0) } )
+impl<'a> Identifier<'a> {
+    pub fn as_str(&self) -> &str {
+        unsafe { &str::from_utf8_unchecked(self.0) }
     }
 }
+
+impl<'a> fmt::Debug for Identifier<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self.as_str() )
+    }
+}
+
+impl<'a> fmt::Display for Identifier<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_str() )
+    }
+}
+
 
 
 #[derive(Debug)]
