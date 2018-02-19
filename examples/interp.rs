@@ -100,32 +100,29 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
             if let ExportDesc::Function(index) = e.export_desc {
                 let t = m.function_signature_type(index as usize).unwrap();
                 let id = std::str::from_utf8(e.identifier.0).unwrap();
-                match interp.run(&mi, index as usize) {
-                    Ok(_) => {
-                        if t.returns().count() == 1 {
-                            if interp.stack_len() == 1 {
-                                println!("{}() => {}:{}", id, TypeValue::try_from(t.returns().nth(0).unwrap()).unwrap(), interp.pop().unwrap() as u32);
-                            } else {
-                                println!("---- Stack Dump ----");
+                match interp.call(&mi, index as usize) {
+                    Ok(Some(value)) => {
+                        println!("{}() => {}:{}", id, TypeValue::try_from(t.returns().nth(0).unwrap()).unwrap(), value.0);
+                    },
+                    Ok(None) => {
+                        println!("{}() => nil", id);
+                    },
+                    Err(e) => {
+                        println!("Error: {:?}", e);
+                        println!("---- Stack Dump ----");
 
-                                let mut i = 0;
-                                while let Ok(value) = interp.pop() {
-                                    println!("{}: {:?}", i, value);
-                                    i += 1;
-                                }
-                                println!("---- END ----");
-                            }
+                        let mut i = 0;
+                        while let Ok(value) = interp.pop() {
+                            println!("{}: {:?}", i, value);
+                            i += 1;
                         }
-                    }, 
-                    Err(err) => {
-                        println!("{}() => {:?}", id, err);
+                        println!("---- END ----");
                     }
                 }
-
-
             }
         }
     }
     
     Ok(())
 }
+

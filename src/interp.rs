@@ -59,7 +59,7 @@ impl<'a> Interp<'a> {
         self.value_stack.len()
     }
 
-    pub fn run(&mut self, mi: &ModuleInst, func_index: usize) -> Result<(), Error> {
+    pub fn call(&mut self, mi: &ModuleInst, func_index: usize) -> Result<Option<Value>, Error> {
         let code_buf = mi.code().as_ref();
 
         info!("code section len: {:08x}", code_buf.len());
@@ -424,7 +424,12 @@ impl<'a> Interp<'a> {
             // info!("{:08x}: END INST {:08x}", code.pos(), code.len());
             _count += 1;
         }
-        Ok(())
+
+        match self.stack_len() {
+            0 => Ok(None),
+            1 => Ok(Some(Value(self.pop()?))),
+            _ => Err(Error::UnexpectedReturnLength { got: self.stack_len() as u32 }),
+        }
     }
 
 }
