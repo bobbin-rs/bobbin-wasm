@@ -444,7 +444,7 @@ impl<'m> Compiler<'m> {
 }
 
 impl<'m> Compiler<'m> {
-    pub fn compile<'c>(&mut self, code_buf: &'c mut [u8], m: &Module) -> Result<CompiledCode<'c>, Error> {
+    pub fn compile<'c>(&mut self, code_buf: &'c mut [u8], m: &Module) -> Result<(CompiledCode<'c>, &'c mut [u8]), Error> {
         let mut w = Writer::new(code_buf);
         if let Some(import_section) = m.import_section() {
             for import in import_section.iter() {
@@ -515,7 +515,11 @@ impl<'m> Compiler<'m> {
             w.write_u32_at(body_beg, 4 + n * 8)?;
             w.write_u32_at(body_end, 4 + n * 8 + 4)?;
         }
-        Ok(CompiledCode { buf: w.split_mut() })
+
+        let buf = w.split_mut();
+        let rest = w.into_slice();
+
+        Ok((CompiledCode { buf: buf }, rest))
     }
 
     pub fn compile_body<'c>(&mut self, w: &mut Writer<'c>, m: &Module, body: &Body) -> Result<(), Error> {

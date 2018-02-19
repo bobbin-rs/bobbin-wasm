@@ -162,7 +162,7 @@ impl<'a> Module<'a> {
         None
     }
 
-    pub fn instantiate<'b, 'mem, 'code>(&'a self, buf: &'b mut [u8], memory: &'mem MemoryInst<'mem>, code: &'code CompiledCode<'code>) -> Result<(ModuleInst<'a, 'b, 'mem, 'code>, &'b mut [u8]), Error> {
+    pub fn instantiate<'b, 'mem, 'code>(&'a self, buf: &'b mut [u8], memory: &'mem MemoryInst<'mem>, code: CompiledCode<'code>) -> Result<(ModuleInst<'a, 'b, 'mem, 'code>, &'b mut [u8]), Error> {
         ModuleInst::new(self, buf, memory, code)
     }
     

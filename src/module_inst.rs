@@ -16,11 +16,11 @@ pub struct ModuleInst<'m, 'a, 'mem, 'code> {
     globals: SmallVec<'a, GlobalInst>,
     tables: SmallVec<'a, SmallVec<'a, u32>>,
     memory_inst: &'mem MemoryInst<'mem>,
-    code: &'code CompiledCode<'code>,
+    code: CompiledCode<'code>,
 }
 
 impl<'m, 'a, 'mem, 'code> ModuleInst<'m, 'a, 'mem, 'code> {
-    pub fn new(m: &'m Module<'m>, buf: &'a mut [u8], memory_inst: &'mem MemoryInst<'mem>, code: &'code CompiledCode<'code>) -> Result<(Self, &'a mut [u8]), Error> {
+    pub fn new(m: &'m Module<'m>, buf: &'a mut [u8], memory_inst: &'mem MemoryInst<'mem>, code: CompiledCode<'code>) -> Result<(Self, &'a mut [u8]), Error> {
         let mut w = Writer::new(buf);
         // let name = w.copy_str(m.name());
 
@@ -218,7 +218,7 @@ impl<'m, 'a, 'mem, 'code> ModuleInst<'m, 'a, 'mem, 'code> {
         })        
     }    
     pub fn code(&self) -> &CompiledCode {
-        self.code
+        &self.code
     }
 
     // pub fn body(&self, index: usize) -> Option<Body> {

@@ -15,7 +15,6 @@ use clap::{App, Arg, ArgMatches};
 
 use wasm::{TypeValue, ExportDesc};
 use wasm::interp;
-use wasm::module_inst::ModuleInst;
 use wasm::memory_inst::MemoryInst;
 use wasm::module::Module;
 
@@ -106,34 +105,28 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     let _out = String::new();
 
-    let m = Module::from(data.as_ref());
-
-    let mut compiler_buf = [0u8; 4096];
-    let mut compiler = wasm::compiler::Compiler::new(&mut compiler_buf[..]);
-    let mut code_buf = [0u8; 4096];
-    let code = compiler.compile(&mut code_buf, &m)?;
-
-    // println!("CODE");
-    // for (i, b) in code.iter().enumerate() {
-    //     println!("  {}: {:08x} to {:08x}", i, b.start, b.end);
-    // }
-
     let mut memory_buf = [0u8; 256];
     let memory = MemoryInst::new(&mut memory_buf, 1, None);
 
-    // let (mi, _buf) = lm.instantiate(buf, &memory)?;
+    let m = Module::from(data.as_ref());
 
-    let mut buf = [0u8; 2048];
+    let out_buf = &mut [0u8; 4096];
 
-    let (mi, _buf) = m.instantiate(&mut buf, &memory, &code)?;
+    let (mi, _out_buf) = {
+        let mut compiler_buf = [0u8; 4096];
+        let mut compiler = wasm::compiler::Compiler::new(&mut compiler_buf[..]);
+        let (code, out_buf) = compiler.compile(out_buf, &m)?;
+        m.instantiate(out_buf, &memory, code)?
+    };
+
 
     // Interpreter
 
     use std::convert::TryFrom;
 
-    let mut buf = [0u8; 1024];
+    let interp_buf = &mut [0u8; 1024];
 
-    let mut interp = interp::Interp::new(&mut buf);
+    let mut interp = interp::Interp::new(interp_buf);
 
     if let Some(export_section) = m.export_section() {
         for e in export_section.iter() {
