@@ -1,6 +1,7 @@
 #![no_std]
 #![feature(try_from, offset_to, align_offset)]
 
+extern crate fallible_iterator;
 extern crate byteorder;
 #[macro_use] extern crate log;
 
@@ -22,6 +23,8 @@ pub mod event;
 pub mod dumper;
 pub mod visitor;
 pub mod wasm_read;
+
+pub mod parser;
 
 pub use error::*;
 pub use types::*;

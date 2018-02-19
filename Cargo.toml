@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Jonathan Soo <jcsoo@agora.com>"]
 
 [dependencies]
+fallible-iterator = "0.1.4"
 byteorder = { version = "1", default-features = false }
 log = "0.4"
 
