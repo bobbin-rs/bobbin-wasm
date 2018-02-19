@@ -10,7 +10,7 @@ use writer::Writer;
 
 pub struct ModuleInst<'m, 'a, 'mem, 'code> {
     // name: &'a str,
-    m: &'m Module<'m>,
+    m: Module<'m>,
     types: SmallVec<'a, Type<'a>>,
     functions: SmallVec<'a, FuncInst>,
     globals: SmallVec<'a, GlobalInst>,
@@ -20,7 +20,7 @@ pub struct ModuleInst<'m, 'a, 'mem, 'code> {
 }
 
 impl<'m, 'a, 'mem, 'code> ModuleInst<'m, 'a, 'mem, 'code> {
-    pub fn new(m: &'m Module<'m>, buf: &'a mut [u8], memory_inst: &'mem MemoryInst<'mem>, code: CompiledCode<'code>) -> Result<(Self, &'a mut [u8]), Error> {
+    pub fn new(m: Module<'m>, buf: &'a mut [u8], memory_inst: &'mem MemoryInst<'mem>, code: CompiledCode<'code>) -> Result<(Self, &'a mut [u8]), Error> {
         let mut w = Writer::new(buf);
         // let name = w.copy_str(m.name());
 
@@ -130,8 +130,8 @@ impl<'m, 'a, 'mem, 'code> ModuleInst<'m, 'a, 'mem, 'code> {
     //     self.name
     // }
 
-    pub fn module(&self) -> &'m Module<'m> {
-        self.m
+    pub fn module(&self) -> &Module {
+        &self.m
     }
 
     pub fn types(&self) -> &[Type] {

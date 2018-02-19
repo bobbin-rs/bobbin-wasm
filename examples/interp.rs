@@ -51,32 +51,12 @@ pub fn main() {
 }
 
 // pub struct Environment<'a,> {
-//     buf: &'a mut [u8],
-//     code_buf: &'a mut [u8],
 //     memory: MemoryInst<'a>,
-//     module: Option<&'a Module<'a>>,
-//     module_inst: Option<&'a ModuleInst<'a, 'a, 'a, 'a>>,
 // }
 
 // impl<'a> Environment<'a> {
-//     pub fn new(buf: &'a mut [u8], code_buf: &'a mut [u8]) -> Self {   
-//         let (memory_buf, rest) = buf.split_at_mut(256);
-//         let memory = MemoryInst::new(memory_buf, 1, None);
-
-//         Environment { buf, memory, module: None }
-//     }
-
-//     pub fn load_module(&mut self, buf: &'a [u8]) -> Result<(Module<'a>, MemoryInst<'a>, &'a mut[u8])> {
-//         let m = Module::from(buf.as_ref());
-
-//         let cfg = wasm::compiler::Config::default();
-//         let mut compiler = wasm::compiler::Compiler::new_with_config(cfg, self.code_buf);
-//         let code = compiler.compile(&m)?;
-
-//         let (mi, rest) = m.instantiate(&mut buf, &self.memory, &code)?;        
-//         self.module = Some(&m);
-//         self.module_inst = Some(&mi);
-//         (m, mi, rest)        
+//     pub fn new(memory: MemoryInst<'a>) -> Self {   
+//         Environment { memory }
 //     }
 // }
 
@@ -103,8 +83,11 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     let _out = String::new();
 
+
     let mut memory_buf = [0u8; 256];
     let memory = MemoryInst::new(&mut memory_buf, 1, None);
+
+    // let env = Environment::new(memory);
 
     let m = Module::from(data.as_ref());
 
@@ -124,7 +107,7 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     let mut interp = interp::Interp::new(interp_buf);
 
-    if let Some(export_section) = m.export_section() {
+    if let Some(export_section) = mi.module().export_section() {
         for e in export_section.iter() {
             if let ExportDesc::Function(index) = e.export_desc {
                 let id = e.identifier;
