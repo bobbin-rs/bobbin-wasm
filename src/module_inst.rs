@@ -237,10 +237,28 @@ pub enum FuncInst {
     Local { type_index: usize, function_index: usize },
 }
 
+impl FuncInst {
+    pub fn type_index(&self) -> usize {
+        match self {
+            &FuncInst::Import { type_index, import_index: _ } => type_index,
+            &FuncInst::Local { type_index, function_index: _ } => type_index,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum GlobalInst {
     Import { global_type: GlobalType, import_index: usize },
     Local { global_type: GlobalType, global_index: usize, value: Cell<Value> },
+}
+
+impl GlobalInst {
+    pub fn global_type(&self) -> GlobalType {
+        match self {
+            &GlobalInst::Import { global_type, import_index: _ } => global_type,
+            &GlobalInst::Local { global_type, global_index: _, value: _ } => global_type,
+        }
+    }
 }
 
 #[derive(Debug)]

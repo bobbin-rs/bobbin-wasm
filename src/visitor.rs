@@ -1,5 +1,4 @@
-use {Error, TypeValue};
-
+use error::Error;
 use event::*;
 use opcode::*;
 use types::*;

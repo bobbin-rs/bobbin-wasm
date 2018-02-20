@@ -513,7 +513,7 @@ impl<'c> Compiler<'c> {
 
             info!("{:08x}: V:{} | func[{}] {:?}", w.pos(), self.type_checker.type_stack_size(), n, self.context);  
 
-            self.compile_body(&mut w, types, functions, globals, m, &body)?;
+            self.compile_body(&mut w, types, functions, globals, &body)?;
             let body_end = w.pos() as u32;
             info!("body beg: {:08x}", body_beg);
             info!("body end: {:08x}", body_end);
@@ -533,7 +533,6 @@ impl<'c> Compiler<'c> {
         types: &[Type],
         functions: &[FuncInst], 
         globals: &[GlobalInst],            
-        m: &Module, 
         body: &Body
     ) -> Result<(), Error> {
         // self.body_fixup = w.write_code_start()?;
@@ -549,7 +548,7 @@ impl<'c> Compiler<'c> {
         for i in body.iter() {
             // Instruction
             // if !(i.range.end == body.range.end && i.opcode == END) {
-                self.compile_instruction(w, types, functions, globals, m, body, i)?;
+                self.compile_instruction(w, types, functions, globals, body, i)?;
             // }
         }
         // InstructionsEnd
@@ -587,7 +586,6 @@ impl<'c> Compiler<'c> {
         types: &[Type],
         functions: &[FuncInst], 
         globals: &[GlobalInst],        
-        m: &Module,
         body: &Body, 
         i: Instr
     ) -> Result<(), Error> {
@@ -876,14 +874,17 @@ impl<'c> Compiler<'c> {
             Global { index } => {
                 match opc {                    
                     GET_GLOBAL => {
-
-                        if let Some(global) = m.global(index.0 as usize) {
-                            let global_type = global.global_type;
+                        let index = index.0 as usize;
+                        if index < globals.len() {
+                            let global = &globals[index as usize];
+                            let global_type = global.global_type();
+                            info!("Global: {:?}", global);
+                            info!("Global Type: {:?}", global_type);
                             self.type_checker.on_get_global(global_type.type_value)?;
-                            w.write_opcode(GET_GLOBAL)?    ;
-                            w.write_u32(index.0)?;
+                            w.write_opcode(GET_GLOBAL)?;
+                            w.write_u32(index as u32)?;
                         } else {
-                            return Err(Error::InvalidGlobal{ id: index.0});
+                            return Err(Error::InvalidGlobal{ id: index as u32});                            
                         }
 
                         //   CHECK_RESULT(CheckGlobal(global_index));
@@ -903,16 +904,20 @@ impl<'c> Compiler<'c> {
                         //   CHECK_RESULT(typechecker_.OnSetGlobal(global->typed_value.type));
                         //   CHECK_RESULT(EmitOpcode(Opcode::SetGlobal));
                         //   CHECK_RESULT(EmitI32(TranslateGlobalIndexToEnv(global_index)));                        
-                        if let Some(global) = m.global(index.0 as usize) {
-                            let global_type = global.global_type;
+                        let index = index.0 as usize;
+                        if index < globals.len() {                        
+                            let global = &globals[index as usize];
+                            let global_type = global.global_type();
+                            info!("Global: {:?}", global);
+                            info!("Global Type: {:?}", global_type);
                             if global_type.mutability != 0 {
-                                return Err(Error::InvalidGlobal { id: index.0 });
+                                return Err(Error::InvalidGlobal { id: index as u32 });
                             }
                             self.type_checker.on_set_global(global_type.type_value)?;
                             w.write_opcode(SET_GLOBAL)?    ;
-                            w.write_u32(index.0)?;
+                            w.write_u32(index as u32)?;
                         } else {
-                            return Err(Error::InvalidGlobal{ id: index.0});
+                            return Err(Error::InvalidGlobal{ id: index as u32});
                         }                        
 
                     },
@@ -920,107 +925,32 @@ impl<'c> Compiler<'c> {
                 }              
             },
             Call { index } => {
-                let id = index.0 as u32;
-                info!("CALL {}", id);
+                info!("CALL {}", index.0);
 
-                let type_index = match &functions[index.0 as usize] {
-                    &FuncInst::Local { type_index, function_index: _ } => {
-                        type_index
-                    },
-                    &FuncInst::Import { type_index, import_index: _ } => {
-                        type_index
-                    }
-                };
+                let index = index.0 as usize;
+                if index < functions.len() {
+                    let type_index = functions[index].type_index();
+                    let func_type = &types[type_index];
+                    info!("Type Index: {:?}", type_index);
+                    info!("Type: {:?}", func_type);            
+                    self.type_checker.on_call(func_type.parameters, func_type.returns)?;
 
-                let func_type = &types[type_index];
-                info!("Type Index: {:?}", type_index);
-                info!("Type: {:?}", func_type);
-                
-
-
-                // let signature = if let Some(signature) = m.function_signature_type(id as usize) {
-                //     signature
-                // } else {
-                //     return Err(Error::InvalidFunction { id: id })
-                // };
-                // info!("signature: {}", signature);
-                // // if returns.len() > 1 {
-                // //     return Err(Error::UnexpectedReturnLength { got: returns.len() as u32})
-                // // }
-
-                // let mut p_arr = [TypeValue::Any; 16];
-                // let mut r_arr = [TypeValue::Any; 1];
-                // let mut p_len = 0;
-                // for (i, p) in signature.parameters().iter().enumerate() {
-                //     p_arr[i] = TypeValue::from(p);
-                //     p_len = i + 1;
-                // }
-                // let mut r_len = 0;
-                // for (i, r) in signature.returns().iter().enumerate() {
-                //     info!("{}, {}", i, r);
-                //     r_arr[i] = TypeValue::from(r);
-                //     r_len = i + 1;
-                // }
-                // let p_slice = &p_arr[..p_len];
-                // let r_slice = &r_arr[..r_len];
-
-                let p_slice = func_type.parameters;
-                let r_slice = func_type.returns;
-
-                info!("{:?} {:?}", p_slice, r_slice);
-
-                self.type_checker.on_call(p_slice, r_slice)?;
-
-
-                w.write_opcode(opc)?;
-                w.write_u32(id as u32)?;
+                    w.write_opcode(opc)?;
+                    w.write_u32(index as u32)?;
+                } else {
+                    return Err(Error::InvalidFunction { id: index as u32})
+                }
             },
             CallIndirect { index, reserved: _ } => {
-                //   if (module_->table_index == kInvalidIndex) {
-                //     PrintError("found call_indirect operator, but no table");
-                //     return wabt::Result::Error;
-                //   }
-                //   FuncSignature* sig = GetSignatureByModuleIndex(sig_index);
-                //   CHECK_RESULT(
-                //       typechecker_.OnCallIndirect(&sig->param_types, &sig->result_types));
-
-                //   CHECK_RESULT(EmitOpcode(Opcode::CallIndirect));
-                //   CHECK_RESULT(EmitI32(module_->table_index));
-                //   CHECK_RESULT(EmitI32(TranslateSigIndexToEnv(sig_index)));
                 info!("CALL_INDIRECT: {}", index.0);
 
+                let index = index.0 as usize;
+                let func_type = &types[index];
+                info!("Type: {:?}", func_type);
+                self.type_checker.on_call_indirect(func_type.parameters, func_type.returns)?;
+                w.write_opcode(CALL_INDIRECT)?;
+                w.write_u32(index as u32)?;                        
 
-                unimplemented!()
-
-                // if let Some(sig_type) = m.signature_type(index.0 as usize) {
-                //     let signature = sig_type;
-
-                //     info!("signature: {}", signature);
-                //     // if returns.len() > 1 {
-                //     //     return Err(Error::UnexpectedReturnLength { got: returns.len() as u32})
-                //     // }
-
-                //     let mut p_arr = [TypeValue::Any; 16];
-                //     let mut r_arr = [TypeValue::Any; 1];
-                //     let mut p_len = 0;
-                //     for (i, p) in signature.parameters().enumerate() {
-                //         p_arr[i] = TypeValue::from(p);
-                //         p_len = i + 1;
-                //     }
-                //     let mut r_len = 0;
-                //     for (i, r) in signature.returns().enumerate() {
-                //         r_arr[i] = TypeValue::from(r);
-                //         r_len = i + 1;
-                //     }
-                //     let p_slice = &p_arr[..p_len];
-                //     let r_slice = &r_arr[..r_len];
-
-                //     info!("  => {:?} => {:?}", p_slice, r_slice);
-                //     self.type_checker.on_call_indirect(p_slice, r_slice)?;
-
-                //     w.write_opcode(CALL_INDIRECT)?;
-                //     w.write_u32(index.0)?;                    
-                // }            
             },
             I32Const { value } => {
                 self.type_checker.on_const(I32)?;
