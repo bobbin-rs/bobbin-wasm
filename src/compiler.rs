@@ -9,7 +9,6 @@ use typeck::{TypeChecker, LabelType};
 use cursor::Cursor;
 use writer::Writer;
 use stack::Stack;
-use small_vec::SmallVec;
 
 use core::fmt;
 use core::ops::{Range, Index};
@@ -250,8 +249,6 @@ pub struct Compiler<'c> {
     cfg: Config,
     label_stack: Stack<'c, Label>,
     type_checker: TypeChecker<'c>,
-    functions: SmallVec<'c, u32>,
-    table: SmallVec<'c, u32>,
     fixups: [Option<Fixup>; 256],
     fixups_pos: usize,
     section_fixup: usize,
@@ -269,9 +266,6 @@ impl<'c> Compiler<'c> {
         let label_stack = w.alloc_stack(16);        
         let type_checker = TypeChecker::new(w.alloc_stack(16), w.alloc_stack(16));
 
-        let functions = w.alloc_smallvec(128);
-        let table = w.alloc_smallvec(64);
-
         // TODO: Break out into separate struct
         let fixups = [None; 256];
         let fixups_pos = 0;
@@ -283,8 +277,6 @@ impl<'c> Compiler<'c> {
             cfg,
             label_stack,
             type_checker,
-            functions,
-            table,
             fixups, 
             fixups_pos, 
             section_fixup, 
@@ -451,41 +443,6 @@ impl<'c> Compiler<'c> {
         m: &Module        
     ) -> Result<(&'buf mut [u8], CompiledCode<'buf>), Error> {
         let mut w = Writer::new(code_buf);
-        if let Some(import_section) = m.import_section() {
-            for import in import_section.iter() {
-                info!("{:?}", import);
-                match import.desc {
-                    ImportDesc::Type(index) => {
-                        self.functions.push(index);
-                    },
-                    _ => {},
-                }
-            }
-        }
-
-        if let Some(function_section) = m.function_section() {
-            for Function { signature_type_index } in function_section.iter() {
-                info!("function: {}", signature_type_index);
-                self.functions.push(signature_type_index);                
-            }
-        }
-
-        if let Some(element_section) = m.element_section() {            
-            for Element { table_index, offset, data } in element_section.iter() {
-                let Value(elt_offset) = offset.value()?;
-
-                info!("table: {} {:?} {:?}", table_index, offset, data);
-                let mut i = 0;
-                let mut o = elt_offset as usize;
-                while i < data.len() {
-                    let d = data[i] as u32;
-                    info!("   {:08x}: {:08x}", o, d);
-                    self.table[o] = d;
-                    o += 1;
-                    i += 1;
-                }
-            }
-        }
 
         let code_section = m.code_section().ok_or_else(|| Error::MissingSection { id: SectionType::Code })?;
 
