@@ -1,6 +1,7 @@
 use {Error, Value};
 
 // use module_inst::{ FuncInst};
+use environ::Environment;
 use module_inst::{ModuleInst, FuncInst};
 use reader::Reader;
 use writer::Writer;
@@ -59,7 +60,7 @@ impl<'a> Interp<'a> {
         self.value_stack.len()
     }
 
-    pub fn call(&mut self, mi: &ModuleInst, func_index: usize) -> Result<Option<Value>, Error> {
+    pub fn call(&mut self, env: &Environment, mi: &ModuleInst, func_index: usize) -> Result<Option<Value>, Error> {
         let code_buf = mi.code().as_ref();
 
         info!("code section len: {:08x}", code_buf.len());
@@ -272,12 +273,12 @@ impl<'a> Interp<'a> {
                 MEM_GROW => {
                     let pages = self.pop()?;
                     info!("MEM_GROW: {}", pages);
-                    let ret = mi.mem().grow_memory(pages);
+                    let ret = env.mem().grow_memory(pages);
                     info!("  => {}", ret);
                     self.push(ret)?;
                 },
                 MEM_SIZE => {
-                    let size = mi.mem().num_pages();
+                    let size = env.mem().num_pages();
                     self.push(size as i32)?;
                 }
                 // I32 load
@@ -286,7 +287,7 @@ impl<'a> Interp<'a> {
                     let offset = code.read_u32()?;
                     let base: u32 = self.pop()? as u32;
                     let addr = (offset + base) as usize;
-                    let mem = mi.mem();
+                    let mem = env.mem();
 
                     let res = match opc {
                         I32_LOAD => {
@@ -315,7 +316,7 @@ impl<'a> Interp<'a> {
                     let base: u32 = self.pop()? as u32;
                     let value: i32 = self.pop()?;
                     let addr = (offset + base) as usize;
-                    let mem = mi.mem();
+                    let mem = env.mem();
 
                     match opc {
                         I32_STORE => mem.store(addr, value)?,

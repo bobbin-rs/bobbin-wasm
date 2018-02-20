@@ -5,12 +5,10 @@ use module::*;
 use compiler::*;
 use core::cell::Cell;
 use environ::Environment;
-use memory_inst::MemoryInst;
 use small_vec::SmallVec;
 use writer::Writer;
 
-pub struct ModuleInst<'buf, 'env> {
-    env: &'env Environment<'env>,
+pub struct ModuleInst<'buf> {
     types: SmallVec<'buf, Type<'buf>>,
     functions: SmallVec<'buf, FuncInst>,
     globals: SmallVec<'buf, GlobalInst>,
@@ -19,8 +17,8 @@ pub struct ModuleInst<'buf, 'env> {
     code: CompiledCode<'buf>,
 }
 
-impl<'buf, 'env> ModuleInst<'buf, 'env> {
-    pub fn new(buf: &'buf mut [u8], env: &'env Environment<'env>, m: Module) -> Result<(&'buf mut [u8], ModuleInst<'buf, 'env>), Error> {
+impl<'buf, 'env> ModuleInst<'buf> {
+    pub fn new(buf: &'buf mut [u8], env: &Environment, m: Module) -> Result<(&'buf mut [u8], ModuleInst<'buf>), Error> {
         let mut w = Writer::new(buf);
 
         let mut types = w.alloc_smallvec(16);
@@ -133,7 +131,7 @@ impl<'buf, 'env> ModuleInst<'buf, 'env> {
 
         let (buf, code) = Compiler::new(&mut [0u8; 4096]).compile(buf, &m)?;
 
-        Ok((buf, ModuleInst { env, types, functions, globals, exports, tables, code }))
+        Ok((buf, ModuleInst { types, functions, globals, exports, tables, code }))
     }
 
     pub fn types(&self) -> &[Type] {
@@ -166,10 +164,6 @@ impl<'buf, 'env> ModuleInst<'buf, 'env> {
 
     pub fn type_signature(&self, index: usize) -> &Type {
         &self.types[index]
-    }
-
-    pub fn mem(&self) -> &MemoryInst {
-        self.env.mem()
     }
 
     pub fn global_type(&self, index: u32) -> Result<GlobalType, Error> {

@@ -84,7 +84,7 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     for e in mi.exports() {
         if let ExportDesc::Function(index) = e.export_desc {
             let id = &e.identifier;
-            match interp.call(&mi, index as usize) {
+            match interp.call(&env, &mi, index as usize) {
                 Ok(Some(value)) => {
                     println!("{}() => {:?}", id, value);
                 },

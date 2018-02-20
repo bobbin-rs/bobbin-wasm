@@ -40,7 +40,7 @@ impl<'buf> Environment<'buf> {
         &self.mem
     }
 
-    pub fn load_module<'m>(&'buf mut self, buf: &'m mut [u8], module_data: &[u8]) -> Result<(&'m mut [u8], ModuleInst<'m, 'buf>), Error> {
+    pub fn load_module<'m>(&mut self, buf: &'buf mut [u8], module_data: &[u8]) -> Result<(&'buf mut [u8], ModuleInst<'buf>), Error> {
         let m = Module::from(module_data);
         ModuleInst::new(buf, self, m)
     }
