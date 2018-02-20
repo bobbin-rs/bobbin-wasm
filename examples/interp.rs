@@ -49,9 +49,23 @@ pub fn main() {
     }
 }
 
-fn host_hello(_interp: &mut Interp, index: usize) -> Result<(), wasm::Error> {
+fn host_hello(interp: &mut Interp, index: usize) -> Result<(), wasm::Error> {
     Ok({ 
-        println!("host_hello: {}", index);
+        match index {
+            0 => println!("Hello, World"),
+            1 => {
+                let arg = interp.pop()?;
+                println!("{:?}", arg);
+            },
+            2 => {
+                let arg1 = interp.pop()?;
+                let arg2 = interp.pop()?;
+                let ret = arg1 + arg2;
+                println!("{:?} + {:?} -> {:?}", arg1, arg2, ret);
+                interp.push(ret)?;
+            }
+            _ => return Err(wasm::Error::InvalidFunction { id: index as u32 })
+        }
     })
 }
 

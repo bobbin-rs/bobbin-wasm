@@ -1,6 +1,13 @@
 (module
-    (import "host" "print" (func $imported))
-    (func (export "main")    
-        call $imported
+    (import "host" "hello" (func $hello))
+    (import "host" "print" (func $print (param i32)))
+    (import "host" "add" (func $add (param i32 i32) (result i32)))
+    (func (export "main") (result i32)
+        call $hello
+        i32.const 42
+        call $print
+        i32.const 2
+        i32.const 3
+        call $add
     return)
 )
