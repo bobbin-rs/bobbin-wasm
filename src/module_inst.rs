@@ -8,9 +8,7 @@ use memory_inst::MemoryInst;
 use small_vec::SmallVec;
 use writer::Writer;
 
-pub struct ModuleInst<'m, 'a, 'mem> {
-    // name: &'a str,
-    m: Module<'m>,
+pub struct ModuleInst<'a, 'mem> {
     memory_inst: &'mem MemoryInst<'mem>,
     types: SmallVec<'a, Type<'a>>,
     functions: SmallVec<'a, FuncInst>,
@@ -20,8 +18,8 @@ pub struct ModuleInst<'m, 'a, 'mem> {
     code: CompiledCode<'a>,
 }
 
-impl<'m, 'a, 'mem> ModuleInst<'m, 'a, 'mem> {
-    pub fn new(buf: &'a mut [u8], m: Module<'m>, memory_inst: &'mem MemoryInst<'mem>) -> Result<(Self, &'a mut [u8]), Error> {
+impl<'a, 'mem> ModuleInst<'a, 'mem> {
+    pub fn new(buf: &'a mut [u8], m: Module, memory_inst: &'mem MemoryInst<'mem>) -> Result<(Self, &'a mut [u8]), Error> {
         let mut w = Writer::new(buf);
         // let name = w.copy_str(m.name());
 
@@ -138,15 +136,7 @@ impl<'m, 'a, 'mem> ModuleInst<'m, 'a, 'mem> {
 
         let (code, out_buf) = compiler.compile(out_buf, &m)?;
 
-        Ok((ModuleInst { m, types, functions, globals, exports, tables, memory_inst, code }, out_buf))
-    }
-
-    // pub fn name(&self) -> &str {
-    //     self.name
-    // }
-
-    pub fn module(&self) -> &Module {
-        &self.m
+        Ok((ModuleInst { types, functions, globals, exports, tables, memory_inst, code }, out_buf))
     }
 
     pub fn types(&self) -> &[Type] {
