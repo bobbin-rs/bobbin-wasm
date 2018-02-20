@@ -134,35 +134,21 @@ impl<'a> Interp<'a> {
                 },
                 CALL => {
                     let id = code.read_u32()?;
-
-                    // Lookup Function
-                    // info!("Function index: {}", id);
-                    let f = &mi.functions()[id as usize];
-                    // info!("FuncInst: {:?}", f);
-                    let offset = match f {
-                        &FuncInst::Local { type_index: _, function_index } => {
-                            // info!("Function Index {}", function_index);
-                            // lookup body offset
-                            let body_range = mi.code().body_range(function_index);
-                            // let body = m.body(function_index as u32).unwrap();
-
-                            // info!("body: size={}", body.buf.len());
-
-                            // let body_pos = code_buf.as_ptr().offset_to(body.buf.as_ptr()).unwrap() as usize;
-                            let body_pos = body_range.start;
-                            // info!("body_pos: {:08x}", body_pos);
-                            body_pos
-                        },
-                        _ => {
+                    match &mi.functions()[id as usize] {
+                        &FuncInst::Import { type_index, import_index } => {
+                            info!("CALL IMPORT: type_index: {} import_index: {}", type_index, import_index);
                             return Err(Error::Unimplemented)
+                        },
+                        &FuncInst::Local { type_index: _, function_index } => {
+                            let body_range = mi.code().body_range(function_index);
+                            let offset = body_range.start;
+                            let pos = code.pos();
+                            info!("CALL: {:08x} to {:08x}", pos, offset);
+
+                            self.call_stack.push(pos as u32)?;
+                            code.set_pos(offset as usize);                            
                         }
-                    };
-
-                    let pos = code.pos();
-                    info!("CALL: {:08x} to {:08x}", pos, offset);
-
-                    self.call_stack.push(pos as u32)?;
-                    code.set_pos(offset as usize);
+                    }
                 },
                 CALL_INDIRECT => {
                     // func_sig = function_type(func_index)

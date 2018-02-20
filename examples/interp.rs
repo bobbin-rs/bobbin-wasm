@@ -85,10 +85,10 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
         if let ExportDesc::Function(index) = e.export_desc {
             let id = &e.identifier;            
             match &mi.functions()[index as usize] {
-                &FuncInst::Import { type_index, import_index } => {
+                &FuncInst::Import { type_index: _, import_index: _ } => {
                     println!("Calling Import");
                 },
-                &FuncInst::Local { type_index, function_index } => {
+                &FuncInst::Local { type_index: _, function_index } => {
                     println!("Calling Local Function {}", function_index);
                     match interp.call(&env, &mi, function_index as usize) {
                         Ok(Some(value)) => {
