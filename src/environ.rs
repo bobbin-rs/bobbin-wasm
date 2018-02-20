@@ -5,6 +5,9 @@ use small_vec::SmallVec;
 use module::Module;
 use memory_inst::MemoryInst;
 use module_inst::ModuleInst;
+use interp::Interp;
+
+pub type HostFn = fn(interp: &mut Interp) -> Result<(), Error>;
 
 pub struct Config {
     memory_pages: usize
@@ -22,6 +25,7 @@ pub struct Environment<'env> {
     cfg: Config,
     mem: MemoryInst<'env>,
     modules: SmallVec<'env, &'env ModuleInst<'env>>,
+    host_fn: Option<HostFn>,
 }
 
 impl<'env> Environment<'env> {
@@ -35,7 +39,8 @@ impl<'env> Environment<'env> {
         let mut w = Writer::new(buf);
         let modules = w.alloc_smallvec(4);
         let buf = w.into_slice();
-        (buf, Environment { cfg, mem, modules })
+        let host_fn = None;
+        (buf, Environment { cfg, mem, modules, host_fn })
     }
 
     pub fn cfg(&self) -> &Config {
@@ -44,6 +49,12 @@ impl<'env> Environment<'env> {
 
     pub fn mem(&self) -> &MemoryInst<'env> {
         &self.mem
+    }
+
+    pub fn register_host_function(&mut self, host_fn: HostFn) -> Result<(), Error> {
+        Ok({
+            self.host_fn = Some(host_fn);
+        })
     }
 
     pub fn load_module(&mut self, buf: &'env mut [u8], module_data: &[u8]) -> Result<(&'env mut [u8], &'env ModuleInst<'env>), Error> {

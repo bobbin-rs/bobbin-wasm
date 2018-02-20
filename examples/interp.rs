@@ -12,7 +12,7 @@ use std::path::Path;
 use clap::{App, Arg, ArgMatches};
 
 use wasm::{ExportDesc};
-use wasm::interp;
+use wasm::interp::Interp;
 use wasm::environ::Environment;
 
 
@@ -49,16 +49,12 @@ pub fn main() {
     }
 }
 
+fn host_hello(_interp: &mut Interp) -> Result<(), wasm::Error> {
+    Ok({ 
+        println!("Hello World");
+    })
+}
 
-// pub struct Executor<'a> {    
-//     env: Environment<'a>
-// }
-
-// impl<'a> Executor<'a> {
-//     pub fn new(env: Environment<'a>) -> Self {
-//         Executor {}
-//     }
-// }
 
 
 pub fn run(matches: ArgMatches) -> Result<(), Error> {
@@ -75,11 +71,14 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     let buf = &mut [0u8; 4096];
     let (buf, mut env) = Environment::new(buf);    
+
+    env.register_host_function(host_hello)?;
+
     let (buf, mi) = env.load_module(buf, data.as_ref())?;
 
     // Interpreter
 
-    let mut interp = interp::Interp::new(buf);
+    let mut interp = Interp::new(buf);
 
     for e in mi.exports() {
         if let ExportDesc::Function(index) = e.export_desc {
