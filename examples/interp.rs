@@ -14,7 +14,7 @@ use clap::{App, Arg, ArgMatches};
 use wasm::{ExportDesc};
 use wasm::interp::Interp;
 use wasm::environ::Environment;
-
+use wasm::module_inst::*;
 
 #[derive(Debug)]
 pub enum Error {
@@ -81,27 +81,37 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     let mut interp = Interp::new(buf);
 
     for e in mi.exports() {
+        println!("export: {:?}", e);
         if let ExportDesc::Function(index) = e.export_desc {
-            let id = &e.identifier;
-            match interp.call(&env, &mi, index as usize) {
-                Ok(Some(value)) => {
-                    println!("{}() => {:?}", id, value);
+            let id = &e.identifier;            
+            match &mi.functions()[index as usize] {
+                &FuncInst::Import { type_index, import_index } => {
+                    println!("Calling Import");
                 },
-                Ok(None) => {
-                    println!("{}() => nil", id);
-                },
-                Err(e) => {
-                    println!("Error: {:?}", e);
-                    println!("---- Stack Dump ----");
+                &FuncInst::Local { type_index, function_index } => {
+                    println!("Calling Local Function {}", function_index);
+                    match interp.call(&env, &mi, function_index as usize) {
+                        Ok(Some(value)) => {
+                            println!("{}() => {:?}", id, value);
+                        },
+                        Ok(None) => {
+                            println!("{}() => nil", id);
+                        },
+                        Err(e) => {
+                            println!("Error: {:?}", e);
+                            println!("---- Stack Dump ----");
 
-                    let mut i = 0;
-                    while let Ok(value) = interp.pop() {
-                        println!("{}: {:?}", i, value);
-                        i += 1;
+                            let mut i = 0;
+                            while let Ok(value) = interp.pop() {
+                                println!("{}: {:?}", i, value);
+                                i += 1;
+                            }
+                            println!("---- END ----");
+                        }
                     }
-                    println!("---- END ----");
-                }
+                },
             }
+
         }
     }
     

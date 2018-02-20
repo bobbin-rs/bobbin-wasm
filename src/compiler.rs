@@ -192,6 +192,7 @@ impl<'a> CompiledCode<'a> {
     }
 
     pub fn body_range(&self, index: usize) -> Range<usize> {
+        info!("body_range({})", index);
         let mut cur = Cursor::new(self.buf);
         assert!(index < cur.read_u32() as usize);
         cur.advance(index * 8);
@@ -461,6 +462,7 @@ impl<'c> Compiler<'c> {
         info!("{:08x}: Code Start", w.pos());
         
         for (n, body) in code_section.iter().enumerate() {
+            info!("--- Code Item {} ---", n);
             let body_beg = w.pos() as u32;
             self.context = Context::from(m.function_signature_type(n).unwrap());
 
@@ -476,6 +478,7 @@ impl<'c> Compiler<'c> {
             info!("body end: {:08x}", body_end);
             w.write_u32_at(body_beg, 4 + n * 8)?;
             w.write_u32_at(body_end, 4 + n * 8 + 4)?;
+            info!("--- Code Item {} Done ---", n);
         }
 
         let buf = w.split_mut();
