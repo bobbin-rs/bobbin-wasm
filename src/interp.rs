@@ -137,7 +137,8 @@ impl<'a> Interp<'a> {
                     match &mi.functions()[id as usize] {
                         &FuncInst::Import { type_index, ref module, ref name, import_index } => {
                             info!("CALL IMPORT: type_index: {} module: {}, name: {}, import_index: {}", type_index, module, name, import_index);
-                            return Err(Error::Unimplemented)
+                            env.call_host_function(self)?;
+                            // return Err(Error::Unimplemented)
                         },
                         &FuncInst::Local { type_index: _, function_index } => {
                             let body_range = mi.code().body_range(function_index);

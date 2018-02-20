@@ -57,6 +57,14 @@ impl<'env> Environment<'env> {
         })
     }
 
+    pub fn call_host_function(&self, interp: &mut Interp) -> Result<(), Error> {
+        if let Some(host_fn) = self.host_fn { 
+            host_fn(interp)
+        } else {
+            Err(Error::NoHostFunction)
+        }
+    }
+
     pub fn load_module(&mut self, buf: &'env mut [u8], module_data: &[u8]) -> Result<(&'env mut [u8], &'env ModuleInst<'env>), Error> {
         let m = Module::from(module_data);
         let (buf, mi) = ModuleInst::new(buf, &self.mem, m)?;
