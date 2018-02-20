@@ -15,6 +15,7 @@ pub struct ModuleInst<'m, 'a, 'mem> {
     types: SmallVec<'a, Type<'a>>,
     functions: SmallVec<'a, FuncInst>,
     globals: SmallVec<'a, GlobalInst>,
+    exports: SmallVec<'a, ExportInst<'a>>,
     tables: SmallVec<'a, SmallVec<'a, u32>>,
     code: CompiledCode<'a>,
 }
@@ -28,6 +29,7 @@ impl<'m, 'a, 'mem> ModuleInst<'m, 'a, 'mem> {
         let mut functions = w.alloc_smallvec(16);
         let mut globals = w.alloc_smallvec(16);
         let mut tables = w.alloc_smallvec(16);
+        let mut exports = w.alloc_smallvec(16);
         // let mut imports = w.alloc_smallvec(16);
 
         for section in m.sections() {
@@ -87,7 +89,14 @@ impl<'m, 'a, 'mem> ModuleInst<'m, 'a, 'mem> {
                         }
                         tables.push(t);
                     }
-                },                
+                },   
+                Section::Export(export_section) => {
+                    for Export { identifier, export_desc } in export_section.iter() {
+                        let bytes = w.copy_slice(identifier.0)?;
+                        let identifier = Identifier(bytes);
+                        exports.push(ExportInst { identifier, export_desc });
+                    }
+                }
                 Section::Element(element_section) => {
                     for Element { table_index, offset, data } in element_section.iter() {
                         // use byteorder::{ByteOrder, LittleEndian};
@@ -129,7 +138,7 @@ impl<'m, 'a, 'mem> ModuleInst<'m, 'a, 'mem> {
 
         let (code, out_buf) = compiler.compile(out_buf, &m)?;
 
-        Ok((ModuleInst { m, types, functions, globals, tables, memory_inst, code }, out_buf))
+        Ok((ModuleInst { m, types, functions, globals, exports, tables, memory_inst, code }, out_buf))
     }
 
     // pub fn name(&self) -> &str {
@@ -154,6 +163,10 @@ impl<'m, 'a, 'mem> ModuleInst<'m, 'a, 'mem> {
 
     pub fn table(&self, index: usize) -> &SmallVec<u32> {
         &self.tables[index]
+    }
+
+    pub fn exports(&self) -> &[ExportInst] {
+        self.exports.as_ref()
     }
 
     pub fn indirect_functions_len(&self) -> usize {
@@ -244,6 +257,11 @@ pub enum GlobalInst {
     Local { global_type: GlobalType, global_index: usize, value: Cell<Value> },
 }
 
+#[derive(Debug)]
+pub struct ExportInst<'a> {
+    pub identifier: Identifier<'a>,
+    pub export_desc: ExportDesc,
+}
 
 #[cfg(test)]
 mod tests {

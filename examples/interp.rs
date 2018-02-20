@@ -101,28 +101,26 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     let mut interp = interp::Interp::new(interp_buf);
 
-    if let Some(export_section) = mi.module().export_section() {
-        for e in export_section.iter() {
-            if let ExportDesc::Function(index) = e.export_desc {
-                let id = e.identifier;
-                match interp.call(&mi, index as usize) {
-                    Ok(Some(value)) => {
-                        println!("{}() => {:?}", id, value);
-                    },
-                    Ok(None) => {
-                        println!("{}() => nil", id);
-                    },
-                    Err(e) => {
-                        println!("Error: {:?}", e);
-                        println!("---- Stack Dump ----");
+    for e in mi.exports() {
+        if let ExportDesc::Function(index) = e.export_desc {
+            let id = &e.identifier;
+            match interp.call(&mi, index as usize) {
+                Ok(Some(value)) => {
+                    println!("{}() => {:?}", id, value);
+                },
+                Ok(None) => {
+                    println!("{}() => nil", id);
+                },
+                Err(e) => {
+                    println!("Error: {:?}", e);
+                    println!("---- Stack Dump ----");
 
-                        let mut i = 0;
-                        while let Ok(value) = interp.pop() {
-                            println!("{}: {:?}", i, value);
-                            i += 1;
-                        }
-                        println!("---- END ----");
+                    let mut i = 0;
+                    while let Ok(value) = interp.pop() {
+                        println!("{}: {:?}", i, value);
+                        i += 1;
                     }
+                    println!("---- END ----");
                 }
             }
         }
