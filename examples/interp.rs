@@ -74,9 +74,8 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     let _out = String::new();
 
     let buf = &mut [0u8; 4096];
-    let (mut env, buf) = Environment::new(buf);
-    
-    let (mi, buf) = env.load_module(buf, data.as_ref())?;
+    let (buf, mut env) = Environment::new(buf);    
+    let (buf, mi) = env.load_module(buf, data.as_ref())?;
 
     // Interpreter
 

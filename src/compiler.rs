@@ -245,12 +245,12 @@ impl Default for Config {
     }
 }
 
-pub struct Compiler<'m> {
+pub struct Compiler<'c> {
     cfg: Config,
-    label_stack: Stack<'m, Label>,
-    type_checker: TypeChecker<'m>,
-    functions: SmallVec<'m, u32>,
-    table: SmallVec<'m, u32>,
+    label_stack: Stack<'c, Label>,
+    type_checker: TypeChecker<'c>,
+    functions: SmallVec<'c, u32>,
+    table: SmallVec<'c, u32>,
     fixups: [Option<Fixup>; 256],
     fixups_pos: usize,
     section_fixup: usize,
@@ -258,14 +258,13 @@ pub struct Compiler<'m> {
     context: Context,
 }
 
-impl<'m> Compiler<'m> {
-    pub fn new(buf: &'m mut [u8]) -> Self {
-        Compiler::new_with_config(Config::default(), buf)
+impl<'c> Compiler<'c> {
+    pub fn new(buf: &'c mut [u8]) -> Self {
+        Compiler::new_with_config(buf, Config::default() )
     }
-    pub fn new_with_config(cfg: Config, buf: &'m mut [u8]) -> Self {
+    pub fn new_with_config(buf: &'c mut [u8], cfg: Config, ) -> Self {
         let mut w = Writer::new(buf);
 
-        // These should be not be allocated from module storage
         let label_stack = w.alloc_stack(16);        
         let type_checker = TypeChecker::new(w.alloc_stack(16), w.alloc_stack(16));
 
@@ -443,8 +442,8 @@ impl<'m> Compiler<'m> {
     }
 }
 
-impl<'m> Compiler<'m> {
-    pub fn compile<'c>(&mut self, code_buf: &'c mut [u8], m: &Module) -> Result<(CompiledCode<'c>, &'c mut [u8]), Error> {
+impl<'c> Compiler<'c> {
+    pub fn compile<'buf>(&mut self, code_buf: &'buf mut [u8], m: &Module) -> Result<(&'buf mut [u8], CompiledCode<'buf>), Error> {
         let mut w = Writer::new(code_buf);
         if let Some(import_section) = m.import_section() {
             for import in import_section.iter() {
@@ -519,10 +518,10 @@ impl<'m> Compiler<'m> {
         let buf = w.split_mut();
         let rest = w.into_slice();
 
-        Ok((CompiledCode { buf: buf }, rest))
+        Ok((rest, CompiledCode { buf: buf }))
     }
 
-    pub fn compile_body<'c>(&mut self, w: &mut Writer<'c>, m: &Module, body: &Body) -> Result<(), Error> {
+    pub fn compile_body<'buf>(&mut self, w: &mut Writer<'buf>, m: &Module, body: &Body) -> Result<(), Error> {
         // self.body_fixup = w.write_code_start()?;
 
         self.type_checker.begin_function(self.context.return_type)?;

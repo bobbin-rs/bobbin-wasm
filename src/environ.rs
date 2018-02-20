@@ -16,32 +16,32 @@ impl Default for Config {
     }
 }
 
-pub struct Environment<'env> {
+pub struct Environment<'buf> {
     cfg: Config,
-    mem: MemoryInst<'env>,
+    mem: MemoryInst<'buf>,
 }
 
-impl<'env> Environment<'env> {
-    pub fn new(buf: &'env mut [u8]) -> (Self, &'env mut [u8]) {   
-        Environment::new_with_config(Config::default(), buf)
+impl<'buf> Environment<'buf> {
+    pub fn new(buf: &'buf mut [u8]) -> (&'buf mut [u8], Self) {   
+        Environment::new_with_config(buf, Config::default())
     }
 
-    pub fn new_with_config(cfg: Config, buf: &'env mut [u8]) -> (Self, &'env mut [u8]) {   
+    pub fn new_with_config(buf: &'buf mut [u8], cfg: Config) -> (&'buf mut [u8], Self) {   
         let (mem_buf, buf) = buf.split_at_mut(cfg.memory_pages * PAGE_SIZE);
         let mem = MemoryInst::new(mem_buf, 1, None);
-        (Environment { cfg, mem }, buf)
+        (buf, Environment { cfg, mem })
     }
 
     pub fn cfg(&self) -> &Config {
         &self.cfg
     }
 
-    pub fn mem(&self) -> &MemoryInst<'env> {
+    pub fn mem(&self) -> &MemoryInst<'buf> {
         &self.mem
     }
 
-    pub fn load_module(&'env mut self, buf: &'env mut [u8], module_data: &[u8]) -> Result<(ModuleInst<'env>, &'env mut [u8]), Error> {
+    pub fn load_module<'m>(&'buf mut self, buf: &'m mut [u8], module_data: &[u8]) -> Result<(&'m mut [u8], ModuleInst<'m, 'buf>), Error> {
         let m = Module::from(module_data);
-        ModuleInst::new(self, buf, m)
+        ModuleInst::new(buf, self, m)
     }
 }

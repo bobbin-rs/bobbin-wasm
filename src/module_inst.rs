@@ -9,18 +9,18 @@ use memory_inst::MemoryInst;
 use small_vec::SmallVec;
 use writer::Writer;
 
-pub struct ModuleInst<'env> {
+pub struct ModuleInst<'buf, 'env> {
     env: &'env Environment<'env>,
-    types: SmallVec<'env, Type<'env>>,
-    functions: SmallVec<'env, FuncInst>,
-    globals: SmallVec<'env, GlobalInst>,
-    exports: SmallVec<'env, ExportInst<'env>>,
-    tables: SmallVec<'env, SmallVec<'env, u32>>,
-    code: CompiledCode<'env>,
+    types: SmallVec<'buf, Type<'buf>>,
+    functions: SmallVec<'buf, FuncInst>,
+    globals: SmallVec<'buf, GlobalInst>,
+    exports: SmallVec<'buf, ExportInst<'buf>>,
+    tables: SmallVec<'buf, SmallVec<'buf, u32>>,
+    code: CompiledCode<'buf>,
 }
 
-impl<'env> ModuleInst<'env> {
-    pub fn new(env: &'env Environment<'env>, buf: &'env mut [u8], m: Module) -> Result<(ModuleInst<'env>, &'env mut [u8]), Error> {
+impl<'buf, 'env> ModuleInst<'buf, 'env> {
+    pub fn new(buf: &'buf mut [u8], env: &'env Environment<'env>, m: Module) -> Result<(&'buf mut [u8], ModuleInst<'buf, 'env>), Error> {
         let mut w = Writer::new(buf);
 
         let mut types = w.alloc_smallvec(16);
@@ -127,13 +127,13 @@ impl<'env> ModuleInst<'env> {
             }
         }
 
-        let out_buf = w.into_slice();
+        let buf = w.into_slice();
 
         // Change compiler to use ModuleInst
 
-        let (code, out_buf) = Compiler::new(&mut [0u8; 4096]).compile(out_buf, &m)?;
+        let (buf, code) = Compiler::new(&mut [0u8; 4096]).compile(buf, &m)?;
 
-        Ok((ModuleInst { env, types, functions, globals, exports, tables, code }, out_buf))
+        Ok((buf, ModuleInst { env, types, functions, globals, exports, tables, code }))
     }
 
     pub fn types(&self) -> &[Type] {
@@ -245,8 +245,8 @@ pub enum GlobalInst {
 }
 
 #[derive(Debug)]
-pub struct ExportInst<'env> {
-    pub identifier: Identifier<'env>,
+pub struct ExportInst<'buf> {
+    pub identifier: Identifier<'buf>,
     pub export_desc: ExportDesc,
 }
 
@@ -295,13 +295,13 @@ mod tests {
             fn write_to(&self, w: &mut W) -> Result<(), E>; 
         }
 
-        impl<'env> WriteTo<Writer<'env>, Error> for TypeValue {
-            fn write_to(&self, w: &mut Writer<'env>) -> Result<(), Error> {
+        impl<'buf> WriteTo<Writer<'buf>, Error> for TypeValue {
+            fn write_to(&self, w: &mut Writer<'buf>) -> Result<(), Error> {
                 w.write_i8(*self as i8)
             }
         }
 
-        impl<'env, W, T, E> WriteTo<W, E> for &'env [T] where T: WriteTo<W, E> {
+        impl<'buf, W, T, E> WriteTo<W, E> for &'buf [T] where T: WriteTo<W, E> {
             fn write_to(&self, w: &mut W) -> Result<(), E> {
                 for item in self.iter() {
                     item.write_to(w)?;
