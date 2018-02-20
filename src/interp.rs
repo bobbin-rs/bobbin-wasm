@@ -272,12 +272,12 @@ impl<'a> Interp<'a> {
                 MEM_GROW => {
                     let pages = self.pop()?;
                     info!("MEM_GROW: {}", pages);
-                    let ret = mi.memory_inst().grow_memory(pages);
+                    let ret = mi.mem().grow_memory(pages);
                     info!("  => {}", ret);
                     self.push(ret)?;
                 },
                 MEM_SIZE => {
-                    let size = mi.memory_inst().num_pages();
+                    let size = mi.mem().num_pages();
                     self.push(size as i32)?;
                 }
                 // I32 load
@@ -286,7 +286,7 @@ impl<'a> Interp<'a> {
                     let offset = code.read_u32()?;
                     let base: u32 = self.pop()? as u32;
                     let addr = (offset + base) as usize;
-                    let mem = mi.memory_inst();
+                    let mem = mi.mem();
 
                     let res = match opc {
                         I32_LOAD => {
@@ -315,7 +315,7 @@ impl<'a> Interp<'a> {
                     let base: u32 = self.pop()? as u32;
                     let value: i32 = self.pop()?;
                     let addr = (offset + base) as usize;
-                    let mem = mi.memory_inst();
+                    let mem = mi.mem();
 
                     match opc {
                         I32_STORE => mem.store(addr, value)?,

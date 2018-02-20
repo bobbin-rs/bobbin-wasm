@@ -4,22 +4,23 @@ use types::*;
 use module::*;
 use compiler::*;
 use core::cell::Cell;
+use environ::Environment;
 use memory_inst::MemoryInst;
 use small_vec::SmallVec;
 use writer::Writer;
 
-pub struct ModuleInst<'a, 'mem> {
-    memory_inst: &'mem MemoryInst<'mem>,
-    types: SmallVec<'a, Type<'a>>,
-    functions: SmallVec<'a, FuncInst>,
-    globals: SmallVec<'a, GlobalInst>,
-    exports: SmallVec<'a, ExportInst<'a>>,
-    tables: SmallVec<'a, SmallVec<'a, u32>>,
-    code: CompiledCode<'a>,
+pub struct ModuleInst<'env> {
+    env: &'env Environment<'env>,
+    types: SmallVec<'env, Type<'env>>,
+    functions: SmallVec<'env, FuncInst>,
+    globals: SmallVec<'env, GlobalInst>,
+    exports: SmallVec<'env, ExportInst<'env>>,
+    tables: SmallVec<'env, SmallVec<'env, u32>>,
+    code: CompiledCode<'env>,
 }
 
-impl<'a, 'mem> ModuleInst<'a, 'mem> {
-    pub fn new(buf: &'a mut [u8], m: Module, memory_inst: &'mem MemoryInst<'mem>) -> Result<(Self, &'a mut [u8]), Error> {
+impl<'env> ModuleInst<'env> {
+    pub fn new(env: &'env Environment<'env>, buf: &'env mut [u8], m: Module) -> Result<(ModuleInst<'env>, &'env mut [u8]), Error> {
         let mut w = Writer::new(buf);
 
         let mut types = w.alloc_smallvec(16);
@@ -118,7 +119,7 @@ impl<'a, 'mem> ModuleInst<'a, 'mem> {
                             let d = data[i];
                             let o = offset as usize + i;
                             // info!("{:08x}: {:02x}", o, d);
-                            memory_inst.set(o, d);
+                            env.mem().set(o, d);
                         }
                     }
                 },
@@ -132,7 +133,7 @@ impl<'a, 'mem> ModuleInst<'a, 'mem> {
 
         let (code, out_buf) = Compiler::new(&mut [0u8; 4096]).compile(out_buf, &m)?;
 
-        Ok((ModuleInst { types, functions, globals, exports, tables, memory_inst, code }, out_buf))
+        Ok((ModuleInst { env, types, functions, globals, exports, tables, code }, out_buf))
     }
 
     pub fn types(&self) -> &[Type] {
@@ -167,8 +168,8 @@ impl<'a, 'mem> ModuleInst<'a, 'mem> {
         &self.types[index]
     }
 
-    pub fn memory_inst(&self) -> &MemoryInst {
-        self.memory_inst
+    pub fn mem(&self) -> &MemoryInst {
+        self.env.mem()
     }
 
     pub fn global_type(&self, index: u32) -> Result<GlobalType, Error> {
@@ -244,8 +245,8 @@ pub enum GlobalInst {
 }
 
 #[derive(Debug)]
-pub struct ExportInst<'a> {
-    pub identifier: Identifier<'a>,
+pub struct ExportInst<'env> {
+    pub identifier: Identifier<'env>,
     pub export_desc: ExportDesc,
 }
 
@@ -294,13 +295,13 @@ mod tests {
             fn write_to(&self, w: &mut W) -> Result<(), E>; 
         }
 
-        impl<'a> WriteTo<Writer<'a>, Error> for TypeValue {
-            fn write_to(&self, w: &mut Writer<'a>) -> Result<(), Error> {
+        impl<'env> WriteTo<Writer<'env>, Error> for TypeValue {
+            fn write_to(&self, w: &mut Writer<'env>) -> Result<(), Error> {
                 w.write_i8(*self as i8)
             }
         }
 
-        impl<'a, W, T, E> WriteTo<W, E> for &'a [T] where T: WriteTo<W, E> {
+        impl<'env, W, T, E> WriteTo<W, E> for &'env [T] where T: WriteTo<W, E> {
             fn write_to(&self, w: &mut W) -> Result<(), E> {
                 for item in self.iter() {
                     item.write_to(w)?;

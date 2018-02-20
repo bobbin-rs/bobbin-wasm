@@ -1,4 +1,4 @@
-use {Error, SectionType};
+use {SectionType};
 use cursor::Cursor;
 use opcode::*;
 use types::*;
@@ -7,10 +7,6 @@ use wasm_read::WasmRead;
 use core::ops::Range; 
 use core::convert::TryFrom;
 use core::fmt;
-
-use module_inst::ModuleInst;
-use memory_inst::MemoryInst;
-
 
 pub struct FixupCount(usize);
 pub struct FixupLen(usize);
@@ -161,9 +157,9 @@ impl<'a> Module<'a> {
         None
     }
 
-    pub fn instantiate<'buf, 'mem>(self, buf: &'buf mut [u8], memory: &'mem MemoryInst<'mem>) -> Result<(ModuleInst<'buf, 'mem>, &'buf mut [u8]), Error> {
-        ModuleInst::new(buf, self, memory)
-    }
+    // pub fn instantiate<'buf, 'mem>(self, buf: &'buf mut [u8], memory: &'mem MemoryInst<'mem>) -> Result<(ModuleInst<'buf, 'mem>, &'buf mut [u8]), Error> {
+    //     ModuleInst::new(buf, self, memory)
+    // }
     
 }
 

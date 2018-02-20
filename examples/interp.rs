@@ -13,8 +13,7 @@ use clap::{App, Arg, ArgMatches};
 
 use wasm::{ExportDesc};
 use wasm::interp;
-use wasm::memory_inst::MemoryInst;
-use wasm::module::Module;
+use wasm::environ::Environment;
 
 
 #[derive(Debug)]
@@ -50,15 +49,6 @@ pub fn main() {
     }
 }
 
-// pub struct Environment<'a,> {
-//     memory: MemoryInst<'a>,
-// }
-
-// impl<'a> Environment<'a> {
-//     pub fn new(memory: MemoryInst<'a>) -> Self {   
-//         Environment { memory }
-//     }
-// }
 
 // pub struct Executor<'a> {    
 //     env: Environment<'a>
@@ -83,17 +73,15 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     let _out = String::new();
 
+    let buf = &mut [0u8; 4096];
+    let mut env = Environment::new(buf);
+    
 
-    let mut memory_buf = [0u8; 256];
-    let memory = MemoryInst::new(&mut memory_buf, 1, None);
+    // let m = Module::from(data.as_ref());
 
-    // let env = Environment::new(memory);
-
-    let m = Module::from(data.as_ref());
-
-    let out_buf = &mut [0u8; 4096];
-
-    let (mi, _out_buf) = m.instantiate(out_buf, &memory)?;
+    
+    // let (mi, _out_buf) = m.instantiate(out_buf, &memory)?;
+    let mi = env.load_module(data.as_ref())?;
 
     // Interpreter
 
