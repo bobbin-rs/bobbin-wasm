@@ -2,25 +2,25 @@ use error::Error;
 
 use types::*;
 use module::*;
-use compiler::CompiledCode;
+use compiler::*;
 use core::cell::Cell;
 use memory_inst::MemoryInst;
 use small_vec::SmallVec;
 use writer::Writer;
 
-pub struct ModuleInst<'m, 'a, 'mem, 'code> {
+pub struct ModuleInst<'m, 'a, 'mem> {
     // name: &'a str,
     m: Module<'m>,
+    memory_inst: &'mem MemoryInst<'mem>,
     types: SmallVec<'a, Type<'a>>,
     functions: SmallVec<'a, FuncInst>,
     globals: SmallVec<'a, GlobalInst>,
     tables: SmallVec<'a, SmallVec<'a, u32>>,
-    memory_inst: &'mem MemoryInst<'mem>,
-    code: CompiledCode<'code>,
+    code: CompiledCode<'a>,
 }
 
-impl<'m, 'a, 'mem, 'code> ModuleInst<'m, 'a, 'mem, 'code> {
-    pub fn new(m: Module<'m>, buf: &'a mut [u8], memory_inst: &'mem MemoryInst<'mem>, code: CompiledCode<'code>) -> Result<(Self, &'a mut [u8]), Error> {
+impl<'m, 'a, 'mem> ModuleInst<'m, 'a, 'mem> {
+    pub fn new(buf: &'a mut [u8], m: Module<'m>, memory_inst: &'mem MemoryInst<'mem>) -> Result<(Self, &'a mut [u8]), Error> {
         let mut w = Writer::new(buf);
         // let name = w.copy_str(m.name());
 
@@ -122,8 +122,14 @@ impl<'m, 'a, 'mem, 'code> ModuleInst<'m, 'a, 'mem, 'code> {
             }
         }
 
+        let out_buf = w.into_slice();
 
-        Ok((ModuleInst { m, types, functions, globals, tables, memory_inst, code }, w.into_slice()))
+        let mut compiler_buf = [0u8; 4096];
+        let mut compiler = Compiler::new(&mut compiler_buf[..]);
+
+        let (code, out_buf) = compiler.compile(out_buf, &m)?;
+
+        Ok((ModuleInst { m, types, functions, globals, tables, memory_inst, code }, out_buf))
     }
 
     // pub fn name(&self) -> &str {

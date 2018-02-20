@@ -93,13 +93,7 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     let out_buf = &mut [0u8; 4096];
 
-    let (mi, _out_buf) = {
-        let mut compiler_buf = [0u8; 4096];
-        let mut compiler = wasm::compiler::Compiler::new(&mut compiler_buf[..]);
-        let (code, out_buf) = compiler.compile(out_buf, &m)?;
-        m.instantiate(out_buf, &memory, code)?
-    };
-
+    let (mi, _out_buf) = m.instantiate(out_buf, &memory)?;
 
     // Interpreter
 

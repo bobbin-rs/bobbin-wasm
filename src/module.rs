@@ -8,7 +8,6 @@ use core::ops::Range;
 use core::convert::TryFrom;
 use core::fmt;
 
-use compiler::CompiledCode;
 use module_inst::ModuleInst;
 use memory_inst::MemoryInst;
 
@@ -162,8 +161,8 @@ impl<'a> Module<'a> {
         None
     }
 
-    pub fn instantiate<'b, 'mem, 'code>(self, buf: &'b mut [u8], memory: &'mem MemoryInst<'mem>, code: CompiledCode<'code>) -> Result<(ModuleInst<'a, 'b, 'mem, 'code>, &'b mut [u8]), Error> {
-        ModuleInst::new(self, buf, memory, code)
+    pub fn instantiate<'b, 'mem>(self, buf: &'b mut [u8], memory: &'mem MemoryInst<'mem>) -> Result<(ModuleInst<'a, 'b, 'mem>, &'b mut [u8]), Error> {
+        ModuleInst::new(buf, self, memory)
     }
     
 }
