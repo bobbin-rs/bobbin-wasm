@@ -7,7 +7,7 @@ use memory_inst::MemoryInst;
 use module_inst::ModuleInst;
 use interp::Interp;
 
-pub type HostFn = fn(interp: &mut Interp) -> Result<(), Error>;
+pub type HostFn = fn(interp: &mut Interp, index: usize) -> Result<(), Error>;
 
 pub struct Config {
     memory_pages: usize
@@ -57,9 +57,9 @@ impl<'env> Environment<'env> {
         })
     }
 
-    pub fn call_host_function(&self, interp: &mut Interp) -> Result<(), Error> {
+    pub fn call_host_function(&self, interp: &mut Interp, index: usize) -> Result<(), Error> {
         if let Some(host_fn) = self.host_fn { 
-            host_fn(interp)
+            host_fn(interp, index)
         } else {
             Err(Error::NoHostFunction)
         }

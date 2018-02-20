@@ -49,9 +49,9 @@ pub fn main() {
     }
 }
 
-fn host_hello(_interp: &mut Interp) -> Result<(), wasm::Error> {
+fn host_hello(_interp: &mut Interp, index: usize) -> Result<(), wasm::Error> {
     Ok({ 
-        println!("Hello World");
+        println!("host_hello: {}", index);
     })
 }
 

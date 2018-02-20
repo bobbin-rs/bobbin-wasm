@@ -137,7 +137,7 @@ impl<'a> Interp<'a> {
                     match &mi.functions()[id as usize] {
                         &FuncInst::Import { type_index, ref module, ref name, import_index } => {
                             info!("CALL IMPORT: type_index: {} module: {}, name: {}, import_index: {}", type_index, module, name, import_index);
-                            env.call_host_function(self)?;
+                            env.call_host_function(self, import_index)?;
                             // return Err(Error::Unimplemented)
                         },
                         &FuncInst::Local { type_index: _, function_index } => {
