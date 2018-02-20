@@ -73,14 +73,9 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     let _out = String::new();
 
-    let buf = &mut [0u8; 4096];
-    let mut env = Environment::new(buf);
+    let env_buf = &mut [0u8; 4096];
+    let mut env = Environment::new(env_buf);
     
-
-    // let m = Module::from(data.as_ref());
-
-    
-    // let (mi, _out_buf) = m.instantiate(out_buf, &memory)?;
     let mi = env.load_module(data.as_ref())?;
 
     // Interpreter
