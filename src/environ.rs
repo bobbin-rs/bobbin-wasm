@@ -1,7 +1,5 @@
 use PAGE_SIZE;
 use error::Error;
-use writer::Writer;
-use small_vec::SmallVec;
 use module::Module;
 use memory_inst::MemoryInst;
 use module_inst::ModuleInst;
@@ -21,7 +19,6 @@ impl Default for Config {
 pub struct Environment<'env> {
     cfg: Config,
     mem: MemoryInst<'env>,
-    modules: SmallVec<'env, ModuleInst<'env>>
 }
 
 impl<'env> Environment<'env> {
@@ -32,10 +29,7 @@ impl<'env> Environment<'env> {
     pub fn new_with_config(buf: &'env mut [u8], cfg: Config) -> (&'env mut [u8], Self) {   
         let (mem_buf, buf) = buf.split_at_mut(cfg.memory_pages * PAGE_SIZE);
         let mem = MemoryInst::new(mem_buf, 1, None);
-        let mut w = Writer::new(buf);
-        let modules = w.alloc_smallvec(4);
-        let buf = w.into_slice();
-        (buf, Environment { cfg, mem, modules })
+        (buf, Environment { cfg, mem })
     }
 
     pub fn cfg(&self) -> &Config {
