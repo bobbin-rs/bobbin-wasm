@@ -4,6 +4,7 @@ use types::*;
 use opcode::*;
 use module::*;
 
+use module_inst::*;
 use typeck::{TypeChecker, LabelType};
 use cursor::Cursor;
 use writer::Writer;
@@ -81,7 +82,7 @@ impl Context {
         self.parameters_count += 1;
     }
 
-    fn set_parameters(&mut self, parameters: &[u8]) {
+    fn set_parameters(&mut self, parameters: &[TypeValue]) {
         for (i, p) in parameters.iter().enumerate() {
             self.parameters[i] = TypeValue::from(*p);
         }
@@ -117,11 +118,11 @@ impl<'t> From<Signature<'t>> for Context {
         info!("{}", other);
         let mut c = Context::default();
         for p in other.parameters() {
-            c.add_parameter(p);
+            c.add_parameter(*p);
         }
         for r in other.returns() {
             info!("add return: {}", r);
-            c.set_return(r);
+            c.set_return(*r);
             info!("return: {}", c.return_type());
             break;
         }
@@ -443,7 +444,12 @@ impl<'c> Compiler<'c> {
 }
 
 impl<'c> Compiler<'c> {
-    pub fn compile<'buf>(&mut self, code_buf: &'buf mut [u8], m: &Module) -> Result<(&'buf mut [u8], CompiledCode<'buf>), Error> {
+    pub fn compile<'buf>(&mut self, code_buf: &'buf mut [u8], 
+        types: &[Type],
+        functions: &[FuncInst], 
+        globals: &[GlobalInst],        
+        m: &Module        
+    ) -> Result<(&'buf mut [u8], CompiledCode<'buf>), Error> {
         let mut w = Writer::new(code_buf);
         if let Some(import_section) = m.import_section() {
             for import in import_section.iter() {
@@ -507,7 +513,7 @@ impl<'c> Compiler<'c> {
 
             info!("{:08x}: V:{} | func[{}] {:?}", w.pos(), self.type_checker.type_stack_size(), n, self.context);  
 
-            self.compile_body(&mut w, m, &body)?;
+            self.compile_body(&mut w, types, functions, globals, m, &body)?;
             let body_end = w.pos() as u32;
             info!("body beg: {:08x}", body_beg);
             info!("body end: {:08x}", body_end);
@@ -521,7 +527,15 @@ impl<'c> Compiler<'c> {
         Ok((rest, CompiledCode { buf: buf }))
     }
 
-    pub fn compile_body<'buf>(&mut self, w: &mut Writer<'buf>, m: &Module, body: &Body) -> Result<(), Error> {
+    pub fn compile_body<'buf>(
+        &mut self, 
+        w: &mut Writer<'buf>, 
+        types: &[Type],
+        functions: &[FuncInst], 
+        globals: &[GlobalInst],            
+        m: &Module, 
+        body: &Body
+    ) -> Result<(), Error> {
         // self.body_fixup = w.write_code_start()?;
 
         self.type_checker.begin_function(self.context.return_type)?;
@@ -535,7 +549,7 @@ impl<'c> Compiler<'c> {
         for i in body.iter() {
             // Instruction
             // if !(i.range.end == body.range.end && i.opcode == END) {
-                self.compile_instruction(w, m, body, i)?;
+                self.compile_instruction(w, types, functions, globals, m, body, i)?;
             // }
         }
         // InstructionsEnd
@@ -567,12 +581,18 @@ impl<'c> Compiler<'c> {
         Ok(())
     }
 
-    fn compile_instruction<'w>(&mut self, w: &mut Writer<'w>, m: &Module, body: &Body, i: Instr) -> Result<(), Error> {
+    fn compile_instruction<'w>(
+        &mut self, 
+        w: &mut Writer<'w>, 
+        types: &[Type],
+        functions: &[FuncInst], 
+        globals: &[GlobalInst],        
+        m: &Module,
+        body: &Body, 
+        i: Instr
+    ) -> Result<(), Error> {
         use opcode::Immediate::*;
         use core::convert::TryFrom;
-
-
-
 
         let op = Opcode::try_from(i.opcode).unwrap();
         {
@@ -902,31 +922,50 @@ impl<'c> Compiler<'c> {
             Call { index } => {
                 let id = index.0 as u32;
                 info!("CALL {}", id);
-                let signature = if let Some(signature) = m.function_signature_type(id as usize) {
-                    signature
-                } else {
-                    return Err(Error::InvalidFunction { id: id })
-                };
-                info!("signature: {}", signature);
-                // if returns.len() > 1 {
-                //     return Err(Error::UnexpectedReturnLength { got: returns.len() as u32})
-                // }
 
-                let mut p_arr = [TypeValue::Any; 16];
-                let mut r_arr = [TypeValue::Any; 1];
-                let mut p_len = 0;
-                for (i, p) in signature.parameters().enumerate() {
-                    p_arr[i] = TypeValue::from(p);
-                    p_len = i + 1;
-                }
-                let mut r_len = 0;
-                for (i, r) in signature.returns().enumerate() {
-                    info!("{}, {}", i, r);
-                    r_arr[i] = TypeValue::from(r);
-                    r_len = i + 1;
-                }
-                let p_slice = &p_arr[..p_len];
-                let r_slice = &r_arr[..r_len];
+                let type_index = match &functions[index.0 as usize] {
+                    &FuncInst::Local { type_index, function_index: _ } => {
+                        type_index
+                    },
+                    &FuncInst::Import { type_index, import_index: _ } => {
+                        type_index
+                    }
+                };
+
+                let func_type = &types[type_index];
+                info!("Type Index: {:?}", type_index);
+                info!("Type: {:?}", func_type);
+                
+
+
+                // let signature = if let Some(signature) = m.function_signature_type(id as usize) {
+                //     signature
+                // } else {
+                //     return Err(Error::InvalidFunction { id: id })
+                // };
+                // info!("signature: {}", signature);
+                // // if returns.len() > 1 {
+                // //     return Err(Error::UnexpectedReturnLength { got: returns.len() as u32})
+                // // }
+
+                // let mut p_arr = [TypeValue::Any; 16];
+                // let mut r_arr = [TypeValue::Any; 1];
+                // let mut p_len = 0;
+                // for (i, p) in signature.parameters().iter().enumerate() {
+                //     p_arr[i] = TypeValue::from(p);
+                //     p_len = i + 1;
+                // }
+                // let mut r_len = 0;
+                // for (i, r) in signature.returns().iter().enumerate() {
+                //     info!("{}, {}", i, r);
+                //     r_arr[i] = TypeValue::from(r);
+                //     r_len = i + 1;
+                // }
+                // let p_slice = &p_arr[..p_len];
+                // let r_slice = &r_arr[..r_len];
+
+                let p_slice = func_type.parameters;
+                let r_slice = func_type.returns;
 
                 info!("{:?} {:?}", p_slice, r_slice);
 
@@ -949,35 +988,39 @@ impl<'c> Compiler<'c> {
                 //   CHECK_RESULT(EmitI32(module_->table_index));
                 //   CHECK_RESULT(EmitI32(TranslateSigIndexToEnv(sig_index)));
                 info!("CALL_INDIRECT: {}", index.0);
-                if let Some(sig_type) = m.signature_type(index.0 as usize) {
-                    let signature = sig_type;
 
-                    info!("signature: {}", signature);
-                    // if returns.len() > 1 {
-                    //     return Err(Error::UnexpectedReturnLength { got: returns.len() as u32})
-                    // }
 
-                    let mut p_arr = [TypeValue::Any; 16];
-                    let mut r_arr = [TypeValue::Any; 1];
-                    let mut p_len = 0;
-                    for (i, p) in signature.parameters().enumerate() {
-                        p_arr[i] = TypeValue::from(p);
-                        p_len = i + 1;
-                    }
-                    let mut r_len = 0;
-                    for (i, r) in signature.returns().enumerate() {
-                        r_arr[i] = TypeValue::from(r);
-                        r_len = i + 1;
-                    }
-                    let p_slice = &p_arr[..p_len];
-                    let r_slice = &r_arr[..r_len];
+                unimplemented!()
 
-                    info!("  => {:?} => {:?}", p_slice, r_slice);
-                    self.type_checker.on_call_indirect(p_slice, r_slice)?;
+                // if let Some(sig_type) = m.signature_type(index.0 as usize) {
+                //     let signature = sig_type;
 
-                    w.write_opcode(CALL_INDIRECT)?;
-                    w.write_u32(index.0)?;                    
-                }            
+                //     info!("signature: {}", signature);
+                //     // if returns.len() > 1 {
+                //     //     return Err(Error::UnexpectedReturnLength { got: returns.len() as u32})
+                //     // }
+
+                //     let mut p_arr = [TypeValue::Any; 16];
+                //     let mut r_arr = [TypeValue::Any; 1];
+                //     let mut p_len = 0;
+                //     for (i, p) in signature.parameters().enumerate() {
+                //         p_arr[i] = TypeValue::from(p);
+                //         p_len = i + 1;
+                //     }
+                //     let mut r_len = 0;
+                //     for (i, r) in signature.returns().enumerate() {
+                //         r_arr[i] = TypeValue::from(r);
+                //         r_len = i + 1;
+                //     }
+                //     let p_slice = &p_arr[..p_len];
+                //     let r_slice = &r_arr[..r_len];
+
+                //     info!("  => {:?} => {:?}", p_slice, r_slice);
+                //     self.type_checker.on_call_indirect(p_slice, r_slice)?;
+
+                //     w.write_opcode(CALL_INDIRECT)?;
+                //     w.write_u32(index.0)?;                    
+                // }            
             },
             I32Const { value } => {
                 self.type_checker.on_const(I32)?;

@@ -206,8 +206,8 @@ impl fmt::Debug for ImportDesc {
 
 
 pub struct Type<'a> {
-    pub parameters: &'a [u8],
-    pub returns: &'a [u8],
+    pub parameters: &'a [TypeValue],
+    pub returns: &'a [TypeValue],
 }
 
 
@@ -231,7 +231,7 @@ impl<'a> fmt::Debug for Type<'a> {
 }
 
 impl<'a> Type<'a> {
-    pub fn new(parameters: &'a [u8], returns: &'a [u8]) -> Self {
+    pub fn new(parameters: &'a [TypeValue], returns: &'a [TypeValue]) -> Self {
         Type { parameters, returns }
     }
     
@@ -248,25 +248,11 @@ impl<'a> Type<'a> {
     // }
 }
 
-
+#[derive(Debug)]
 pub struct Import<'a> {
     pub module: Identifier<'a>,
     pub export: Identifier<'a>,
     pub desc: ImportDesc,    
-}
-
-impl<'a> fmt::Debug for Import<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        Ok({
-            let indent = "    ";
-            writeln!(f, "{}<Import module={:?} export={:?}>", indent, 
-                str::from_utf8(self.module.0).unwrap(),
-                str::from_utf8(self.export.0).unwrap(),
-            )?;
-            write!(f, "  {:?}", self.desc)?;
-            writeln!(f, "{}</Import>", indent)?;
-        })
-    }
 }
 
 pub struct Function {

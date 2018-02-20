@@ -31,13 +31,14 @@ impl<'buf, 'env> ModuleInst<'buf> {
             match section {
                 Section::Type(type_section) => {
                     for t in type_section.iter() {
-                        let parameters= w.copy_slice(t.parameters)?;
-                        let returns = w.copy_slice(t.returns)?;
+                        let parameters: &[TypeValue] = w.copy_slice(t.parameters)?;
+                        let returns: &[TypeValue] = w.copy_slice(t.returns)?;
                         types.push(Type { parameters, returns });
                     }
                 },
                 Section::Import(import_section) => {
                     for (import_index, i) in import_section.iter().enumerate() {
+                        info!("Import: {:?}", i);
                         match i.desc {
                             ImportDesc::Type(type_index) => {
                                 let type_index = type_index as usize;
@@ -129,7 +130,11 @@ impl<'buf, 'env> ModuleInst<'buf> {
 
         // Change compiler to use ModuleInst
 
-        let (buf, code) = Compiler::new(&mut [0u8; 4096]).compile(buf, &m)?;
+        let (buf, code) = Compiler::new(&mut [0u8; 4096]).compile(buf, 
+            types.as_ref(),
+            functions.as_ref(), 
+            globals.as_ref(),
+        &m)?;
 
         Ok((buf, ModuleInst { types, functions, globals, exports, tables, code }))
     }

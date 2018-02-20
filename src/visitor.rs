@@ -37,22 +37,20 @@ pub fn visit<D: Visitor>(m: &Module, d: &mut D) -> Result<(), Error> {
                         d.event(Event::TypeStart { n , form })?;
 
                         {
-                            let c = sig.parameters().count() as u32;
+                            let c = sig.parameters().iter().count() as u32;
                             d.event(Event::TypeParametersStart { c })?;
-                            for (n, t) in sig.parameters().enumerate() {
-                                let n = n as u32;
-                                let t = TypeValue::from(t);
-                                d.event(Event::TypeParameter { n, t })?;
+                            for (n, t) in sig.parameters().iter().enumerate() {
+                                let n = n as u32;                                                                
+                                d.event(Event::TypeParameter { n, t: *t })?;
                             }
                             d.event(Event::TypeParametersEnd {  })?;
                         }
                         {
-                            let c = sig.returns().count() as u32;
+                            let c = sig.returns().iter().count() as u32;
                             d.event(Event::TypeReturnsStart { c })?;
-                            for (n, t) in sig.returns().enumerate() {
+                            for (n, t) in sig.returns().iter().enumerate() {
                                 let n = n as u32;
-                                let t = TypeValue::from(t);
-                                d.event(Event::TypeReturn { n, t })?;
+                                d.event(Event::TypeReturn { n, t: *t })?;
                             }
                             d.event(Event::TypeReturnsEnd {  })?;
                         }

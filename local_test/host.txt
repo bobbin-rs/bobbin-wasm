@@ -1,0 +1,6 @@
+(module
+    (import "host" "print" (func $imported))
+    (func (export "main")    
+        call $imported
+    return)
+)

@@ -59,11 +59,13 @@ impl<'a> WasmRead<'a> for Cursor<'a> {
     }
 
     fn read_signature(&mut self) -> Signature<'a> {
+        use parser::util::from_byte_slice;
+
         let form = self.read_type_value();
         let p_len = self.read_var_u32();
-        let parameters = self.slice(p_len as usize);
+        let parameters = from_byte_slice(self.slice(p_len as usize));
         let r_len = self.read_var_u32();
-        let returns = self.slice(r_len as usize);
+        let returns = from_byte_slice(self.slice(r_len as usize));
         Signature { form, parameters, returns }
     }
 
