@@ -24,7 +24,7 @@ impl Default for Config {
 pub struct Environment<'env> {
     cfg: Config,
     mem: MemoryInst<'env>,
-    modules: SmallVec<'env, &'env ModuleInst<'env>>,
+    modules: SmallVec<'env, (&'env str, &'env ModuleInst<'env>)>,
     host_fn: Option<HostFn>,
 }
 
@@ -65,12 +65,12 @@ impl<'env> Environment<'env> {
         }
     }
 
-    pub fn load_module(&mut self, buf: &'env mut [u8], module_data: &[u8]) -> Result<(&'env mut [u8], &'env ModuleInst<'env>), Error> {
+    pub fn load_module(&mut self, name: &'env str, buf: &'env mut [u8], module_data: &[u8]) -> Result<(&'env mut [u8], &'env ModuleInst<'env>), Error> {
         let m = Module::from(module_data);
         let (buf, mi) = ModuleInst::new(buf, &self.mem, m)?;
         let mut w = Writer::new(buf);
         let mi = w.copy(mi)?;
-        self.modules.push(mi);
+        self.modules.push((name, mi));
         let buf = w.into_slice();        
         Ok((buf, mi))
     }

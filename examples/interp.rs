@@ -1,6 +1,6 @@
 extern crate wasm;
 extern crate clap;
-#[macro_use] extern crate log;
+extern crate log;
 extern crate env_logger;
 
 use std::process;
@@ -77,9 +77,9 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     let mut data: Vec<u8> = Vec::new();
     file.read_to_end(&mut data)?;
 
-    let path = path.file_name().unwrap().to_str().unwrap();
+    let path = path.file_stem().unwrap().to_str().unwrap();
 
-    info!("loading {}", path);
+    println!("loading {:?}", path);
 
     let _out = String::new();
 
@@ -88,7 +88,7 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     env.register_host_function(host_hello)?;
 
-    let (buf, mi) = env.load_module(buf, data.as_ref())?;
+    let (buf, mi) = env.load_module(path, buf, data.as_ref())?;
 
     // Interpreter
 
@@ -99,7 +99,7 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
         if let ExportDesc::Function(index) = e.export_desc {
             let id = &e.identifier;            
             match &mi.functions()[index as usize] {
-                &FuncInst::Import { type_index: _, module: _, name: _, import_index: _ } => {
+                &FuncInst::Import { type_index: _, module: _, name: _, module_index: _, import_index: _ } => {
                     println!("Calling Import");
                 },
                 &FuncInst::Local { type_index: _, function_index } => {
