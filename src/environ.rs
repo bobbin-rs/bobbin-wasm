@@ -18,19 +18,18 @@ impl Default for Config {
 
 pub struct Environment<'env> {
     cfg: Config,
-    buf: Option<&'env mut [u8]>,
     mem: MemoryInst<'env>,
 }
 
 impl<'env> Environment<'env> {
-    pub fn new(buf: &'env mut [u8]) -> Self {   
+    pub fn new(buf: &'env mut [u8]) -> (Self, &'env mut [u8]) {   
         Environment::new_with_config(Config::default(), buf)
     }
 
-    pub fn new_with_config(cfg: Config, buf: &'env mut [u8]) -> Self {   
+    pub fn new_with_config(cfg: Config, buf: &'env mut [u8]) -> (Self, &'env mut [u8]) {   
         let (mem_buf, buf) = buf.split_at_mut(cfg.memory_pages * PAGE_SIZE);
         let mem = MemoryInst::new(mem_buf, 1, None);
-        Environment { cfg, buf: Some(buf), mem }
+        (Environment { cfg, mem }, buf)
     }
 
     pub fn cfg(&self) -> &Config {
@@ -41,11 +40,8 @@ impl<'env> Environment<'env> {
         &self.mem
     }
 
-    pub fn load_module(&'env mut self, module_data: &[u8]) -> Result<ModuleInst<'env>, Error> {
+    pub fn load_module(&'env mut self, buf: &'env mut [u8], module_data: &[u8]) -> Result<(ModuleInst<'env>, &'env mut [u8]), Error> {
         let m = Module::from(module_data);
-        let buf = self.buf.take().unwrap();
-        let (mi, _buf) = ModuleInst::new(self, buf, m)?;
-        // return remaining buffer to environ
-        Ok(mi)
+        ModuleInst::new(self, buf, m)
     }
 }

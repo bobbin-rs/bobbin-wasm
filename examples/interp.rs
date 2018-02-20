@@ -73,16 +73,14 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     let _out = String::new();
 
-    let env_buf = &mut [0u8; 4096];
-    let mut env = Environment::new(env_buf);
+    let buf = &mut [0u8; 4096];
+    let (mut env, buf) = Environment::new(buf);
     
-    let mi = env.load_module(data.as_ref())?;
+    let (mi, buf) = env.load_module(buf, data.as_ref())?;
 
     // Interpreter
 
-    let interp_buf = &mut [0u8; 1024];
-
-    let mut interp = interp::Interp::new(interp_buf);
+    let mut interp = interp::Interp::new(buf);
 
     for e in mi.exports() {
         if let ExportDesc::Function(index) = e.export_desc {
