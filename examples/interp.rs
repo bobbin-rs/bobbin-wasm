@@ -85,7 +85,7 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
         if let ExportDesc::Function(index) = e.export_desc {
             let id = &e.identifier;            
             match &mi.functions()[index as usize] {
-                &FuncInst::Import { type_index: _, import_index: _ } => {
+                &FuncInst::Import { type_index: _, module: _, name: _, import_index: _ } => {
                     println!("Calling Import");
                 },
                 &FuncInst::Local { type_index: _, function_index } => {

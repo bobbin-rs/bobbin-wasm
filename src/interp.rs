@@ -135,8 +135,8 @@ impl<'a> Interp<'a> {
                 CALL => {
                     let id = code.read_u32()?;
                     match &mi.functions()[id as usize] {
-                        &FuncInst::Import { type_index, import_index } => {
-                            info!("CALL IMPORT: type_index: {} import_index: {}", type_index, import_index);
+                        &FuncInst::Import { type_index, ref module, ref name, import_index } => {
+                            info!("CALL IMPORT: type_index: {} module: {}, name: {}, import_index: {}", type_index, module, name, import_index);
                             return Err(Error::Unimplemented)
                         },
                         &FuncInst::Local { type_index: _, function_index } => {
@@ -174,7 +174,7 @@ impl<'a> Interp<'a> {
                     let func_inst = &mi.functions()[func_index as usize];
                     info!("   func_inst: {:?}", func_inst);
                     match func_inst {
-                        &FuncInst::Import { type_index: _, import_index: _ } => {
+                        &FuncInst::Import { type_index: _, module: _, name: _, import_index: _ } => {
                             unimplemented!()
                         }
                         &FuncInst::Local { type_index, function_index } => {

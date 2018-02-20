@@ -10,7 +10,7 @@ use writer::Writer;
 
 pub struct ModuleInst<'buf> {
     types: SmallVec<'buf, Type<'buf>>,
-    functions: SmallVec<'buf, FuncInst>,
+    functions: SmallVec<'buf, FuncInst<'buf>>,
     globals: SmallVec<'buf, GlobalInst>,
     exports: SmallVec<'buf, ExportInst<'buf>>,
     tables: SmallVec<'buf, SmallVec<'buf, u32>>,
@@ -42,7 +42,11 @@ impl<'buf, 'env> ModuleInst<'buf> {
                         match i.desc {
                             ImportDesc::Type(type_index) => {
                                 let type_index = type_index as usize;
-                                functions.push(FuncInst::Import { type_index, import_index });
+                                let module_bytes = w.copy_slice(i.module.0)?;
+                                let module = Identifier(module_bytes);
+                                let name_bytes = w.copy_slice(i.export.0)?;
+                                let name = Identifier(name_bytes);
+                                functions.push(FuncInst::Import { type_index, module, name, import_index });
                             },
                             ImportDesc::Table(_) => {
                                 // info!("Import Table");
@@ -232,15 +236,15 @@ impl<'buf, 'env> ModuleInst<'buf> {
 }
 
 #[derive(Debug)]
-pub enum FuncInst {
-    Import { type_index: usize, import_index: usize },
+pub enum FuncInst<'a> {
+    Import { type_index: usize, module: Identifier<'a>, name: Identifier<'a>, import_index: usize },
     Local { type_index: usize, function_index: usize },
 }
 
-impl FuncInst {
+impl<'a> FuncInst<'a> {
     pub fn type_index(&self) -> usize {
         match self {
-            &FuncInst::Import { type_index, import_index: _ } => type_index,
+            &FuncInst::Import { type_index, module: _, name: _, import_index: _ } => type_index,
             &FuncInst::Local { type_index, function_index: _ } => type_index,
         }
     }
