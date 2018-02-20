@@ -4,7 +4,7 @@ use types::*;
 use module::*;
 use compiler::*;
 use core::cell::Cell;
-use environ::Environment;
+use memory_inst::MemoryInst;
 use small_vec::SmallVec;
 use writer::Writer;
 
@@ -18,7 +18,7 @@ pub struct ModuleInst<'buf> {
 }
 
 impl<'buf, 'env> ModuleInst<'buf> {
-    pub fn new(buf: &'buf mut [u8], env: &Environment, m: Module) -> Result<(&'buf mut [u8], ModuleInst<'buf>), Error> {
+    pub fn new(buf: &'buf mut [u8], mem: &MemoryInst, m: Module) -> Result<(&'buf mut [u8], ModuleInst<'buf>), Error> {
         let mut w = Writer::new(buf);
 
         let mut types = w.alloc_smallvec(16);
@@ -117,7 +117,7 @@ impl<'buf, 'env> ModuleInst<'buf> {
                             let d = data[i];
                             let o = offset as usize + i;
                             // info!("{:08x}: {:02x}", o, d);
-                            env.mem().set(o, d);
+                            mem.set(o, d);
                         }
                     }
                 },
