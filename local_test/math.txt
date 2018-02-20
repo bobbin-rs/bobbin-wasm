@@ -1,0 +1,9 @@
+(module
+  (import "host" "hello" (func $hello))
+  (func $double (export "double") (param i32) (result i32)
+    call $hello
+    get_local 0
+    get_local 0
+    i32.add
+  )
+)

@@ -69,7 +69,13 @@ fn host_hello(interp: &mut Interp, index: usize) -> Result<(), wasm::Error> {
     })
 }
 
-
+fn load_file(file_name: &str) -> Result<Vec<u8>, Error> {
+    let path = Path::new(file_name);
+    let mut file = File::open(&path)?;
+    let mut data: Vec<u8> = Vec::new();
+    file.read_to_end(&mut data)?;
+    Ok(data)
+}
 
 pub fn run(matches: ArgMatches) -> Result<(), Error> {
     let path = Path::new(matches.value_of("path").unwrap());
@@ -79,14 +85,22 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     let path = path.file_stem().unwrap().to_str().unwrap();
 
-    println!("loading {:?}", path);
-
     let _out = String::new();
 
-    let buf = &mut [0u8; 4096];
+    let buf = &mut [0u8; 8192];
     let (buf, mut env) = Environment::new(buf);    
 
     env.register_host_function(host_hello)?;
+
+    let math = load_file("local_test/math.wasm")?;
+
+    println!("loading {:?}", "math");
+
+    let (buf, _) = env.load_module("math", buf, math.as_ref())?;
+
+    println!("loading {:?}", path);
+
+
 
     let (buf, mi) = env.load_module(path, buf, data.as_ref())?;
 

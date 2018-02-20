@@ -1,0 +1,10 @@
+(module
+    (import "math" "double" (func $double))
+    (func (export "main") (result i32)
+        i32.const 42
+        call $double
+    return)
+)
+(;; STDOUT ;;;
+main() => i32:84
+;;; STDOUT ;;)

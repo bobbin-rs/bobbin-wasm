@@ -4,7 +4,8 @@ use writer::Writer;
 use small_vec::SmallVec;
 use module::Module;
 use memory_inst::MemoryInst;
-use module_inst::ModuleInst;
+use module_inst::{ModuleInst, FuncInst};
+use types::Value;
 use interp::Interp;
 
 pub type HostFn = fn(interp: &mut Interp, index: usize) -> Result<(), Error>;
@@ -57,14 +58,6 @@ impl<'env> Environment<'env> {
         })
     }
 
-    pub fn call_host_function(&self, interp: &mut Interp, index: usize) -> Result<(), Error> {
-        if let Some(host_fn) = self.host_fn { 
-            host_fn(interp, index)
-        } else {
-            Err(Error::NoHostFunction)
-        }
-    }
-
     pub fn load_module(&mut self, name: &'env str, buf: &'env mut [u8], module_data: &[u8]) -> Result<(&'env mut [u8], &'env ModuleInst<'env>), Error> {
         let m = Module::from(module_data);
         let (buf, mi) = ModuleInst::new(buf, &self.mem, m)?;
@@ -74,4 +67,35 @@ impl<'env> Environment<'env> {
         let buf = w.into_slice();        
         Ok((buf, mi))
     }
+
+    pub fn call_host_function(&self, interp: &mut Interp, index: usize) -> Result<(), Error> {
+        if let Some(host_fn) = self.host_fn { 
+            host_fn(interp, index)
+        } else {
+            Err(Error::NoHostFunction)
+        }
+    }
+    pub fn call_module_function(&self, interp: &mut Interp, module_index: usize, function_index: usize) -> Result<(), Error> {
+        let &(name, mi) = &self.modules[module_index];
+        let id = function_index;
+        info!("calling {}:{}", name, function_index);
+
+        match &mi.functions()[id] {
+            &FuncInst::Import { type_index, ref module, ref name, module_index, import_index } => {
+                info!("CALL IMPORT: type_index: {} module: {}, name: {}, module_index: {}, import_index: {}", type_index, module, name, module_index, import_index);
+                if module.0 == b"host" {
+                    self.call_host_function(interp, import_index)
+                } else {
+                    self.call_module_function(interp, module_index, import_index)
+                }                            
+            },
+            &FuncInst::Local { type_index: _, function_index } => {
+                if let Some(Value(v)) = interp.call(self, mi, function_index)? {
+                    Ok(interp.push(v)?)
+                } else {
+                    Ok(())
+                }
+            }
+        }
+    }        
 }
