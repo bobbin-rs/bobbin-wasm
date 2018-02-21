@@ -4,6 +4,7 @@ use types::*;
 use module::*;
 use compiler::*;
 use core::cell::Cell;
+use environ::Environment;
 use memory_inst::MemoryInst;
 use small_vec::SmallVec;
 use writer::Writer;
@@ -18,7 +19,7 @@ pub struct ModuleInst<'buf> {
 }
 
 impl<'buf, 'env> ModuleInst<'buf> {
-    pub fn new(buf: &'buf mut [u8], mem: &MemoryInst, m: Module) -> Result<(&'buf mut [u8], ModuleInst<'buf>), Error> {
+    pub fn new(buf: &'buf mut [u8], env: &Environment, mem: &MemoryInst, m: Module) -> Result<(&'buf mut [u8], ModuleInst<'buf>), Error> {
         let mut w = Writer::new(buf);
 
         let mut types = w.alloc_smallvec(16);
@@ -48,7 +49,7 @@ impl<'buf, 'env> ModuleInst<'buf> {
                                 let name = Identifier(name_bytes);
                                 let module_index = 0;
                                 if module_bytes == b"host" {
-                                    let host_index = module_index;
+                                    let host_index = env.import_host_function(&module, &name, &i.desc)?;
                                     functions.push(FuncInst::Host { type_index, module, name, host_index });
                                 } else {
                                     functions.push(FuncInst::Import { type_index, module, name, module_index, import_index });

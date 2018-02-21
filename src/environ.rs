@@ -68,7 +68,7 @@ impl<'env> Environment<'env> {
 
     pub fn load_module(&mut self, name: &'env str, buf: &'env mut [u8], module_data: &[u8]) -> Result<(&'env mut [u8], &'env ModuleInst<'env>), Error> {
         let m = Module::from(module_data);
-        let (buf, mi) = ModuleInst::new(buf, &self.mem, m)?;
+        let (buf, mi) = ModuleInst::new(buf, &self, &self.mem, m)?;
         let mut w = Writer::new(buf);
         let mi = w.copy(mi)?;
         self.modules.push((name, mi));

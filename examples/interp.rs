@@ -50,12 +50,16 @@ pub fn main() {
     }
 }
 
+pub const HELLO_FN: usize = 0x0;
+pub const PRINT_FN: usize = 0x1;
+pub const ADD_FN: usize = 0x2;
+
 fn host_import(_module: &Identifier, export: &Identifier, _import_desc: &ImportDesc) -> Result<usize, wasm::Error> {
     Ok({
         match export.0 {
-            b"hello" => 0,
-            b"print" => 1,
-            b"add" => 2,
+            b"hello" => HELLO_FN,
+            b"print" => PRINT_FN,
+            b"add" => ADD_FN,
             _ => return Err(wasm::Error::InvalidImport)
         }
     })
@@ -64,12 +68,12 @@ fn host_import(_module: &Identifier, export: &Identifier, _import_desc: &ImportD
 fn host_hello(interp: &mut Interp, _type_index: usize, index: usize) -> Result<(), wasm::Error> {
     Ok({ 
         match index {
-            0 => println!("Hello, World"),
-            1 => {
+            HELLO_FN => println!("Hello, World"),
+            PRINT_FN => {
                 let arg = interp.pop()?;
                 println!("{:?}", arg);
             },
-            2 => {
+            ADD_FN => {
                 let arg1 = interp.pop()?;
                 let arg2 = interp.pop()?;
                 let ret = arg1 + arg2;
