@@ -1,7 +1,7 @@
 use {Error, Value};
 
 // use module_inst::{ FuncInst};
-use environ::Environment;
+use environ::{Environment, HostHandler};
 use module_inst::{ModuleInst, FuncInst};
 use reader::Reader;
 use writer::Writer;
@@ -60,7 +60,7 @@ impl<'a> Interp<'a> {
         self.value_stack.len()
     }
 
-    pub fn call(&mut self, env: &Environment, mi: &ModuleInst, func_index: usize) -> Result<Option<Value>, Error> {
+    pub fn call<H: HostHandler>(&mut self, env: &Environment<H>, mi: &ModuleInst, func_index: usize) -> Result<Option<Value>, Error> {
         let code_buf = mi.code().as_ref();
 
         info!("code section len: {:08x}", code_buf.len());

@@ -14,7 +14,7 @@ use clap::{App, Arg, ArgMatches};
 use wasm::{ExportDesc, ImportDesc};
 use wasm::types::Identifier;
 use wasm::interp::Interp;
-use wasm::environ::Environment;
+use wasm::environ::{Environment, HostHandler};
 use wasm::module_inst::*;
 
 #[derive(Debug)]
@@ -50,39 +50,44 @@ pub fn main() {
     }
 }
 
+pub struct Handler {}
+
 pub const HELLO_FN: usize = 0x0;
 pub const PRINT_FN: usize = 0x1;
 pub const ADD_FN: usize = 0x2;
 
-fn host_import(_module: &Identifier, export: &Identifier, _import_desc: &ImportDesc) -> Result<usize, wasm::Error> {
-    Ok({
-        match export.0 {
-            b"hello" => HELLO_FN,
-            b"print" => PRINT_FN,
-            b"add" => ADD_FN,
-            _ => return Err(wasm::Error::InvalidImport)
-        }
-    })
-}
-
-fn host_hello(interp: &mut Interp, _type_index: usize, index: usize) -> Result<(), wasm::Error> {
-    Ok({ 
-        match index {
-            HELLO_FN => println!("Hello, World"),
-            PRINT_FN => {
-                let arg = interp.pop()?;
-                println!("{:?}", arg);
-            },
-            ADD_FN => {
-                let arg1 = interp.pop()?;
-                let arg2 = interp.pop()?;
-                let ret = arg1 + arg2;
-                println!("{:?} + {:?} -> {:?}", arg1, arg2, ret);
-                interp.push(ret)?;
+impl HostHandler for Handler {
+    fn import(&self, _module: &Identifier, export: &Identifier, _import_desc: &ImportDesc) -> Result<usize, wasm::Error> {
+        Ok({
+            match export.0 {
+                b"hello" => HELLO_FN,
+                b"print" => PRINT_FN,
+                b"add" => ADD_FN,
+                _ => return Err(wasm::Error::InvalidImport)
             }
-            _ => return Err(wasm::Error::InvalidFunction { id: index as u32 })
-        }
-    })
+        })
+    }
+
+    fn dispatch(&self, interp: &mut Interp, _type_index: usize, index: usize) -> Result<(), wasm::Error> {
+        Ok({ 
+            match index {
+                HELLO_FN => println!("Hello, World"),
+                PRINT_FN => {
+                    let arg = interp.pop()?;
+                    println!("{:?}", arg);
+                },
+                ADD_FN => {
+                    let arg1 = interp.pop()?;
+                    let arg2 = interp.pop()?;
+                    let ret = arg1 + arg2;
+                    println!("{:?} + {:?} -> {:?}", arg1, arg2, ret);
+                    interp.push(ret)?;
+                }
+                _ => return Err(wasm::Error::InvalidFunction { id: index as u32 })
+            }
+        })
+    }
+    
 }
 
 fn load_file(file_name: &str) -> Result<Vec<u8>, Error> {
@@ -103,11 +108,11 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     let _out = String::new();
 
-    let buf = &mut [0u8; 8192];
-    let (buf, mut env) = Environment::new(buf);    
+    let h = Handler {};
 
-    env.register_host_import_function(host_import)?;
-    env.register_host_function(host_hello)?;
+    let buf = &mut [0u8; 8192];
+    let (buf, mut env) = Environment::new(buf, h);    
+
 
     let math = load_file("local_test/math.wasm")?;
 

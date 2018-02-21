@@ -8,9 +8,6 @@ use module_inst::{ModuleInst, FuncInst};
 use types::{Value, ImportDesc, Identifier};
 use interp::Interp;
 
-pub type HostFn = fn(interp: &mut Interp, type_index: usize, index: usize) -> Result<(), Error>;
-pub type HostImportFn = fn(module: &Identifier, export: &Identifier, import_desc: &ImportDesc) -> Result<usize, Error>;
-
 pub struct Config {
     memory_pages: usize
 }
@@ -23,28 +20,30 @@ impl Default for Config {
     }
 }
 
-pub struct Environment<'env> {
+pub trait HostHandler {
+    fn import(&self, module: &Identifier, export: &Identifier, import_desc: &ImportDesc) -> Result<usize, Error>;
+    fn dispatch(&self, interp: &mut Interp, type_index: usize, index: usize) -> Result<(), Error>;
+}
+
+pub struct Environment<'env, H: HostHandler> {
     cfg: Config,
     mem: MemoryInst<'env>,
     modules: SmallVec<'env, (&'env str, &'env ModuleInst<'env>)>,
-    host_import_fn: Option<HostImportFn>,
-    host_fn: Option<HostFn>,
+    host_handler: H,
 }
 
-impl<'env> Environment<'env> {
-    pub fn new(buf: &'env mut [u8]) -> (&'env mut [u8], Self) {   
-        Environment::new_with_config(buf, Config::default())
+impl<'env, H: HostHandler> Environment<'env, H> {
+    pub fn new(buf: &'env mut [u8], host_handler: H) -> (&'env mut [u8], Self) {   
+        Environment::new_with_config(buf, host_handler, Config::default())
     }
 
-    pub fn new_with_config(buf: &'env mut [u8], cfg: Config) -> (&'env mut [u8], Self) {   
+    pub fn new_with_config(buf: &'env mut [u8], host_handler: H, cfg: Config) -> (&'env mut [u8], Self) {   
         let (mem_buf, buf) = buf.split_at_mut(cfg.memory_pages * PAGE_SIZE);
         let mem = MemoryInst::new(mem_buf, 1, None);
         let mut w = Writer::new(buf);
         let modules = w.alloc_smallvec(4);
         let buf = w.into_slice();
-        let host_import_fn = None;
-        let host_fn = None;
-        (buf, Environment { cfg, mem, modules, host_import_fn, host_fn })
+        (buf, Environment { cfg, mem, modules, host_handler })
     }
 
     pub fn cfg(&self) -> &Config {
@@ -53,17 +52,6 @@ impl<'env> Environment<'env> {
 
     pub fn mem(&self) -> &MemoryInst<'env> {
         &self.mem
-    }
-
-    pub fn register_host_import_function(&mut self, host_import_fn: HostImportFn) -> Result<(), Error> {
-        Ok({
-            self.host_import_fn = Some(host_import_fn);
-        })
-    }
-    pub fn register_host_function(&mut self, host_fn: HostFn) -> Result<(), Error> {
-        Ok({
-            self.host_fn = Some(host_fn);
-        })
     }
 
     pub fn load_module(&mut self, name: &'env str, buf: &'env mut [u8], module_data: &[u8]) -> Result<(&'env mut [u8], &'env ModuleInst<'env>), Error> {
@@ -77,20 +65,13 @@ impl<'env> Environment<'env> {
     }
 
     pub fn import_host_function(&self, module: &Identifier, export: &Identifier, import_desc: &ImportDesc) -> Result<usize, Error> {
-        if let Some(host_import_fn) = self.host_import_fn {
-            host_import_fn(module, export, import_desc)
-        } else {
-            Err(Error::NoHostFunction)            
-        }
+        self.host_handler.import(module, export, import_desc)
     }
 
     pub fn call_host_function(&self, interp: &mut Interp, type_index: usize, index: usize) -> Result<(), Error> {
-        if let Some(host_fn) = self.host_fn { 
-            host_fn(interp, type_index, index)
-        } else {
-            Err(Error::NoHostFunction)
-        }
+        self.host_handler.dispatch(interp, type_index, index)
     }
+
     pub fn call_module_function(&self, interp: &mut Interp, module_index: usize, function_index: usize) -> Result<(), Error> {
         let &(name, mi) = &self.modules[module_index];
         let id = function_index;
