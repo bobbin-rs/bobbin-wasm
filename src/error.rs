@@ -22,6 +22,7 @@ pub enum Error {
     MissingSection { id: SectionType },
 
     NoHostFunction,
+    NoHostImportFunction,
     InvalidHeader,
     InvalidSection { id: u32 },
     InvalidGlobalKind { id: u8 },

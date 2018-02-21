@@ -135,13 +135,12 @@ impl<'a> Interp<'a> {
                 CALL => {
                     let id = code.read_u32()?;
                     match &mi.functions()[id as usize] {
+                        &FuncInst::Host { type_index, module: _, name:_ , host_index } => {
+                            env.call_host_function(self, type_index, host_index)?;
+                        },
                         &FuncInst::Import { type_index, ref module, ref name, module_index, import_index } => {
                             info!("CALL IMPORT: type_index: {} module: {}, name: {}, module_index: {}, import_index: {}", type_index, module, name, module_index, import_index);
-                            if module.0 == b"host" {
-                                env.call_host_function(self, import_index)?;
-                            } else {
-                                env.call_module_function(self, module_index, import_index)?;
-                            }                            
+                            env.call_module_function(self, module_index, import_index)?;
                         },
                         &FuncInst::Local { type_index: _, function_index } => {
                             let body_range = mi.code().body_range(function_index);
@@ -178,8 +177,12 @@ impl<'a> Interp<'a> {
                     let func_inst = &mi.functions()[func_index as usize];
                     info!("   func_inst: {:?}", func_inst);
                     match func_inst {
-                        &FuncInst::Import { type_index: _, module: _, name: _, module_index: _, import_index: _ } => {
-                            unimplemented!()
+                        &FuncInst::Host { type_index, module: _, name:_ , host_index } => {
+                            env.call_host_function(self, type_index, host_index)?;
+                        },                        
+                        &FuncInst::Import { type_index, ref module, ref name, module_index, import_index } => {
+                            info!("CALL IMPORT: type_index: {} module: {}, name: {}, module_index: {}, import_index: {}", type_index, module, name, module_index, import_index);
+                            env.call_module_function(self, module_index, import_index)?;
                         }
                         &FuncInst::Local { type_index, function_index } => {
                             let func_type = &mi.types()[type_index];

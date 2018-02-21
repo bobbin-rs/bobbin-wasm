@@ -11,7 +11,8 @@ use std::path::Path;
 // use log::Level;
 use clap::{App, Arg, ArgMatches};
 
-use wasm::{ExportDesc};
+use wasm::{ExportDesc, ImportDesc};
+use wasm::types::Identifier;
 use wasm::interp::Interp;
 use wasm::environ::Environment;
 use wasm::module_inst::*;
@@ -49,7 +50,18 @@ pub fn main() {
     }
 }
 
-fn host_hello(interp: &mut Interp, index: usize) -> Result<(), wasm::Error> {
+fn host_import(_module: &Identifier, export: &Identifier, _import_desc: &ImportDesc) -> Result<usize, wasm::Error> {
+    Ok({
+        match export.0 {
+            b"hello" => 0,
+            b"print" => 1,
+            b"add" => 2,
+            _ => return Err(wasm::Error::InvalidImport)
+        }
+    })
+}
+
+fn host_hello(interp: &mut Interp, _type_index: usize, index: usize) -> Result<(), wasm::Error> {
     Ok({ 
         match index {
             0 => println!("Hello, World"),
@@ -90,6 +102,7 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     let buf = &mut [0u8; 8192];
     let (buf, mut env) = Environment::new(buf);    
 
+    env.register_host_import_function(host_import)?;
     env.register_host_function(host_hello)?;
 
     let math = load_file("local_test/math.wasm")?;
@@ -113,9 +126,6 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
         if let ExportDesc::Function(index) = e.export_desc {
             let id = &e.identifier;            
             match &mi.functions()[index as usize] {
-                &FuncInst::Import { type_index: _, module: _, name: _, module_index: _, import_index: _ } => {
-                    println!("Calling Import");
-                },
                 &FuncInst::Local { type_index: _, function_index } => {
                     println!("Calling Local Function {}", function_index);
                     match interp.call(&env, &mi, function_index as usize) {
@@ -138,6 +148,9 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
                         }
                     }
                 },
+                f @ _ => {
+                    println!("Unable to call {:?}", f);
+                }
             }
 
         }

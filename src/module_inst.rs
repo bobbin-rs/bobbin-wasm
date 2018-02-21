@@ -47,7 +47,12 @@ impl<'buf, 'env> ModuleInst<'buf> {
                                 let name_bytes = w.copy_slice(i.export.0)?;
                                 let name = Identifier(name_bytes);
                                 let module_index = 0;
-                                functions.push(FuncInst::Import { type_index, module, name, module_index, import_index });
+                                if module_bytes == b"host" {
+                                    let host_index = module_index;
+                                    functions.push(FuncInst::Host { type_index, module, name, host_index });
+                                } else {
+                                    functions.push(FuncInst::Import { type_index, module, name, module_index, import_index });
+                                }
                             },
                             ImportDesc::Table(_) => {
                                 // info!("Import Table");
@@ -238,6 +243,7 @@ impl<'buf, 'env> ModuleInst<'buf> {
 
 #[derive(Debug)]
 pub enum FuncInst<'a> {
+    Host { type_index: usize, module: Identifier<'a>, name: Identifier<'a>, host_index: usize },
     Import { type_index: usize, module: Identifier<'a>, name: Identifier<'a>, module_index: usize, import_index: usize },
     Local { type_index: usize, function_index: usize },
 }
@@ -245,6 +251,7 @@ pub enum FuncInst<'a> {
 impl<'a> FuncInst<'a> {
     pub fn type_index(&self) -> usize {
         match self {
+            &FuncInst::Host { type_index, module: _, name: _, host_index: _ } => type_index,
             &FuncInst::Import { type_index, module: _, name: _, module_index: _, import_index: _ } => type_index,
             &FuncInst::Local { type_index, function_index: _ } => type_index,
         }
