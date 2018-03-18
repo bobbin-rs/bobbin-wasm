@@ -49,7 +49,23 @@ impl<'a> WasmRead<'a> for Cursor<'a> {
         if opcode == I64_CONST || opcode == F64_CONST {
             panic!("64 bit initializers not supported");
         }
-        let immediate = self.read_var_i32();
+        match opcode {
+            I32_CONST => {
+                self.read_var_i32();      
+            },
+            F32_CONST => {
+                self.read_f32();
+            },
+            I64_CONST => {
+                self.read_var_i64();
+            },
+            F64_CONST => {
+                self.read_f64();
+            }
+            _ => {},
+        }
+        // let immediate = self.read_var_i32();
+        let immediate = 0;
         let end = self.read_u8();
         Initializer { opcode, immediate, end }
     }
