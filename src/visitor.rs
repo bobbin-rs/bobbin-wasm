@@ -16,6 +16,7 @@ pub fn visit<D: Visitor>(m: &Module, d: &mut D) -> Result<(), Error> {
     Ok({
         let version = m.version();
         d.event(Event::Start { version })?;
+        let mut import_funcs = 0;
         for s in m.sections() {
             let h = s.header();
             let s_type = h.section_type;
@@ -64,6 +65,12 @@ pub fn visit<D: Visitor>(m: &Module, d: &mut D) -> Result<(), Error> {
                         let module = imp.module;
                         let export = imp.export;
                         let desc = imp.desc;
+                        match desc {
+                            ImportDesc::Type(_) => {
+                                import_funcs += 1;
+                            },
+                            _ => {},
+                        }                        
                         d.event(Event::Import { n, module, export, desc })?;
                     }
                     d.event(Event::FunctionsEnd)?;
@@ -152,7 +159,7 @@ pub fn visit<D: Visitor>(m: &Module, d: &mut D) -> Result<(), Error> {
                     let c = h.count();
                     d.event(Event::CodeStart { c })?;
                     for (n, code) in code_section.iter().enumerate() {
-                        let n = n as u32;
+                        let n = import_funcs + n as u32;
                         let offset = code.range.start;
                         let size = code.range.end - code.range.start;
                         let locals = code.locals().count() as u32;
