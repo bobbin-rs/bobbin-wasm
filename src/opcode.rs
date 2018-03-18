@@ -147,15 +147,11 @@ impl<'a> fmt::Debug for Immediate<'a> {
         match *self {
             None => Ok(()),
             Block { signature } => if signature != TypeValue::Void {
-                write!(f, " {:?}", signature)
+                write!(f, " {}", signature)
             } else {
                 Ok(())
             },
-            Branch { depth } => if depth != 0 { 
-                write!(f, " {}", depth)
-            } else {
-                Ok(())
-            },
+            Branch { depth } => write!(f, " {}", depth),
             BranchTable { table } => {
                 write!(f, "[")?;
                 for (i, d) in table.iter().enumerate() {

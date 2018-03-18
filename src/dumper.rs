@@ -25,7 +25,10 @@ impl<W: Write> Visitor for HeaderDumper<W> {
                         let mut c = Cursor::new(data);
                         let s_name = c.read_identifier();
                         writeln!(self.w,"{:>9} start={:#010x} end={:#010x} (size={:#010x}) {:?}", s_type.as_str(), s_beg, s_end, s_len, s_name)?;
-                    }
+                    },
+                    SectionType::Start => {     
+                        writeln!(self.w,"{:>9} start={:#010x} end={:#010x} (size={:#010x}) start: {}", s_type.as_str(), s_beg, s_end, s_len, s_count)?;
+                    },
                     _ => {
                         writeln!(self.w,"{:>9} start={:#010x} end={:#010x} (size={:#010x}) count: {}", s_type.as_str(), s_beg, s_end, s_len, s_count)?;
                     }
@@ -92,7 +95,14 @@ impl<W: Write> Visitor for DetailsDumper<W> {
                 writeln!(self.w,"")?;
             },
             Global { n, t, mutability, init } => {
-                writeln!(self.w," - global[{}] {} mutable={} init 0x{:02x}={} ", n, t, mutability, init.opcode, init.immediate)?;
+                let opcode = match init.opcode {
+                    0x41 => "i32",
+                    0x42 => "i64",
+                    0x43 => "f32",
+                    0x44 => "f64",
+                    _ => "??",
+                };
+                writeln!(self.w," - global[{}] {} mutable={} - init {}={}", n, t, mutability, opcode, init.immediate)?;
             },
             Export { n, id, desc } => {
                 let kind = match desc {
@@ -108,7 +118,7 @@ impl<W: Write> Visitor for DetailsDumper<W> {
                 let export = str::from_utf8(export.0)?;
                 match desc {
                     ImportDesc::Type(f) => {
-                        writeln!(self.w, " - func[{}] func[{}] <- {}.{}", n, f, module, export)?;
+                        writeln!(self.w, " - func[{}] sig={} <{}> <- {}.{}", n, f, export, module, export)?;
                     },
                     ImportDesc::Table(t) => {
                         writeln!(self.w, " - table[{}] elem_type=anyfunc init={} max={:?} <- {}.{}", n, t.limits.min, t.limits.max, module, export)?;
@@ -140,7 +150,7 @@ impl<W: Write> Visitor for DetailsDumper<W> {
             }
             DataSegment {n, index: _, offset, data } => {
                 writeln!(self.w," - segment[{}] size={} - init {}={} ", n, data.len(), "i32", offset.immediate)?;
-                write!(self.w," - {:07x}:", offset.immediate)?;
+                write!(self.w,"  - {:07x}:", offset.immediate)?;
                 for (i, d) in data.iter().enumerate() {
                     if i % 2 == 0 {
                         write!(self.w," ")?;
@@ -173,8 +183,6 @@ impl<W: Write> Visitor for Disassembler<W> {
         match evt {
             Start { version: _ } => {
                 // writeln!(self.w, "\n{}:\tfile format wasm 0x{:x}\n", self.name, version)?;
-            },
-            CodeStart { c: _ } => {
                 writeln!(self.w,"Code Disassembly:\n")?;
             },
             Body { n, offset, size: _, locals: _ } => {

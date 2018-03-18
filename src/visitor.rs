@@ -17,6 +17,9 @@ pub fn visit<D: Visitor>(m: &Module, d: &mut D) -> Result<(), Error> {
         let version = m.version();
         d.event(Event::Start { version })?;
         let mut import_funcs = 0;
+        let mut import_tables = 0;
+        let mut import_memory = 0;
+        let mut import_globals = 0;
         for s in m.sections() {
             let h = s.header();
             let s_type = h.section_type;
@@ -70,7 +73,15 @@ pub fn visit<D: Visitor>(m: &Module, d: &mut D) -> Result<(), Error> {
                             ImportDesc::Type(_) => {
                                 import_funcs += 1;
                             },
-                            _ => {},
+                            ImportDesc::Table(_) => {
+                                import_tables += 1;
+                            },
+                            ImportDesc::Memory(_) => {
+                                import_memory += 1;
+                            },
+                            ImportDesc::Global(_) => {
+                                import_globals += 1;
+                            },
                         }                        
                         d.event(Event::Import { n, module, export, desc })?;
                     }
@@ -92,7 +103,7 @@ pub fn visit<D: Visitor>(m: &Module, d: &mut D) -> Result<(), Error> {
                     
                     d.event(Event::TablesStart { c })?;
                     for (n, table) in t.iter().enumerate() {
-                        let n = n as u32;
+                        let n = (n + import_tables) as u32;
                         let element_type = table.element_type;
                         let limits = table.limits;
                         d.event(Event::Table { n, element_type, limits })?;
@@ -105,7 +116,7 @@ pub fn visit<D: Visitor>(m: &Module, d: &mut D) -> Result<(), Error> {
                     
                     d.event(Event::MemsStart { c })?;
                     for (n, mem) in m.iter().enumerate() {
-                        let n = n as u32;
+                        let n = (n + import_memory) as u32;
                         let limits = mem.limits;
                         d.event(Event::Mem { n, limits })?;                    
                     }
@@ -117,7 +128,7 @@ pub fn visit<D: Visitor>(m: &Module, d: &mut D) -> Result<(), Error> {
                     
                     d.event(Event::GlobalsStart { c })?;
                     for (n, global) in g.iter().enumerate() {
-                        let n = n as u32;
+                        let n = (n + import_globals) as u32;
                         let global_type = global.global_type;
                         let t = global_type.type_value;
                         let mutability = global_type.mutability;                        
@@ -132,9 +143,15 @@ pub fn visit<D: Visitor>(m: &Module, d: &mut D) -> Result<(), Error> {
                     
                     d.event(Event::ExportsStart { c })?;
                     for (n, export) in e.iter().enumerate() {
-                        let n = n as u32;
                         let id = export.identifier;
                         let desc = export.export_desc;
+                        let n = n as u32;
+                        let n = match desc {
+                            ExportDesc::Function(_) => n + import_funcs as u32,
+                            ExportDesc::Table(_) => n + import_tables as u32,
+                            ExportDesc::Memory(_) => n + import_memory as u32,
+                            ExportDesc::Global(_) => n + import_globals as u32,
+                        };
                         d.event(Event::Export { n, id, desc })?;
                     }
                     d.event(Event::ExportsEnd)?;
