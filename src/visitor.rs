@@ -24,7 +24,8 @@ pub fn visit<D: Visitor>(m: &Module, d: &mut D) -> Result<(), Error> {
             let s_beg = h.buf.pos() as u32;
             let s_end = s_beg + s_len;
             let s_count = h.count();
-            d.event(Event::SectionStart { s_type, s_beg, s_end, s_len, s_count })?;
+            let data = h.buf.as_ref();
+            d.event(Event::SectionStart { s_type, s_beg, s_end, s_len, s_count, data })?;
             match s {
                 Section::Type(ref t) => {
                     let c = h.count();

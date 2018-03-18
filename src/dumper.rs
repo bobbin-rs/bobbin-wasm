@@ -3,6 +3,8 @@ use visitor::*;
 use opcode::*;
 use opcode;
 use types::*;
+use cursor::Cursor;
+use wasm_read::WasmRead;
 
 use core::str;
 use core::fmt::Write;
@@ -17,8 +19,17 @@ impl<W: Write> Visitor for HeaderDumper<W> {
             Start { version: _ } => {
                 writeln!(self.w, "Sections:")?;
             },
-            SectionStart { s_type, s_beg, s_end, s_len, s_count } => {
-                writeln!(self.w,"{:>9} start={:#010x} end={:#010x} (size={:#010x}) count: {}", s_type.as_str(), s_beg, s_end, s_len, s_count)?;
+            SectionStart { s_type, s_beg, s_end, s_len, s_count, data } => {
+                match s_type {
+                    SectionType::Custom => {     
+                        let mut c = Cursor::new(data);
+                        let s_name = c.read_identifier();
+                        writeln!(self.w,"{:>9} start={:#010x} end={:#010x} (size={:#010x}) {:?}", s_type.as_str(), s_beg, s_end, s_len, s_name)?;
+                    }
+                    _ => {
+                        writeln!(self.w,"{:>9} start={:#010x} end={:#010x} (size={:#010x}) count: {}", s_type.as_str(), s_beg, s_end, s_len, s_count)?;
+                    }
+                }
             },
             End => {
                 writeln!(self.w,"")?;
@@ -38,7 +49,7 @@ impl<W: Write> Visitor for DetailsDumper<W> {
             Start { version: _ } => {
                 writeln!(self.w, "Section Details:")?;
             },
-            SectionStart { s_type, s_beg: _, s_end: _, s_len: _, s_count: _ } => {
+            SectionStart { s_type, s_beg: _, s_end: _, s_len: _, s_count: _, data: _ } => {
                 if s_type != SectionType::Code && s_type != SectionType::Element {
                     writeln!(self.w,"{}:", s_type.as_str())?;
                 }
