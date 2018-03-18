@@ -66,7 +66,12 @@ impl<W: Write> Visitor for DetailsDumper<W> {
                 writeln!(self.w," - func[{}] sig={}", n, index.0)?;
             },
             Table { n, element_type, limits } => {
-                writeln!(self.w," - table[{}] type={:?} initial={}", n, element_type, limits.min)?;
+                let limits_max = if let Some(limits_max) = limits.max {
+                    limits_max
+                } else {
+                    limits.min
+                };
+                writeln!(self.w," - table[{}] type={} initial={} max={}", n, element_type, limits.min, limits_max)?;
             },
             Mem { n, limits }=> {
                 write!(self.w," - memory[{}] pages: initial={}", n, limits.min)?;
