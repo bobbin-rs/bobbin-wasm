@@ -8,13 +8,13 @@ use core::str;
 use core::fmt::Write;
 
 
-pub struct HeaderDumper<'a, W: Write> { pub w: W, pub name: &'a str }
+pub struct HeaderDumper<W: Write> { pub w: W }
 
-impl<'a, W: Write> Visitor for HeaderDumper<'a, W> {
+impl<W: Write> Visitor for HeaderDumper<W> {
     fn event(&mut self, evt: Event) -> VisitorResult {
         use ::event::Event::*;
         match evt {
-            Start { version } => {
+            Start { version: _ } => {
                 // writeln!(self.w, "\n{}:\tfile format wasm 0x{:x}\n", self.name, version)?;
                 writeln!(self.w, "Sections:")?;
             },
@@ -30,13 +30,13 @@ impl<'a, W: Write> Visitor for HeaderDumper<'a, W> {
     }
 }
 
-pub struct DetailsDumper<'a, W: Write> { pub w: W, pub name: &'a str }
+pub struct DetailsDumper<W: Write> { pub w: W }
 
-impl<'a, W: Write> Visitor for DetailsDumper<'a, W> {
+impl<W: Write> Visitor for DetailsDumper<W> {
     fn event(&mut self, evt: Event) -> VisitorResult {
         use ::event::Event::*;
         match evt {
-            Start { version } => {
+            Start { version: _ } => {
                 // writeln!(self.w, "\n{}:\tfile format wasm 0x{:x}\n", self.name, version).unwrap();
             },
             SectionStart { s_type, s_beg: _, s_end: _, s_len: _, s_count: _ } => {
@@ -129,23 +129,22 @@ impl<'a, W: Write> Visitor for DetailsDumper<'a, W> {
     }
 }
 
-pub struct Disassembler<'a, W: Write> { 
+pub struct Disassembler<W: Write> { 
     w: W,
-    name: &'a str,
     depth: usize,
 }
 
-impl<'a, W: Write> Disassembler<'a, W> {
-    pub fn new(w: W, name: &'a str) -> Self {
-        Disassembler { w, name, depth: 0 }
+impl<W: Write> Disassembler<W> {
+    pub fn new(w: W) -> Self {
+        Disassembler { w, depth: 0 }
     }
 }
 
-impl<'a, W: Write> Visitor for Disassembler<'a, W> {
+impl<W: Write> Visitor for Disassembler<W> {
     fn event(&mut self, evt: Event) -> VisitorResult {
         use ::event::Event::*;
         match evt {
-            Start { version } => {
+            Start { version: _ } => {
                 // writeln!(self.w, "\n{}:\tfile format wasm 0x{:x}\n", self.name, version)?;
             },
             CodeStart { c: _ } => {

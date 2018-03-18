@@ -81,18 +81,18 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     writeln!(out, "\n{}:\tfile format wasm 0x{:x}\n", name, m.version())?;
     
     if matches.is_present("headers") {        
-        let mut d = wasm::dumper::HeaderDumper{ w: &mut out, name };    
+        let mut d = wasm::dumper::HeaderDumper{ w: &mut out };    
         visitor::visit(&m, &mut d)?;
         
     } 
     
     if matches.is_present("details") {
-        let mut d = wasm::dumper::DetailsDumper{ w: &mut out, name };
+        let mut d = wasm::dumper::DetailsDumper{ w: &mut out };
         visitor::visit(&m, &mut d)?;
     }
 
     if matches.is_present("disassemble") {        
-        let mut d = wasm::dumper::Disassembler::new(&mut out, name );
+        let mut d = wasm::dumper::Disassembler::new(&mut out );
         visitor::visit(&m, &mut d)?;
     }
     print!("{}", out);
