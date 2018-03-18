@@ -15,7 +15,6 @@ impl<W: Write> Visitor for HeaderDumper<W> {
         use ::event::Event::*;
         match evt {
             Start { version: _ } => {
-                // writeln!(self.w, "\n{}:\tfile format wasm 0x{:x}\n", self.name, version)?;
                 writeln!(self.w, "Sections:")?;
             },
             SectionStart { s_type, s_beg, s_end, s_len, s_count } => {
@@ -37,7 +36,7 @@ impl<W: Write> Visitor for DetailsDumper<W> {
         use ::event::Event::*;
         match evt {
             Start { version: _ } => {
-                // writeln!(self.w, "\n{}:\tfile format wasm 0x{:x}\n", self.name, version).unwrap();
+                writeln!(self.w, "Section Details:")?;
             },
             SectionStart { s_type, s_beg: _, s_end: _, s_len: _, s_count: _ } => {
                 if s_type != SectionType::Code {
@@ -151,8 +150,6 @@ impl<W: Write> Visitor for Disassembler<W> {
                 writeln!(self.w,"Code Disassembly:\n")?;
             },
             Body { n, offset, size: _, locals: _ } => {
-                // FIX FUNC OFFSET
-                let offset = offset - 1;
                 writeln!(self.w,"{:06x} func[{}]:", offset, n)?;
             },
             Instruction(opcode::Instruction { offset, data, op, imm }, _) => {

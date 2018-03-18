@@ -181,11 +181,12 @@ impl<'a> WasmRead<'a> for Cursor<'a> {
     }    
 
     fn read_body(&mut self) -> Body<'a> {
-        let size = self.read_var_u32();
         let pos = self.pos();
+        let size = self.read_var_u32();
+        let lpos = self.pos();
         let locals_count = self.read_var_u32() as usize;
         let locals = self.split(locals_count * 2);
-        let locals_len = self.pos() - pos;
+        let locals_len = self.pos() - lpos;
         let expr = self.split((size as usize) - locals_len);
 
         let range = pos as u32 .. pos as u32 + size;
