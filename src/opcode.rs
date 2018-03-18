@@ -1,7 +1,9 @@
 use {TypeValue, FuncIndex, LocalIndex, GlobalIndex, TypeIndex};
+use floathex;
 
 use ::core::fmt;
 use ::core::convert::TryFrom;
+
 
 pub const BR_TABLE_ENTRY_SIZE: u32 = 12;
 
@@ -170,19 +172,13 @@ impl<'a> fmt::Debug for Immediate<'a> {
             CallIndirect { ref index, reserved } => write!(f, " {} {}", index.0, reserved),
             I32Const { value } => write!(f, " {}", value),
             F32Const { value } => {
-                if value == 0.0 {
-                    write!(f, " 0x0p+0")
-                } else {
-                    write!(f, " {}", value)
-                }
+                write!(f, " ")?;
+                floathex::f32_hex(f, value)
             },
             I64Const { value } => write!(f, " {}", value),
             F64Const { value } => {
-                if value == 0.0 {
-                    write!(f, " 0x0p+0")
-                } else {
-                    write!(f, " {}", value)
-                }
+                write!(f, " ")?;
+                floathex::f64_hex(f, value)
             },
             LoadStore { align, offset } => write!(f, " {} {}", align, offset),
             Memory { reserved: _ } => Ok(()),

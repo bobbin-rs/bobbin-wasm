@@ -24,7 +24,7 @@ pub mod event;
 pub mod dumper;
 pub mod visitor;
 pub mod wasm_read;
-
+pub mod floathex;
 pub mod parser;
 
 pub use error::*;
