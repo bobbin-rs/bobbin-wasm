@@ -199,9 +199,19 @@ impl<W: Write> Visitor for Disassembler<W> {
                 }
                 write!(self.w," {:06x}:", offset)?;
                 let mut w = 0;
-                for b in data.iter() {
-                    write!(self.w," {:02x}", b)?;
-                    w += 3;
+                if op.code == I64_CONST {
+                    for b in data.iter().take(10) {
+                       write!(self.w," {:02x}", b)?;
+                        w += 3;
+                    }
+                    if w > 28 {
+                        write!(self.w, " ")?;
+                    }
+                } else {
+                    for b in data.iter() {
+                       write!(self.w," {:02x}", b)?;
+                        w += 3;
+                    }
                 }
                 while w < 28 {
                     write!(self.w," ")?;

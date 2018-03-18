@@ -170,12 +170,12 @@ impl<'a> fmt::Debug for Immediate<'a> {
             Global { ref index } => write!(f, " {}", index.0),
             Call { ref index } => write!(f, " {}", index.0),
             CallIndirect { ref index, reserved } => write!(f, " {} {}", index.0, reserved),
-            I32Const { value } => write!(f, " {}", value),
+            I32Const { value } => write!(f, " {}", value as u32),
             F32Const { value } => {
                 write!(f, " ")?;
                 floathex::f32_hex(f, value)
             },
-            I64Const { value } => write!(f, " {}", value),
+            I64Const { value } => write!(f, " {}", value as i64),
             F64Const { value } => {
                 write!(f, " ")?;
                 floathex::f64_hex(f, value)
