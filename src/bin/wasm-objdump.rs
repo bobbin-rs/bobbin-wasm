@@ -39,11 +39,16 @@ pub fn main() {
         .arg(Arg::with_name("path")
             .required(true))
         .arg(Arg::with_name("headers")
+            .long("headers")
             .short("h"))
         .arg(Arg::with_name("details")
+            .long("details")
             .short("x"))
         .arg(Arg::with_name("disassemble")
+            .long("disassemble")
             .short("d"))
+        .arg(Arg::with_name("relocations")
+            .short("r"))
         .get_matches();
     
     if let Err(e) = run(matches) {
