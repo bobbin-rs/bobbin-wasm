@@ -1,6 +1,6 @@
 extern crate wasm;
 extern crate clap;
-#[macro_use] extern crate log;
+// #[macro_use] extern crate log;
 extern crate env_logger;
 
 use std::process;
@@ -14,15 +14,24 @@ use clap::{App, Arg, ArgMatches};
 use wasm::visitor;
 use wasm::Module;
 
+use std::fmt::{self, Write};
+
 #[derive(Debug)]
 pub enum Error {
     IoError(io::Error),
+    FmtError(fmt::Error),
     WasmError(wasm::Error),
 }
 
 impl From<io::Error> for Error {
     fn from(other: io::Error) -> Self {
         Error::IoError(other)
+    }
+}
+
+impl From<fmt::Error> for Error {
+    fn from(other: fmt::Error) -> Self {
+        Error::FmtError(other)
     }
 }
 
@@ -34,7 +43,6 @@ impl From<wasm::Error> for Error {
 
 pub fn main() {
     env_logger::init();
-    info!("running!");
     let matches = App::new("dump")
         .arg(Arg::with_name("path")
             .required(true))
@@ -64,26 +72,27 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     file.read_to_end(&mut data)?;
 
     // let path = path.file_name().unwrap().to_str().unwrap();
+    let name = path.file_name().unwrap().to_str().unwrap();
     let mut out = String::new();
 
     
     let m = Module::from(data.as_ref());
     
-    if matches.is_present("headers") {        
+    writeln!(out, "\n{}:\tfile format wasm 0x{:x}\n", name, m.version())?;
     
-        let mut d = wasm::dumper::HeaderDumper{ w: &mut out };
-        
+    if matches.is_present("headers") {        
+        let mut d = wasm::dumper::HeaderDumper{ w: &mut out, name };    
         visitor::visit(&m, &mut d)?;
         
     } 
     
     if matches.is_present("details") {
-        let mut d = wasm::dumper::DetailsDumper{ w: &mut out };
+        let mut d = wasm::dumper::DetailsDumper{ w: &mut out, name };
         visitor::visit(&m, &mut d)?;
     }
 
     if matches.is_present("disassemble") {        
-        let mut d = wasm::dumper::Disassembler::new(&mut out );
+        let mut d = wasm::dumper::Disassembler::new(&mut out, name );
         visitor::visit(&m, &mut d)?;
     }
     print!("{}", out);

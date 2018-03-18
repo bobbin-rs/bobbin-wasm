@@ -14,9 +14,8 @@ pub trait Visitor {
 
 pub fn visit<D: Visitor>(m: &Module, d: &mut D) -> Result<(), Error> {
     Ok({
-        let name = "abc.wasm";
         let version = m.version();
-        d.event(Event::Start { name, version })?;
+        d.event(Event::Start { version })?;
         for s in m.sections() {
             let h = s.header();
             let s_type = h.section_type;

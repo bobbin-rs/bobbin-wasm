@@ -4,7 +4,7 @@ use {SectionType, TypeValue};
 
 #[derive(Debug)]
 pub enum Event<'a> {
-    Start { name: &'a str, version: u32 },
+    Start { version: u32 },
     End,
 
     SectionStart { s_type: SectionType, s_beg: u32, s_end: u32, s_len: u32, s_count: u32},

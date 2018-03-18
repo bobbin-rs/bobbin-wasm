@@ -8,14 +8,15 @@ use core::str;
 use core::fmt::Write;
 
 
-pub struct HeaderDumper<W: Write> { pub w: W }
+pub struct HeaderDumper<'a, W: Write> { pub w: W, pub name: &'a str }
 
-impl<W: Write> Visitor for HeaderDumper<W> {
+impl<'a, W: Write> Visitor for HeaderDumper<'a, W> {
     fn event(&mut self, evt: Event) -> VisitorResult {
         use ::event::Event::*;
         match evt {
-            Start { name, version } => {
-                writeln!(self.w, "\n{}:\tfile format wasm 0x{:x}\n", name, version).unwrap();
+            Start { version } => {
+                // writeln!(self.w, "\n{}:\tfile format wasm 0x{:x}\n", self.name, version)?;
+                writeln!(self.w, "Sections:")?;
             },
             SectionStart { s_type, s_beg, s_end, s_len, s_count } => {
                 writeln!(self.w,"{:>9} start={:#010x} end={:#010x} (size={:#010x}) count: {}", s_type.as_str(), s_beg, s_end, s_len, s_count)?;
@@ -29,14 +30,14 @@ impl<W: Write> Visitor for HeaderDumper<W> {
     }
 }
 
-pub struct DetailsDumper<W: Write> { pub w: W }
+pub struct DetailsDumper<'a, W: Write> { pub w: W, pub name: &'a str }
 
-impl<W: Write> Visitor for DetailsDumper<W> {
+impl<'a, W: Write> Visitor for DetailsDumper<'a, W> {
     fn event(&mut self, evt: Event) -> VisitorResult {
         use ::event::Event::*;
         match evt {
-            Start { name, version } => {
-                writeln!(self.w, "\n{}:\tfile format wasm 0x{:x}\n", name, version).unwrap();
+            Start { version } => {
+                // writeln!(self.w, "\n{}:\tfile format wasm 0x{:x}\n", self.name, version).unwrap();
             },
             SectionStart { s_type, s_beg: _, s_end: _, s_len: _, s_count: _ } => {
                 if s_type != SectionType::Code {
@@ -128,23 +129,24 @@ impl<W: Write> Visitor for DetailsDumper<W> {
     }
 }
 
-pub struct Disassembler<W: Write> { 
+pub struct Disassembler<'a, W: Write> { 
     w: W,
+    name: &'a str,
     depth: usize,
 }
 
-impl<W: Write> Disassembler<W> {
-    pub fn new(w: W) -> Self {
-        Disassembler { w, depth: 0 }
+impl<'a, W: Write> Disassembler<'a, W> {
+    pub fn new(w: W, name: &'a str) -> Self {
+        Disassembler { w, name, depth: 0 }
     }
 }
 
-impl<W: Write> Visitor for Disassembler<W> {
+impl<'a, W: Write> Visitor for Disassembler<'a, W> {
     fn event(&mut self, evt: Event) -> VisitorResult {
         use ::event::Event::*;
         match evt {
-            Start { name, version } => {
-                writeln!(self.w, "\n{}:\tfile format wasm 0x{:x}\n", name, version)?;
+            Start { version } => {
+                // writeln!(self.w, "\n{}:\tfile format wasm 0x{:x}\n", self.name, version)?;
             },
             CodeStart { c: _ } => {
                 writeln!(self.w,"Code Disassembly:\n")?;
