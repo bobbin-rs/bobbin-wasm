@@ -167,11 +167,13 @@ pub fn visit<D: Visitor>(m: &Module, d: &mut D) -> Result<(), Error> {
                         for expr in code.iter() {
                             let Instr { range, opcode, imm } = expr;
                             let op = Opcode::try_from(opcode)?;
-                            let data = &[];
+                            let data = &m.as_ref()[(range.start - 8) as usize..(range.end - 8) as usize];
                             let offset = range.start;
-                            if !(range.end == code.range.end && opcode == END) {
-                                d.event(Event::Instruction(Instruction { offset, data, op: &op, imm }))?;
-                            }
+                            // NOTE: next level needs to know whether this is a terminating END
+                            // if !(range.end == code.range.end && opcode == END) {
+                                let terminal = range.end == code.range.end;
+                                d.event(Event::Instruction(Instruction { offset, data, op: &op, imm }, terminal))?;
+                            // }
                         }
                         d.event(Event::InstructionsEnd)?;
                         d.event(Event::BodyEnd)?;

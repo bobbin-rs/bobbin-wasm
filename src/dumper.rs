@@ -151,9 +151,11 @@ impl<W: Write> Visitor for Disassembler<W> {
                 writeln!(self.w,"Code Disassembly:\n")?;
             },
             Body { n, offset, size: _, locals: _ } => {
+                // FIX FUNC OFFSET
+                let offset = offset - 1;
                 writeln!(self.w,"{:06x} func[{}]:", offset, n)?;
             },
-            Instruction(opcode::Instruction { offset, data, op, imm }) => {
+            Instruction(opcode::Instruction { offset, data, op, imm }, _) => {
                 match op.code {
                     ELSE | END => {
                         if self.depth > 0 {

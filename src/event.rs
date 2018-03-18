@@ -55,7 +55,7 @@ pub enum Event<'a> {
         Body { n: u32, offset: u32, size: u32, locals: u32},
             Local { i: u32, n: u32, t: TypeValue },
             InstructionsStart,
-            Instruction(Instruction<'a>),
+            Instruction(Instruction<'a>, bool),
             InstructionsEnd,
         BodyEnd,
     CodeEnd,

@@ -27,6 +27,12 @@ impl<'a> From<&'a [u8]> for Module<'a> {
     }
 }
 
+impl<'a> AsRef<[u8]> for Module<'a> {
+    fn as_ref(&self) -> &[u8] {
+        &self.buf.as_ref()
+    }
+}
+
 impl<'a> Module<'a> {
     pub fn magic(&self) -> u32 {
         self.magic
