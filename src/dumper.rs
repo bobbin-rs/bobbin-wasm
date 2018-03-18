@@ -39,7 +39,7 @@ impl<W: Write> Visitor for DetailsDumper<W> {
                 writeln!(self.w, "Section Details:")?;
             },
             SectionStart { s_type, s_beg: _, s_end: _, s_len: _, s_count: _ } => {
-                if s_type != SectionType::Code {
+                if s_type != SectionType::Code && s_type != SectionType::Element {
                     writeln!(self.w,"{}:", s_type.as_str())?;
                 }
             },
@@ -115,8 +115,20 @@ impl<W: Write> Visitor for DetailsDumper<W> {
             StartFunction { index } => {
                 writeln!(self.w," - start function: {}", index.0)?;
             },
+            ElementsStart { c:_ } => {
+                writeln!(self.w, "Elem:")?;
+            },
+            Element { n, index, offset, data } => {
+                writeln!(self.w, " - segment[{}] table={}", n, index.0)?;
+                writeln!(self.w, " - init {}={}", "i32", offset.immediate)?;
+                if let Some(data) = data {
+                    for i in 0..data.len() {
+                        writeln!(self.w, "  - elem[{}] = func[{}]", i, data[i])?;
+                    }
+                }
+            }
             DataSegment {n, index: _, offset, data } => {
-                writeln!(self.w," - segment[{}] size={} - init {}={} ", n, data.len(), "i32", offset.immediate)?;;
+                writeln!(self.w," - segment[{}] size={} - init {}={} ", n, data.len(), "i32", offset.immediate)?;
                 write!(self.w," - {:07x}:", offset.immediate)?;
                 for (i, d) in data.iter().enumerate() {
                     if i % 2 == 0 {
