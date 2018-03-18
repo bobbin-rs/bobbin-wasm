@@ -173,9 +173,21 @@ impl<'a> fmt::Debug for Immediate<'a> {
             Call { ref index } => write!(f, " {}", index.0),
             CallIndirect { ref index, reserved } => write!(f, " {} {}", index.0, reserved),
             I32Const { value } => write!(f, " {}", value),
-            F32Const { value } => write!(f, " {}", value),
+            F32Const { value } => {
+                if value == 0.0 {
+                    write!(f, " 0x0p+0")
+                } else {
+                    write!(f, " {}", value)
+                }
+            },
             I64Const { value } => write!(f, " {}", value),
-            F64Const { value } => write!(f, " {}", value),
+            F64Const { value } => {
+                if value == 0.0 {
+                    write!(f, " 0x0p+0")
+                } else {
+                    write!(f, " {}", value)
+                }
+            },
             LoadStore { align, offset } => write!(f, " {} {}", align, offset),
             Memory { reserved: _ } => Ok(()),
         }
