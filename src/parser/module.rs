@@ -5,7 +5,6 @@ use parser::opcode::*;
 
 use core::str;
 use core::fmt;
-use core::num::Float;
 
 pub type Index = u32;
 pub type Depth = u32;
