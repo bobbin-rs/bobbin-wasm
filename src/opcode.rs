@@ -152,13 +152,13 @@ impl<'a> fmt::Debug for Immediate<'a> {
                 Ok(())
             },
             Branch { depth } => write!(f, " {}", depth),
-            BranchTable { table } => {
-                write!(f, "[")?;
-                for (i, d) in table.iter().enumerate() {
-                    if i != 0 { write!(f, ", ")?; }
-                    write!(f, "{}", d)?;
-                }
-                write!(f, "]")?;
+            BranchTable { table: _ } => {
+                // write!(f, "[")?;
+                // for (i, d) in table.iter().enumerate() {
+                //     if i != 0 { write!(f, ", ")?; }
+                //     write!(f, "{}", d)?;
+                // }
+                // write!(f, "]")?;
                 Ok(())
             }
             BranchTableStart { count } => write!(f, " [{}]", count),
