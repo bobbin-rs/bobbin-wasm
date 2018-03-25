@@ -3,63 +3,65 @@ use opcode::*;
 use core::fmt;
 use core::str;
 
-#[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum TypeValue {
-    Any = 0x00,
-    I32 = 0x7f,
-    I64 = 0x7e,
-    F32 = 0x7d,
-    F64 = 0x7c,
-    AnyFunc = 0x70,
-    Func = 0x60,
-    Void = 0x40,
-}
+pub use parser::types::ValueType;
 
-impl Default for TypeValue {
-    fn default() -> Self {
-        TypeValue::Any
-    }
-}
+// #[allow(non_camel_case_types)]
+// #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+// #[repr(u8)]
+// pub enum ValueType {
+//     Any = 0x00,
+//     I32 = 0x7f,
+//     I64 = 0x7e,
+//     F32 = 0x7d,
+//     F64 = 0x7c,
+//     AnyFunc = 0x70,
+//     Func = 0x60,
+//     Void = 0x40,
+// }
 
-impl From<u8> for TypeValue {
-    fn from(other: u8) -> Self {
-        match other {
-            0x00 => TypeValue::Any,
-            0x7f => TypeValue::I32,
-            0x7e  => TypeValue::I64,
-            0x7d => TypeValue::F32,
-            0x7c => TypeValue::F64,
-            0x70 => TypeValue::AnyFunc,
-            0x60 => TypeValue::Func,
-            0x40 => TypeValue::Void,
-            _ => panic!("Unrecognized TypeValue: 0x{:02x}", other)
-        }
-    }
-}
+// impl Default for ValueType {
+//     fn default() -> Self {
+//         ValueType::Any
+//     }
+// }
 
-impl From<TypeValue> for i8 {
-    fn from(other: TypeValue) -> Self {
-        other as i8
-    }
-}
+// impl From<u8> for ValueType {
+//     fn from(other: u8) -> Self {
+//         match other {
+//             0x00 => ValueType::Any,
+//             0x7f => ValueType::I32,
+//             0x7e  => ValueType::I64,
+//             0x7d => ValueType::F32,
+//             0x7c => ValueType::F64,
+//             0x70 => ValueType::AnyFunc,
+//             0x60 => ValueType::Func,
+//             0x40 => ValueType::Void,
+//             _ => panic!("Unrecognized ValueType: 0x{:02x}", other)
+//         }
+//     }
+// }
 
-impl fmt::Display for TypeValue {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use TypeValue::*;
-        write!(f, "{}", match *self {
-            Any => "any",
-            I32 => "i32",
-            I64 => "i64",
-            F32 => "f32",
-            F64 => "f64",
-            AnyFunc => "anyfunc",
-            Func => "func",
-            Void => "void",
-        })
-    }
-}
+// impl From<ValueType> for i8 {
+//     fn from(other: ValueType) -> Self {
+//         other as i8
+//     }
+// }
+
+// impl fmt::Display for ValueType {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         use ValueType::*;
+//         write!(f, "{}", match *self {
+//             Any => "any",
+//             I32 => "i32",
+//             I64 => "i64",
+//             F32 => "f32",
+//             F64 => "f64",
+//             AnyFunc => "anyfunc",
+//             Func => "func",
+//             Void => "void",
+//         })
+//     }
+// }
 
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -174,7 +176,7 @@ impl From<Value> for u32 {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GlobalType {
-    pub type_value: TypeValue,
+    pub type_value: ValueType,
     pub mutability: u8,
 }
 
@@ -206,8 +208,8 @@ impl fmt::Debug for ImportDesc {
 
 
 pub struct Type<'a> {
-    pub parameters: &'a [TypeValue],
-    pub returns: &'a [TypeValue],
+    pub parameters: &'a [ValueType],
+    pub returns: &'a [ValueType],
 }
 
 
@@ -219,11 +221,11 @@ impl<'a> fmt::Debug for Type<'a> {
             // writeln!(f, "{}<Type>", indent)?;
             // for p in self.parameters {
             //     let indent = "      ";
-            //     writeln!(f, "{}<parameter>{:?}</parameter>", indent, TypeValue::from(*p as i8))?;
+            //     writeln!(f, "{}<parameter>{:?}</parameter>", indent, ValueType::from(*p as i8))?;
             // }
             // for r in self.returns {
             //     let indent = "      ";
-            //     writeln!(f, "{}<return>{:?}</return>", indent, TypeValue::from(*r as i8))?;
+            //     writeln!(f, "{}<return>{:?}</return>", indent, ValueType::from(*r as i8))?;
             // }
             // writeln!(f, "{}</Type>", indent)?;
         })
@@ -231,20 +233,20 @@ impl<'a> fmt::Debug for Type<'a> {
 }
 
 impl<'a> Type<'a> {
-    pub fn new(parameters: &'a [TypeValue], returns: &'a [TypeValue]) -> Self {
+    pub fn new(parameters: &'a [ValueType], returns: &'a [ValueType]) -> Self {
         Type { parameters, returns }
     }
     
-    // pub fn parameters(&self) -> TypeValuesIter<'a> {
-    //     TypeValuesIter { index: 0, buf: self.parameters }
+    // pub fn parameters(&self) -> ValueTypesIter<'a> {
+    //     ValueTypesIter { index: 0, buf: self.parameters }
     // }
 
-    // pub fn returns(&self) -> TypeValuesIter<'a> {
-    //     TypeValuesIter { index: 0, buf: self.returns }
+    // pub fn returns(&self) -> ValueTypesIter<'a> {
+    //     ValueTypesIter { index: 0, buf: self.returns }
     // }
 
-    // pub fn return_type(&self) -> Option<TypeValue> {
-    //     self.returns.first().map(|t| TypeValue::from(*t))
+    // pub fn return_type(&self) -> Option<ValueType> {
+    //     self.returns.first().map(|t| ValueType::from(*t))
     // }
 }
 
@@ -269,7 +271,7 @@ impl fmt::Debug for Function {
 }
 
 pub struct Table {
-    pub element_type: TypeValue,
+    pub element_type: ValueType,
     pub limits: Limits,
 }
 

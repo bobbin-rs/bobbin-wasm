@@ -1,4 +1,4 @@
-use {Error, WasmResult, Reader, TypeValue, SectionType, ExternalKind, Delegate};
+use {Error, WasmResult, Reader, ValueType, SectionType, ExternalKind, Delegate};
 use MAGIC_COOKIE;
 use module::*;
 use types::*;
@@ -85,8 +85,8 @@ impl<'d, 'r, D: 'd + Delegate> BinaryReader<'d, 'r, D> {
         self.read_var_u32()
     }
 
-    fn read_type(&mut self) -> WasmResult<TypeValue> {
-        Ok(TypeValue::from(self.r.read_var_u7()?))
+    fn read_type(&mut self) -> WasmResult<ValueType> {
+        Ok(ValueType::from(self.r.read_var_u7()?))
     }
 
     fn read_depth(&mut self) -> WasmResult<Depth> {

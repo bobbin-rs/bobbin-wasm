@@ -1,4 +1,4 @@
-use {TypeValue, SectionType};
+use {ValueType, SectionType};
 use opcode;
 use stack;
 
@@ -40,8 +40,8 @@ pub enum Error {
     UnexpectedData { wanted: u32, got: u32 },
     UnexpectedStackDepth { wanted: u32, got: u32},
     UnexpectedTypeStackDepth { wanted: u32, got: u32},
-    UnexpectedType { wanted: TypeValue, got: TypeValue },
-    UnexpectedReturnValue { wanted: TypeValue, got: TypeValue},
+    UnexpectedType { wanted: ValueType, got: ValueType },
+    UnexpectedReturnValue { wanted: ValueType, got: ValueType},
     UnexpectedReturnLength { got: u32 },
     FmtError(fmt::Error),
     Utf8Error(str::Utf8Error),

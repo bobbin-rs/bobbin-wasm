@@ -265,8 +265,8 @@ pub struct TypeSection<'a> {
 }
 
 impl<'a> TypeSection<'a> {
-    pub fn form(&self) -> TypeValue {
-        TypeValue::from(self.section_header.body().read_var_u7())
+    pub fn form(&self) -> ValueType {
+        ValueType::from(self.section_header.body().read_var_u7())
     }
 
     pub fn iter(&self) -> SignatureIter<'a> {
@@ -547,7 +547,7 @@ impl<'a> Body<'a> {
 #[derive(Debug)]
 pub struct Local {
     pub n: u32,
-    pub t: TypeValue,
+    pub t: ValueType,
 }
 
 pub struct LocalIter<'a> {
@@ -614,34 +614,34 @@ impl<'a> Iterator for DataIter<'a> {
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub struct Signature<'a> {
-    pub form: TypeValue,
-    pub parameters: &'a [TypeValue],
-    pub returns: &'a [TypeValue],
+    pub form: ValueType,
+    pub parameters: &'a [ValueType],
+    pub returns: &'a [ValueType],
 }
 
 impl<'a> Signature<'a> {
-    pub fn form(&self) -> TypeValue { 
+    pub fn form(&self) -> ValueType { 
         self.form
     }
 
-    pub fn parameters(&self) -> &[TypeValue] {
+    pub fn parameters(&self) -> &[ValueType] {
         self.parameters
     }
 
-    pub fn returns(&self) -> &[TypeValue] {
+    pub fn returns(&self) -> &[ValueType] {
         self.returns
     }
     
-    // pub fn parameters(&self) -> TypeValueIter {
-    //     TypeValueIter { buf: Cursor::new(self.parameters) }
+    // pub fn parameters(&self) -> ValueTypeIter {
+    //     ValueTypeIter { buf: Cursor::new(self.parameters) }
     // }
 
-    // pub fn returns(&self) -> TypeValueIter {
-    //     TypeValueIter { buf: Cursor::new(self.returns) }
+    // pub fn returns(&self) -> ValueTypeIter {
+    //     ValueTypeIter { buf: Cursor::new(self.returns) }
     // }
 
-    // pub fn return_type(&self) -> Option<TypeValue> {
-    //     self.returns().nth(0).map(|t| TypeValue::from(t))
+    // pub fn return_type(&self) -> Option<ValueType> {
+    //     self.returns().nth(0).map(|t| ValueType::from(t))
     // }
 }
 
@@ -665,12 +665,12 @@ impl<'a> fmt::Display for Signature<'a> {
     }
 }
 
-pub struct TypeValueIter<'a> {
+pub struct ValueTypeIter<'a> {
     buf: Cursor<'a>,
 }
 
-impl<'a> Iterator for TypeValueIter<'a> {
-    type Item = TypeValue;
+impl<'a> Iterator for ValueTypeIter<'a> {
+    type Item = ValueType;
 
     fn next(&mut self) -> Option<Self::Item> { 
         if self.buf.len() > 0 {

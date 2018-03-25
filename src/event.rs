@@ -1,6 +1,6 @@
 use types::*;
 use opcode::{Instruction};
-use {SectionType, TypeValue};
+use {SectionType, ValueType};
 
 #[derive(Debug)]
 pub enum Event<'a> {
@@ -11,12 +11,12 @@ pub enum Event<'a> {
     SectionEnd,
 
     TypesStart { c: u32 },
-        TypeStart { n: u32, form: TypeValue },
+        TypeStart { n: u32, form: ValueType },
             TypeParametersStart { c: u32 },
-                TypeParameter { n: u32, t: TypeValue},
+                TypeParameter { n: u32, t: ValueType},
             TypeParametersEnd,
             TypeReturnsStart { c: u32 },
-                TypeReturn { n: u32, t: TypeValue },
+                TypeReturn { n: u32, t: ValueType },
             TypeReturnsEnd,
         TypeEnd,
     TypesEnd,
@@ -30,7 +30,7 @@ pub enum Event<'a> {
     FunctionsEnd,
 
     TablesStart { c: u32 },
-        Table { n: u32, element_type: TypeValue, limits: Limits },
+        Table { n: u32, element_type: ValueType, limits: Limits },
     TablesEnd,
 
     MemsStart { c: u32 },
@@ -38,7 +38,7 @@ pub enum Event<'a> {
     MemsEnd,
 
     GlobalsStart { c: u32 },
-        Global { n:u32, t: TypeValue, mutability: u8, init: Initializer },
+        Global { n:u32, t: ValueType, mutability: u8, init: Initializer },
     GlobalsEnd,
 
     ExportsStart { c: u32 },
@@ -53,7 +53,7 @@ pub enum Event<'a> {
 
     CodeStart { c: u32 },
         Body { n: u32, offset: u32, size: u32, locals: u32},
-            Local { i: u32, n: u32, t: TypeValue },
+            Local { i: u32, n: u32, t: ValueType },
             InstructionsStart,
             Instruction(Instruction<'a>, bool),
             InstructionsEnd,

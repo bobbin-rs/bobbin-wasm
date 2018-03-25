@@ -32,8 +32,8 @@ impl<'buf, 'env> ModuleInst<'buf> {
             match section {
                 Section::Type(type_section) => {
                     for t in type_section.iter() {
-                        let parameters: &[TypeValue] = w.copy_slice(t.parameters)?;
-                        let returns: &[TypeValue] = w.copy_slice(t.returns)?;
+                        let parameters: &[ValueType] = w.copy_slice(t.parameters)?;
+                        let returns: &[ValueType] = w.copy_slice(t.returns)?;
                         types.push(Type { parameters, returns });
                     }
                 },
@@ -319,13 +319,13 @@ mod tests {
     #[test]
     fn test_build_type_list() {
         use opcode::{I32, I64};
-        use {Error, TypeValue};
+        use {Error, ValueType};
 
         trait WriteTo<W, E> {
             fn write_to(&self, w: &mut W) -> Result<(), E>; 
         }
 
-        impl<'buf> WriteTo<Writer<'buf>, Error> for TypeValue {
+        impl<'buf> WriteTo<Writer<'buf>, Error> for ValueType {
             fn write_to(&self, w: &mut Writer<'buf>) -> Result<(), Error> {
                 w.write_i8(*self as i8)
             }

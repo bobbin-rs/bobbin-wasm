@@ -10,7 +10,7 @@ pub trait WasmRead<'a> {
     fn read_initializer(&mut self) -> Initializer;
     fn read_section_type(&mut self) -> SectionType;
     fn read_signature(&mut self) -> Signature<'a>;
-    fn read_type_value(&mut self) -> TypeValue;
+    fn read_type_value(&mut self) -> ValueType;
     fn read_type_values(&mut self) -> &'a [u8];
     fn read_bytes(&mut self) -> &'a [u8];
     fn read_global_type(&mut self) -> GlobalType;
@@ -85,8 +85,8 @@ impl<'a> WasmRead<'a> for Cursor<'a> {
         Signature { form, parameters, returns }
     }
 
-    fn read_type_value(&mut self) -> TypeValue {
-        TypeValue::from(self.read_var_u7())
+    fn read_type_value(&mut self) -> ValueType {
+        ValueType::from(self.read_var_u7())
     }
 
     fn read_type_values(&mut self) -> &'a [u8] {

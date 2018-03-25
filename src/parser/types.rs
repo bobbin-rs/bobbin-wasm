@@ -20,7 +20,8 @@ impl fmt::Display for Reserved {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
 pub enum ValueType {
     Any = 0x00,
     Void = 0x40,    
@@ -48,6 +49,37 @@ impl<'a> Read<ValueType> for Reader<'a> {
     }
 }
 
+impl From<u8> for ValueType {
+    fn from(other: u8) -> Self {
+        match other {
+            0x00 => ValueType::Any,
+            0x40 => ValueType::Void,
+            0x60 => ValueType::Func,
+            0x70 => ValueType::AnyFunc,
+            0x7f => ValueType::I32,
+            0x7e  => ValueType::I64,
+            0x7d => ValueType::F32,
+            0x7c => ValueType::F64,
+            _ => panic!("Unrecognized ValueType: 0x{:02x}", other)
+        }
+    }
+}
+
+impl fmt::Display for ValueType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::ValueType::*;
+        write!(f, "{}", match *self {
+            Any => "any",
+            I32 => "i32",
+            I64 => "i64",
+            F32 => "f32",
+            F64 => "f64",
+            AnyFunc => "anyfunc",
+            Func => "func",
+            Void => "void",
+        })
+    }
+}
 #[derive(Debug)]
 pub struct FunctionType<'a> {
     pub functype: u8,

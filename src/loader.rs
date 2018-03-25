@@ -1,4 +1,4 @@
-use {Error, Event, Value, TypeValue, Delegate, DelegateResult};
+use {Error, Event, Value, ValueType, Delegate, DelegateResult};
 
 use opcode::*;
 use module;
@@ -39,11 +39,11 @@ impl fmt::Debug for Label {
 }
 
 pub struct Context {
-    parameters: [TypeValue; 16],
+    parameters: [ValueType; 16],
     parameters_count: usize,
-    locals: [TypeValue; 16],
+    locals: [ValueType; 16],
     locals_count: usize,
-    return_type: TypeValue,
+    return_type: ValueType,
 }
 
 impl Default for Context {
@@ -67,33 +67,33 @@ impl Context {
         self.parameters_count + self.locals_count
     }
 
-    fn locals(&self) -> &[TypeValue] {
+    fn locals(&self) -> &[ValueType] {
         &self.locals[..self.locals_count]
     }
 
-    fn parameters(&self) -> &[TypeValue] {
+    fn parameters(&self) -> &[ValueType] {
         &self.parameters[..self.parameters_count]
     }
 
     fn set_parameters(&mut self, parameters: &[u8]) {
         for (i, p) in parameters.iter().enumerate() {
-            self.parameters[i] = TypeValue::from(*p);
+            self.parameters[i] = ValueType::from(*p);
         }
         self.parameters_count = parameters.len();
     }
 
-    fn add_local(&mut self, n: u32, t: TypeValue) {
+    fn add_local(&mut self, n: u32, t: ValueType) {
         for _ in 0..n {
             self.locals[self.locals_count] = t;
             self.locals_count += 1;
         }
     }
 
-    fn set_return(&mut self, t: TypeValue) {
+    fn set_return(&mut self, t: ValueType) {
         self.return_type = t;
     }
 
-    fn return_type(&self) -> TypeValue {
+    fn return_type(&self) -> ValueType {
         self.return_type
     }
 
@@ -111,14 +111,14 @@ impl<'t> From<Type<'t>> for Context {
         let mut c = Context::default();
         c.set_parameters(other.parameters);
         if other.returns.len() > 0 {
-            c.set_return(TypeValue::from(other.returns[0]));
+            c.set_return(ValueType::from(other.returns[0]));
         }
         c
     }
 }
 
 impl Index<usize> for Context {
-    type Output = TypeValue;
+    type Output = ValueType;
 
     fn index(&self, i: usize) -> &Self::Output {
         if i < self.parameters_count {
@@ -901,13 +901,13 @@ impl<'m> Loader<'m> {
                     return Err(Error::UnexpectedReturnLength { got: returns.len() as u32})
                 }
 
-                let mut p_arr = [TypeValue::Any; 16];
-                let mut r_arr = [TypeValue::Any; 1];
+                let mut p_arr = [ValueType::Any; 16];
+                let mut r_arr = [ValueType::Any; 1];
                 for i in 0..parameters.len() {
-                    p_arr[i] = TypeValue::from(parameters[i]);
+                    p_arr[i] = ValueType::from(parameters[i]);
                 }
                 for i in 0..returns.len() {
-                    r_arr[i] = TypeValue::from(returns[i]);
+                    r_arr[i] = ValueType::from(returns[i]);
                 }
                 let p_slice = &p_arr[..parameters.len()];
                 let r_slice = &r_arr[..returns.len()];
@@ -934,13 +934,13 @@ impl<'m> Loader<'m> {
                 if let Some(sig_type) = self.module.signature_type(index.0) {
                     let (parameters, returns) = (sig_type.parameters, sig_type.returns);
 
-                    let mut p_arr = [TypeValue::Any; 16];
-                    let mut r_arr = [TypeValue::Any; 1];
+                    let mut p_arr = [ValueType::Any; 16];
+                    let mut r_arr = [ValueType::Any; 1];
                     for i in 0..parameters.len() {
-                        p_arr[i] = TypeValue::from(parameters[i]);
+                        p_arr[i] = ValueType::from(parameters[i]);
                     }
                     for i in 0..returns.len() {
-                        r_arr[i] = TypeValue::from(returns[i]);
+                        r_arr[i] = ValueType::from(returns[i]);
                     }
                     let p_slice = &p_arr[..parameters.len()];
                     let r_slice = &r_arr[..returns.len()];

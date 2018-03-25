@@ -1,4 +1,4 @@
-use {TypeValue, FuncIndex, LocalIndex, GlobalIndex, TypeIndex};
+use {ValueType, FuncIndex, LocalIndex, GlobalIndex, TypeIndex};
 use floathex;
 
 use ::core::fmt;
@@ -36,32 +36,32 @@ pub type Depth = u8;
 pub type BranchCount = u32;
 // pub type CallIndirectCount = u32;
 
-pub const ___: TypeValue = TypeValue::Void;
-pub const I32: TypeValue = TypeValue::I32;
-pub const I64: TypeValue = TypeValue::I64;
-pub const F32: TypeValue = TypeValue::F32;
-pub const F64: TypeValue = TypeValue::F64;
-pub const ANYFUNC: TypeValue = TypeValue::AnyFunc;
-pub const FUNC: TypeValue = TypeValue::Func;
-pub const VOID: TypeValue = TypeValue::Void;
+pub const ___: ValueType = ValueType::Void;
+pub const I32: ValueType = ValueType::I32;
+pub const I64: ValueType = ValueType::I64;
+pub const F32: ValueType = ValueType::F32;
+pub const F64: ValueType = ValueType::F64;
+pub const ANYFUNC: ValueType = ValueType::AnyFunc;
+pub const FUNC: ValueType = ValueType::Func;
+pub const VOID: ValueType = ValueType::Void;
 
 #[derive(Debug)]
 pub struct Opcode {
     pub code: u8,
-    pub tr: TypeValue,
-    pub t1: TypeValue,
-    pub t2: TypeValue,
+    pub tr: ValueType,
+    pub t1: ValueType,
+    pub t2: ValueType,
     pub m: u8,
     pub text: &'static str,
 }
 
 impl Opcode {
     pub fn is_unop(&self) -> bool {
-        self.t1 != TypeValue::Void && self.t2 == TypeValue::Void
+        self.t1 != ValueType::Void && self.t2 == ValueType::Void
     }
 
     pub fn is_binop(&self) -> bool {
-        self.t1 != TypeValue::Void && self.t2 != TypeValue::Void
+        self.t1 != ValueType::Void && self.t2 != ValueType::Void
     }
 
     pub fn immediate_type(&self) -> ImmediateType {
@@ -124,7 +124,7 @@ impl From<u8> for ImmediateType {
 
 pub enum Immediate<'a> {
     None,
-    Block { signature: TypeValue },
+    Block { signature: ValueType },
     Branch { depth: Depth },
     BranchTable { table: &'a [Depth] },
     BranchTableStart { count: BranchCount },
@@ -148,7 +148,7 @@ impl<'a> fmt::Debug for Immediate<'a> {
         use self::Immediate::*;
         match *self {
             None => Ok(()),
-            Block { signature } => if signature != TypeValue::Void {
+            Block { signature } => if signature != ValueType::Void {
                 write!(f, " {}", signature)
             } else {
                 Ok(())

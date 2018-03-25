@@ -40,11 +40,11 @@ impl fmt::Debug for Label {
 }
 
 pub struct Context {
-    parameters: [TypeValue; 64],
+    parameters: [ValueType; 64],
     parameters_count: usize,
-    locals: [TypeValue; 64],
+    locals: [ValueType; 64],
     locals_count: usize,
-    return_type: TypeValue,
+    return_type: ValueType,
 }
 
 impl Default for Context {
@@ -68,38 +68,38 @@ impl Context {
         self.parameters_count + self.locals_count
     }
 
-    fn locals(&self) -> &[TypeValue] {
+    fn locals(&self) -> &[ValueType] {
         &self.locals[..self.locals_count]
     }
 
-    fn parameters(&self) -> &[TypeValue] {
+    fn parameters(&self) -> &[ValueType] {
         &self.parameters[..self.parameters_count]
     }
 
-    fn add_parameter(&mut self, p: TypeValue) {
+    fn add_parameter(&mut self, p: ValueType) {
         self.parameters[self.parameters_count] = p;
         self.parameters_count += 1;
     }
 
-    fn set_parameters(&mut self, parameters: &[TypeValue]) {
+    fn set_parameters(&mut self, parameters: &[ValueType]) {
         for (i, p) in parameters.iter().enumerate() {
-            self.parameters[i] = TypeValue::from(*p);
+            self.parameters[i] = ValueType::from(*p);
         }
         self.parameters_count = parameters.len();
     }
 
-    fn add_local(&mut self, n: u32, t: TypeValue) {
+    fn add_local(&mut self, n: u32, t: ValueType) {
         for _ in 0..n {
             self.locals[self.locals_count] = t;
             self.locals_count += 1;
         }
     }
 
-    fn set_return(&mut self, t: TypeValue) {
+    fn set_return(&mut self, t: ValueType) {
         self.return_type = t;
     }
 
-    fn return_type(&self) -> TypeValue {
+    fn return_type(&self) -> ValueType {
         self.return_type
     }
 
@@ -135,14 +135,14 @@ impl<'t> From<Type<'t>> for Context {
         let mut c = Context::default();
         c.set_parameters(other.parameters);
         if other.returns.len() > 0 {
-            c.set_return(TypeValue::from(other.returns[0]));
+            c.set_return(ValueType::from(other.returns[0]));
         }
         c
     }
 }
 
 impl Index<usize> for Context {
-    type Output = TypeValue;
+    type Output = ValueType;
 
     fn index(&self, i: usize) -> &Self::Output {
         if i < self.parameters_count {
@@ -970,7 +970,7 @@ pub trait ModuleWrite {
     fn write_section_type(&mut self, st: SectionType) -> Result<(), Error>;
     fn write_section_start(&mut self, st: SectionType) -> Result<usize, Error>;
     fn write_section_end(&mut self, fixup: usize) -> Result<(), Error>;
-    fn write_type(&mut self, t: TypeValue) -> Result<(), Error>;
+    fn write_type(&mut self, t: ValueType) -> Result<(), Error>;
     fn write_bytes(&mut self, buf: &[u8]) -> Result<(), Error>;
     fn write_identifier(&mut self, id: Identifier) -> Result<(), Error>;
     fn write_initializer(&mut self, init: Initializer) -> Result<(), Error>;
@@ -1009,7 +1009,7 @@ impl<'a> ModuleWrite for Writer<'a> {
     fn write_section_type(&mut self, st: SectionType) -> Result<(), Error> {
         self.write_u8(st as u8)
     }    
-    fn write_type(&mut self, t: TypeValue) -> Result<(), Error> {
+    fn write_type(&mut self, t: ValueType) -> Result<(), Error> {
         self.write_u8(t as u8)
     }
     fn write_bytes(&mut self, buf: &[u8]) -> Result<(), Error> {
