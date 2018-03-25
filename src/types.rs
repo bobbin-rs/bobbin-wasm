@@ -5,65 +5,6 @@ use core::str;
 
 pub use parser::types::ValueType;
 
-// #[allow(non_camel_case_types)]
-// #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-// #[repr(u8)]
-// pub enum ValueType {
-//     Any = 0x00,
-//     I32 = 0x7f,
-//     I64 = 0x7e,
-//     F32 = 0x7d,
-//     F64 = 0x7c,
-//     AnyFunc = 0x70,
-//     Func = 0x60,
-//     Void = 0x40,
-// }
-
-// impl Default for ValueType {
-//     fn default() -> Self {
-//         ValueType::Any
-//     }
-// }
-
-// impl From<u8> for ValueType {
-//     fn from(other: u8) -> Self {
-//         match other {
-//             0x00 => ValueType::Any,
-//             0x7f => ValueType::I32,
-//             0x7e  => ValueType::I64,
-//             0x7d => ValueType::F32,
-//             0x7c => ValueType::F64,
-//             0x70 => ValueType::AnyFunc,
-//             0x60 => ValueType::Func,
-//             0x40 => ValueType::Void,
-//             _ => panic!("Unrecognized ValueType: 0x{:02x}", other)
-//         }
-//     }
-// }
-
-// impl From<ValueType> for i8 {
-//     fn from(other: ValueType) -> Self {
-//         other as i8
-//     }
-// }
-
-// impl fmt::Display for ValueType {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         use ValueType::*;
-//         write!(f, "{}", match *self {
-//             Any => "any",
-//             I32 => "i32",
-//             I64 => "i64",
-//             F32 => "f32",
-//             F64 => "f64",
-//             AnyFunc => "anyfunc",
-//             Func => "func",
-//             Void => "void",
-//         })
-//     }
-// }
-
-
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum SectionType {
     Custom = 0x0,
