@@ -520,7 +520,7 @@ impl<'a> Iterator for CodeIter<'a> {
     type Item = Body<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.buf.len() > 0 {
+        if self.buf.len() > 0 {            
             Some(self.buf.read_body())
         } else {
             None
@@ -539,7 +539,7 @@ impl<'a> Body<'a> {
     pub fn locals(&self) -> LocalIter {
         LocalIter { buf: self.locals.clone() }
     }
-    pub fn iter(&self) -> InstrIter<'a> {        
+    pub fn iter(&self) -> InstrIter<'a> { 
         InstrIter { buf: self.expr.clone() }
     }
 }
