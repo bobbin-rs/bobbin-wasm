@@ -11,11 +11,11 @@
 # interp/basic-tracing.txt
 interp/basic.txt
 # interp/binary.txt
-# interp/br.txt
-# interp/brif-loop.txt
-# interp/brif.txt
-# interp/brtable.txt
-# interp/call-zero-args.txt
+interp/br.txt
+interp/brif-loop.txt
+interp/brif.txt
+interp/brtable.txt
+interp/call-zero-args.txt
 # interp/call.txt
 # interp/callimport-zero-args.txt
 # interp/callindirect.txt
@@ -24,19 +24,19 @@ interp/basic.txt
 # interp/convert-sat.txt
 # interp/convert.txt
 interp/empty.txt
-# interp/expr-block.txt
-# interp/expr-br.txt
-# interp/expr-brif.txt
-# interp/expr-if.txt
-# interp/if.txt
+interp/expr-block.txt
+interp/expr-br.txt
+interp/expr-brif.txt
+interp/expr-if.txt
+interp/if.txt
 # interp/import.txt
 # interp/load.txt
 # interp/logging-all-opcodes.txt
-# interp/loop.txt
+interp/loop.txt
 # interp/memory-empty-segment.txt
-# interp/nested-if.txt
-# interp/return-void.txt
-# interp/return.txt
+interp/nested-if.txt
+# ERR interp/return-void.txt
+interp/return.txt
 # interp/select.txt
 # interp/simd-basic.txt
 # interp/simd-binary.txt

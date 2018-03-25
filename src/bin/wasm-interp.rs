@@ -135,18 +135,18 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     if matches.is_present("run-all-exports") {
 
         for e in mi.exports() {
-            println!("export: {:?}", e);
+            // println!("export: {:?}", e);
             if let ExportDesc::Function(index) = e.export_desc {
                 let id = &e.identifier;            
                 match &mi.functions()[index as usize] {
                     &FuncInst::Local { type_index: _, function_index } => {
-                        println!("Calling Local Function {}", function_index);
+                        // println!("Calling Local Function {}", function_index);
                         match interp.call(&env, &mi, function_index as usize) {
                             Ok(Some(value)) => {
                                 println!("{}() => {:?}", id, value);
                             },
                             Ok(None) => {
-                                println!("{}() => nil", id);
+                                println!("{}() =>", id);
                             },
                             Err(e) => {
                                 println!("Error: {:?}", e);
