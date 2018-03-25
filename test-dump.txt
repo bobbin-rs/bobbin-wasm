@@ -1,0 +1,92 @@
+# dump/atomic.txt
+# dump/bad-version-logging.txt
+# dump/bad-version.txt
+dump/basic.txt
+dump/basic_dump_only.txt
+dump/binary.txt
+dump/block-257-exprs-br.txt
+dump/block-257-exprs.txt
+dump/block.txt
+dump/br-block-named.txt
+dump/br-block.txt
+dump/br-loop-inner-expr.txt
+dump/br-loop-inner.txt
+dump/br-loop.txt
+dump/brif-loop.txt
+dump/brif.txt
+dump/brtable-empty.txt
+dump/brtable.txt
+dump/call.txt
+dump/callimport.txt
+dump/callindirect.txt
+dump/cast.txt
+dump/compare.txt
+dump/const.txt
+# dump/convert-sat.txt
+dump/convert.txt
+# dump/current-memory.txt
+# dump/debug-import-names.txt
+# dump/debug-names.txt
+dump/dedupe-sig.txt
+dump/drop.txt
+dump/export-multi.txt
+dump/expr-br.txt
+dump/expr-brif.txt
+dump/func-exported.txt
+dump/func-multi.txt
+dump/func-named.txt
+dump/getglobal.txt
+dump/getlocal-param.txt
+dump/getlocal.txt
+# dump/global.txt
+# dump/grow-memory.txt
+dump/hexfloat_f32.txt
+dump/hexfloat_f64.txt
+dump/if-then-else-list.txt
+dump/if-then-list.txt
+dump/if.txt
+# dump/import.txt
+dump/invalid-data-segment-no-memory.txt
+dump/invalid-data-segment-offset.txt
+dump/invalid-elem-segment-no-table.txt
+dump/invalid-elem-segment-offset.txt
+dump/load-aligned.txt
+dump/load.txt
+dump/locals.txt
+dump/loop-257-exprs-br.txt
+dump/loop-257-exprs.txt
+dump/loop.txt
+dump/memory-1-byte.txt
+# dump/memory-data-size.txt
+dump/memory-hex.txt
+# dump/memory.txt
+# dump/multi_file.txt
+# dump/mutable-global.txt
+dump/no-canonicalize.txt
+dump/nocheck.txt
+dump/nop.txt
+dump/param-multi.txt
+# dump/relocations.txt
+dump/result.txt
+dump/return.txt
+dump/select.txt
+dump/setglobal.txt
+dump/setlocal-param.txt
+dump/setlocal.txt
+dump/signatures.txt
+dump/start.txt
+dump/store-aligned.txt
+dump/store.txt
+dump/string-escape.txt
+dump/string-hex.txt
+dump/table.txt
+dump/tee_local.txt
+# dump/try-details.txt
+# dump/try-exports-details.txt
+# dump/try-exports.txt
+# dump/try-imports-details.txt
+# dump/try-imports.txt
+# dump/try.txt
+# dump/unary-extend.txt
+dump/unary.txt
+# dump/unreachable.txt

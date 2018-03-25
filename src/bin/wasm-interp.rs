@@ -42,6 +42,7 @@ pub fn main() {
             .required(true))
         .arg(Arg::with_name("dump").long("dump"))
         .arg(Arg::with_name("no-compile").long("no-compile"))
+        .arg(Arg::with_name("run-all-exports").long("run-all-exports"))
         .get_matches();
     
     if let Err(e) = run(matches) {
@@ -90,6 +91,7 @@ impl HostHandler for Handler {
     
 }
 
+#[allow(dead_code)]
 fn load_file(file_name: &str) -> Result<Vec<u8>, Error> {
     let path = Path::new(file_name);
     let mut file = File::open(&path)?;
@@ -114,13 +116,13 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     let (buf, mut env) = Environment::new(buf, h);    
 
 
-    let math = load_file("local_test/math.wasm")?;
+    // let math = load_file("local_test/math.wasm")?;
 
-    println!("loading {:?}", "math");
+    // println!("loading {:?}", "math");
 
-    let (buf, _) = env.load_module("math", buf, math.as_ref())?;
+    // let (buf, _) = env.load_module("math", buf, math.as_ref())?;
 
-    println!("loading {:?}", path);
+    // println!("loading {:?}", path);
 
 
 
@@ -130,38 +132,41 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     let mut interp = Interp::new(buf);
 
-    for e in mi.exports() {
-        println!("export: {:?}", e);
-        if let ExportDesc::Function(index) = e.export_desc {
-            let id = &e.identifier;            
-            match &mi.functions()[index as usize] {
-                &FuncInst::Local { type_index: _, function_index } => {
-                    println!("Calling Local Function {}", function_index);
-                    match interp.call(&env, &mi, function_index as usize) {
-                        Ok(Some(value)) => {
-                            println!("{}() => {:?}", id, value);
-                        },
-                        Ok(None) => {
-                            println!("{}() => nil", id);
-                        },
-                        Err(e) => {
-                            println!("Error: {:?}", e);
-                            println!("---- Stack Dump ----");
+    if matches.is_present("run-all-exports") {
 
-                            let mut i = 0;
-                            while let Ok(value) = interp.pop() {
-                                println!("{}: {:?}", i, value);
-                                i += 1;
+        for e in mi.exports() {
+            println!("export: {:?}", e);
+            if let ExportDesc::Function(index) = e.export_desc {
+                let id = &e.identifier;            
+                match &mi.functions()[index as usize] {
+                    &FuncInst::Local { type_index: _, function_index } => {
+                        println!("Calling Local Function {}", function_index);
+                        match interp.call(&env, &mi, function_index as usize) {
+                            Ok(Some(value)) => {
+                                println!("{}() => {:?}", id, value);
+                            },
+                            Ok(None) => {
+                                println!("{}() => nil", id);
+                            },
+                            Err(e) => {
+                                println!("Error: {:?}", e);
+                                println!("---- Stack Dump ----");
+
+                                let mut i = 0;
+                                while let Ok(value) = interp.pop() {
+                                    println!("{}: {:?}", i, value);
+                                    i += 1;
+                                }
+                                println!("---- END ----");
                             }
-                            println!("---- END ----");
                         }
+                    },
+                    f @ _ => {
+                        println!("Unable to call {:?}", f);
                     }
-                },
-                f @ _ => {
-                    println!("Unable to call {:?}", f);
                 }
-            }
 
+            }
         }
     }
     
