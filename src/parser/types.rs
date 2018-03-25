@@ -22,6 +22,10 @@ impl fmt::Display for Reserved {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ValueType {
+    Any = 0x00,
+    Void = 0x40,    
+    Func = 0x60,
+    AnyFunc = 0x70,
     I32 = 0x7f,
     I64 = 0x7e,
     F32 = 0x7d,
@@ -31,6 +35,10 @@ pub enum ValueType {
 impl<'a> Read<ValueType> for Reader<'a> {
     fn read(&mut self) -> Result<ValueType, Error> {
         Ok(match self.read_u8()? {
+            0x00 => ValueType::Any,
+            0x40 => ValueType::Void,
+            0x60 => ValueType::Func,
+            0x70 => ValueType::AnyFunc,
             0x7f => ValueType::I32,
             0x7e => ValueType::I64,
             0x7d => ValueType::F32,
@@ -40,27 +48,29 @@ impl<'a> Read<ValueType> for Reader<'a> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum BlockType {
-    I32 = 0x7f,
-    I64 = 0x7e,
-    F32 = 0x7d,
-    F64 = 0x7c,
-    Void = 0x40,
-}
+// pub type BlockType = ValueType;
 
-impl<'a> Read<BlockType> for Reader<'a> {
-    fn read(&mut self) -> Result<BlockType, Error> {
-        Ok(match self.read_u8()? {
-            0x7f => BlockType::I32,
-            0x7e => BlockType::I64,
-            0x7d => BlockType::F32,
-            0x7c => BlockType::F64,
-            0x40 => BlockType::Void,
-            _ => return Err(Error::InvalidBlockType)
-        })
-    }
-}
+// #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+// pub enum BlockType {
+//     I32 = 0x7f,
+//     I64 = 0x7e,
+//     F32 = 0x7d,
+//     F64 = 0x7c,
+//     Void = 0x40,
+// }
+
+// impl<'a> Read<BlockType> for Reader<'a> {
+//     fn read(&mut self) -> Result<BlockType, Error> {
+//         Ok(match self.read_u8()? {
+//             0x7f => BlockType::I32,
+//             0x7e => BlockType::I64,
+//             0x7d => BlockType::F32,
+//             0x7c => BlockType::F64,
+//             0x40 => BlockType::Void,
+//             _ => return Err(Error::InvalidBlockType)
+//         })
+//     }
+// }
 
 #[derive(Debug)]
 pub struct FunctionType<'a> {

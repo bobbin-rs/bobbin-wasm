@@ -543,7 +543,7 @@ impl<'a> fmt::Debug for Instr<'a> {
 }
 pub enum Immediate<'a> {
     None,
-    Block { signature: BlockType },
+    Block { signature: ValueType },
     Branch { depth: Depth },
     BranchTable { table: &'a [u8] },
     Local { index: Index },
@@ -564,7 +564,7 @@ impl<'a> fmt::Debug for Immediate<'a> {
         use self::Immediate::*;
         match *self {
             None => Ok(()),
-            Block { signature } => if signature != BlockType::Void {
+            Block { signature } => if signature != ValueType::Void {
                 write!(f, " {:?}", signature)
             } else {
                 Ok(())
