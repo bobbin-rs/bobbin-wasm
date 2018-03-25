@@ -48,30 +48,6 @@ impl<'a> Read<ValueType> for Reader<'a> {
     }
 }
 
-// pub type BlockType = ValueType;
-
-// #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-// pub enum BlockType {
-//     I32 = 0x7f,
-//     I64 = 0x7e,
-//     F32 = 0x7d,
-//     F64 = 0x7c,
-//     Void = 0x40,
-// }
-
-// impl<'a> Read<BlockType> for Reader<'a> {
-//     fn read(&mut self) -> Result<BlockType, Error> {
-//         Ok(match self.read_u8()? {
-//             0x7f => BlockType::I32,
-//             0x7e => BlockType::I64,
-//             0x7d => BlockType::F32,
-//             0x7c => BlockType::F64,
-//             0x40 => BlockType::Void,
-//             _ => return Err(Error::InvalidBlockType)
-//         })
-//     }
-// }
-
 #[derive(Debug)]
 pub struct FunctionType<'a> {
     pub functype: u8,
