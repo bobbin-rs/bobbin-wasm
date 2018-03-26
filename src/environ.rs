@@ -4,8 +4,8 @@ use writer::Writer;
 use small_vec::SmallVec;
 use module::Module;
 use memory_inst::MemoryInst;
-use module_inst::{ModuleInst, FuncInst};
-use types::{Value, ImportDesc};
+use module_inst::{ModuleInst, FuncInst, Value};
+use types::{ImportDesc};
 use interp::Interp;
 
 pub struct Config {

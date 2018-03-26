@@ -13,6 +13,8 @@ use writer::Writer;
 use parser::module::ExportDesc;
 use parser::types::{FunctionType, GlobalType};
 
+use core::fmt;
+
 pub struct ModuleInst<'buf> {
     function_types: SmallVec<'buf, FunctionType<'buf>>,
     functions: SmallVec<'buf, FuncInst<'buf>>,
@@ -288,6 +290,48 @@ pub struct ExportInst<'buf> {
     pub name: &'buf str,
     pub export_desc: ExportDesc,
 }
+
+#[derive(Default, Clone, Copy, PartialEq, Eq)]
+pub struct Value(pub i32);
+
+impl fmt::Debug for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "i32:{}", self.0)
+    }
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+
+
+impl From<i32> for Value {
+    fn from(other: i32) -> Value {
+        Value(other)
+    }
+}
+
+impl From<u32> for Value {
+    fn from(other: u32) -> Value {
+        Value(other as i32)
+    }
+}
+
+impl From<Value> for i32 {
+    fn from(other: Value) -> i32 {
+        other.0
+    }
+}
+
+impl From<Value> for u32 {
+    fn from(other: Value) -> u32 {
+        other.0 as u32
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

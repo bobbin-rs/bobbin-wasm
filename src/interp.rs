@@ -1,8 +1,8 @@
-use {Error, Value};
+use {Error};
 
 // use module_inst::{ FuncInst};
 use environ::{Environment, HostHandler};
-use module_inst::{ModuleInst, FuncInst};
+use module_inst::{ModuleInst, FuncInst, Value};
 use reader::Reader;
 use writer::Writer;
 use stack::Stack;
@@ -25,7 +25,6 @@ impl Default for Config {
         }
     }
 }
-
 
 pub struct Interp<'a> {
     #[allow(dead_code)]
