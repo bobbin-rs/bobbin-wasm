@@ -1,6 +1,5 @@
 use error::Error;
 
-use parser::types::{FunctionType, GlobalType};
 
 use types::*;
 use module::*;
@@ -10,6 +9,9 @@ use environ::{Environment, HostHandler};
 use memory_inst::MemoryInst;
 use small_vec::SmallVec;
 use writer::Writer;
+
+use parser::module::ExportDesc;
+use parser::types::{FunctionType, GlobalType};
 
 pub struct ModuleInst<'buf> {
     function_types: SmallVec<'buf, FunctionType<'buf>>,

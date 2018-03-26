@@ -155,7 +155,7 @@ impl<'a> WasmRead<'a> for Cursor<'a> {
         let index = self.read_var_u32();
 
         match kind {
-            0x00 => ExportDesc::Function(index),
+            0x00 => ExportDesc::Func(index),
             0x01 => ExportDesc::Table(index),
             0x02 => ExportDesc::Memory(index),
             0x03 => ExportDesc::Global(index),

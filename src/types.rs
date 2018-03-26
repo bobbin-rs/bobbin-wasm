@@ -3,6 +3,7 @@ use opcode::*;
 use core::fmt;
 use core::str;
 
+pub use parser::module::ExportDesc;
 pub use parser::types::ValueType;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -121,13 +122,13 @@ pub struct GlobalType {
     pub mutability: u8,
 }
 
-#[derive(Debug)]
-pub enum ExportDesc {
-    Function(u32),
-    Table(u32),
-    Memory(u32),
-    Global(u32),
-}
+// #[derive(Debug)]
+// pub enum ExportDesc {
+//     Function(u32),
+//     Table(u32),
+//     Memory(u32),
+//     Global(u32),
+// }
 
 pub enum ImportDesc {
     Type(u32),
