@@ -2,7 +2,7 @@ use PAGE_SIZE;
 use error::Error;
 use writer::Writer;
 use small_vec::SmallVec;
-use module::Module;
+use parser::module::Module;
 use memory_inst::MemoryInst;
 use module_inst::{ModuleInst, FuncInst};
 use types::{Value, ImportDesc, Identifier};
@@ -55,7 +55,7 @@ impl<'env, H: HostHandler> Environment<'env, H> {
     }
 
     pub fn load_module(&mut self, name: &'env str, buf: &'env mut [u8], module_data: &[u8]) -> Result<(&'env mut [u8], &'env ModuleInst<'env>), Error> {
-        let m = Module::from(module_data);
+        let m = Module::new(module_data)?;
         let (buf, mi) = ModuleInst::new(buf, &self, &self.mem, m)?;
         let mut w = Writer::new(buf);
         let mi = w.copy(mi)?;
