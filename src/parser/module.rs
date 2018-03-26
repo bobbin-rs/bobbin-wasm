@@ -122,7 +122,23 @@ impl<'a> Module<'a> {
         Reader::new(buf).offset_from(&Reader::new(self.buf)) + 8
     }
 
-    pub fn function_type(&self, index: Index) -> Result<Option<FunctionType>, Error> {
+    pub fn function_signature(&self, index: Index) -> Result<Option<Index>, Error> {
+        let mut sections = self.sections();
+        while let Some(section) = sections.next()? {
+            if section.id() != Id::Function { continue }
+            let mut funcs = section.functions();
+            let mut n = 0;
+            while let Some(func) = funcs.next()? {
+                if n == index {
+                    return Ok(Some(func))
+                }
+                n += 1;
+            }
+        }
+        Ok(None)
+    }
+
+    pub fn signature_type(&self, index: Index) -> Result<Option<FunctionType>, Error> {
         let mut sections = self.sections();
         while let Some(section) = sections.next()? {
             if section.id() != Id::Type { continue }

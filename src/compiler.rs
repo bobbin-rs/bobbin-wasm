@@ -446,14 +446,11 @@ impl<'c> Compiler<'c> {
         globals: &[GlobalInst],        
         m: &Module        
     ) -> Result<(&'buf mut [u8], CompiledCode<'buf>), Error> {
-        info!("code_buf len: {}", code_buf.len());
         let mut w = Writer::new(code_buf);
 
         // Write Index
         w.write_u32(0)?;
-
         let mut n = 0;
-
         let mut sections = m.sections();
         while let Some(section) = sections.next()? {
             if section.id() != Id::Code { continue }
@@ -467,17 +464,20 @@ impl<'c> Compiler<'c> {
         w.write_u32_at(n, 0)?;
         info!("{:08x}: Code Start", w.pos());
 
-        let mut n = 0;
+        let mut n: usize = 0;
         let mut sections = m.sections();
         while let Some(section) = sections.next()? {
             if section.id() != Id::Code { continue }
             let mut code = section.code();
             while let Some(code) = code.next()? {
                 let mut first = true;
-                info!("Block {}", n);
                 let code_beg = m.offset_to(code.buf);
                 let code_len = code.buf.len();
                 let code_end = code_beg + code_len;
+                let type_index = m.function_signature(n as u32)?.unwrap();
+
+                self.context = Context::from(m.signature_type(type_index)?.unwrap());
+                info!("CONTEXT: {:?}", self.context);
 
                 let mut items = code.func.iter();
                 while let Some(item) = items.next()? {
