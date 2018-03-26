@@ -11,7 +11,7 @@ use std::path::Path;
 use clap::{App, Arg, ArgMatches};
 
 // use wasm::{Reader, BinaryReader};
-use wasm::parser::{self, Id, Module, FallibleIterator};
+use wasm::parser::{self, Id, Module, FallibleIterator, ExportDesc};
 // use wasm::visitor;
 
 
@@ -170,10 +170,14 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
                 }
             },
             Id::Import => {
-
             },
             Id::Function => {
-
+                let mut funcs = s.functions();
+                let mut n = 0;
+                while let Some(f) = funcs.next()? {
+                    writeln!(out," - func[{}] sig={}", n, f)?;
+                    n += 1;
+                }
             },
             Id::Table => {
 
@@ -185,7 +189,17 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
 
             },
             Id::Export => {
-
+                let mut exports = s.exports();
+                let mut n = 0;
+                while let Some(e) = exports.next()? {
+                    let kind = match e.export_desc {
+                        ExportDesc::Func(_) => "func",
+                        ExportDesc::Table(_) => "table",
+                        ExportDesc::Memory(_) => "memory",
+                        ExportDesc::Global(_) => "global",
+                    };
+                    writeln!(out, " - {}[{}] -> {:?}", kind, n, e.name)?;      
+                }
             },
             Id::Start => {
 
