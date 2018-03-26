@@ -535,7 +535,7 @@ impl<'m> TypeChecker<'m> {
     }
 
 
-    pub fn check_opcode1(&mut self, op: &Opcode) -> Result<(), Error> {
+    pub fn check_opcode1(&mut self, op: &Op) -> Result<(), Error> {
         info!("check_opcode1({:?})", op.text);
         Ok({
             self.pop_and_check_one_type(op.t1)?;
@@ -545,7 +545,7 @@ impl<'m> TypeChecker<'m> {
         })
     }
 
-    pub fn check_opcode2(&mut self, op: &Opcode) -> Result<(), Error> {
+    pub fn check_opcode2(&mut self, op: &Op) -> Result<(), Error> {
         info!("check_opcode2({:?})", op.text);
         Ok({
             self.pop_and_check_two_types(op.t1, op.t2)?;
@@ -555,11 +555,11 @@ impl<'m> TypeChecker<'m> {
         })
     }
 
-    pub fn on_load(&mut self, op: &Opcode) -> Result<(), Error> {
+    pub fn on_load(&mut self, op: &Op) -> Result<(), Error> {
         self.check_opcode1(op)
     }
 
-    pub fn on_store(&mut self, op: &Opcode) -> Result<(), Error> {
+    pub fn on_store(&mut self, op: &Op) -> Result<(), Error> {
         self.check_opcode2(op)
     }    
 
@@ -570,11 +570,11 @@ impl<'m> TypeChecker<'m> {
         })
     }
     
-    pub fn on_unary(&mut self, op: &Opcode) -> Result<(), Error> {
+    pub fn on_unary(&mut self, op: &Op) -> Result<(), Error> {
         self.check_opcode1(op)
     }
 
-    pub fn on_binary(&mut self, op: &Opcode) -> Result<(), Error> {
+    pub fn on_binary(&mut self, op: &Op) -> Result<(), Error> {
         self.check_opcode2(op)
     }
 
@@ -582,7 +582,7 @@ impl<'m> TypeChecker<'m> {
         self.push_type(ValueType::I32)
     }
 
-    pub fn on_grow_memory(&mut self, op: &Opcode) -> Result<(), Error> {
+    pub fn on_grow_memory(&mut self, op: &Op) -> Result<(), Error> {
         self.check_opcode1(op)
     }
 }

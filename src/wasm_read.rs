@@ -1,4 +1,4 @@
-use opcode::*;
+// use opcode::*;
 use module::*;
 use cursor::*;
 use types::*;
@@ -6,7 +6,6 @@ use types::*;
 use parser::types::Index;
 
 use core::str;
-use core::convert::TryFrom;
 
 pub trait WasmRead<'a> {
     fn read_identifier(&mut self) -> &'a str;
@@ -242,70 +241,71 @@ impl<'a> WasmRead<'a> for Cursor<'a> {
     }
 
     fn read_instr(&mut self) -> Instr<'a> {
-        use self::ImmediateType::*;
+        // use self::ImmediateType::*;
 
-        let offset = self.pos() as u32;
-        let op = Opcode::try_from(self.read_u8()).unwrap();
-        let imm = match op.immediate_type() {
-            None => Immediate::None,
-            BlockSignature => {
-                let signature = self.read_type_value();
-                Immediate::Block { signature }
-            },
-            BranchDepth => {
-                let depth = self.read_depth() as u8;
-                Immediate::Branch { depth }
-            },
-            BranchTable => {
-                let count = self.read_count() as usize;
-                let table = self.slice(count + 1);
-                Immediate::BranchTable { table }
-            },
-            Local => {                
-                let index = self.read_local_index();
-                Immediate::Local { index }
-            },
-            Global => {
-                let index = self.read_global_index();
-                Immediate::Global { index }
-            },
-            Call => {
-                let index = self.read_func_index();
-                Immediate::Call { index }
-            },
-            CallIndirect => {
-                let index = self.read_type_index();
-                let reserved = self.read_var_u32();
-                Immediate::CallIndirect { index, reserved }
-            },
-            I32 => {
-                let value = self.read_var_i32();
-                Immediate::I32Const { value }
-            },
-            F32 => {
-                let value = self.read_f32();
-                Immediate::F32Const { value }
-            },
-            I64 => {
-                let value = self.read_var_i64();
-                Immediate::I64Const { value }
-            },
-            F64 => {
-                let value = self.read_f64();
-                Immediate::F64Const { value }
-            },
-            LoadStore=> {
-                let align = self.read_var_u32();
-                let offset = self.read_var_u32();
-                Immediate::LoadStore { align, offset }
-            },
-            Memory => {
-                let reserved = self.read_var_u1();
-                Immediate::Memory { reserved }
-            },                
-        };
-        let end = self.pos() as u32;
-        let range = offset..end;
-        Instr { range, opcode: op.code, imm }
+        // let offset = self.pos() as u32;
+        // let op = Op::from_opcode(self.read_u8()).unwrap();
+        // let imm = match op.immediate_type() {
+        //     None => Immediate::None,
+        //     BlockSignature => {
+        //         let signature = self.read_type_value();
+        //         Immediate::Block { signature }
+        //     },
+        //     BranchDepth => {
+        //         let depth = self.read_depth() as u8;
+        //         Immediate::Branch { depth }
+        //     },
+        //     BranchTable => {
+        //         let count = self.read_count() as usize;
+        //         let table = self.slice(count + 1);
+        //         Immediate::BranchTable { table }
+        //     },
+        //     Local => {                
+        //         let index = self.read_local_index();
+        //         Immediate::Local { index }
+        //     },
+        //     Global => {
+        //         let index = self.read_global_index();
+        //         Immediate::Global { index }
+        //     },
+        //     Call => {
+        //         let index = self.read_func_index();
+        //         Immediate::Call { index }
+        //     },
+        //     CallIndirect => {
+        //         let index = self.read_type_index();
+        //         let reserved = self.read_var_u32();
+        //         Immediate::CallIndirect { index, reserved }
+        //     },
+        //     I32 => {
+        //         let value = self.read_var_i32();
+        //         Immediate::I32Const { value }
+        //     },
+        //     F32 => {
+        //         let value = self.read_f32();
+        //         Immediate::F32Const { value }
+        //     },
+        //     I64 => {
+        //         let value = self.read_var_i64();
+        //         Immediate::I64Const { value }
+        //     },
+        //     F64 => {
+        //         let value = self.read_f64();
+        //         Immediate::F64Const { value }
+        //     },
+        //     LoadStore=> {
+        //         let align = self.read_var_u32();
+        //         let offset = self.read_var_u32();
+        //         Immediate::LoadStore { align, offset }
+        //     },
+        //     Memory => {
+        //         let reserved = self.read_var_u1();
+        //         Immediate::Memory { reserved }
+        //     },                
+        // };
+        // let end = self.pos() as u32;
+        // let range = offset..end;
+        // Instr { range, opcode: op.code, imm }
+        unimplemented!()
     }   
 }

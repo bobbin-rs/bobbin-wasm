@@ -6,7 +6,7 @@ extern crate byteorder;
 #[macro_use] extern crate log;
 
 pub mod error;
-pub mod opcode;
+// pub mod opcode;
 pub mod types;
 pub mod cursor;
 pub mod reader;
@@ -23,6 +23,8 @@ pub mod environ;
 pub mod wasm_read;
 pub mod floathex;
 pub mod parser;
+
+use parser::opcode as opcode;
 
 pub use error::*;
 pub use types::*;

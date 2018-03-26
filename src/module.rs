@@ -1,11 +1,11 @@
 use {Id};
+use error::Error;
 use cursor::Cursor;
 use opcode::*;
 use types::*;
 use wasm_read::WasmRead;
 
 use core::ops::Range; 
-use core::convert::TryFrom;
 use core::fmt;
 
 pub struct FixupCount(usize);
@@ -590,7 +590,7 @@ pub struct Instr<'a> {
 
 impl<'a> fmt::Debug for Instr<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let op = Opcode::try_from(self.opcode).unwrap();
+        let op = Op::from_opcode(self.opcode).unwrap();
         write!(f, "{:08x}: {}{:?}", self.range.start, op.text, self.imm)
     }
 }

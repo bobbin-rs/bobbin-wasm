@@ -8,8 +8,6 @@ use writer::Writer;
 use stack::Stack;
 use opcode::*;
 
-use core::convert::TryFrom;
-
 pub type InterpResult<T> = Result<T, Error>;
 
 pub struct Config {
@@ -81,7 +79,7 @@ impl<'a> Interp<'a> {
             }
             let pos = code.pos();
             let opc = code.read_u8()?;
-            let op = Opcode::try_from(opc).unwrap();
+            let op = Op::from_opcode(opc).unwrap();
             info!("V: {} 0x{:08x}: {}", self.value_stack.len(), pos, op.text);
             match opc {
                 NOP => {},
@@ -376,14 +374,14 @@ impl<'a> Interp<'a> {
                     info!("res: {}", res);                    
                     self.push(res as i32)?;
                 },
-                INTERP_ALLOCA => {
+                ALLOCA => {
                     let count = code.read_u32()?;
                     info!("INTERP_ALLOCA: {}", count);
                     for _ in 0..count {
                         self.push(0)?;
                     }
                 },
-                INTERP_BR_UNLESS => {
+                BR_UNLESS => {
                     let offset = code.read_u32()?;
                     info!("BR_UNLESS: {:08x}", offset);
                     let val = self.pop()?;
@@ -392,7 +390,7 @@ impl<'a> Interp<'a> {
                         code.set_pos(offset as usize);
                     }
                 },                
-                INTERP_DROP_KEEP => {
+                DROP_KEEP => {
                     let drop = code.read_u32()?;
                     let keep = code.read_u32()?;
                     info!("INTERP_DROP_KEEP {} {}", drop, keep);

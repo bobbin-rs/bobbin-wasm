@@ -589,4 +589,11 @@ impl Op {
             _                    => return None,
         })
     }
+    pub fn is_unop(&self) -> bool {
+        self.t1 != ValueType::Void && self.t2 == ValueType::Void
+    }
+
+    pub fn is_binop(&self) -> bool {
+        self.t1 != ValueType::Void && self.t2 != ValueType::Void
+    }    
 }

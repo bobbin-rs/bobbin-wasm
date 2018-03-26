@@ -1,5 +1,4 @@
 use {ValueType};
-use opcode;
 use stack;
 use parser;
 use parser::module::Id;
@@ -47,7 +46,7 @@ pub enum Error {
     UnexpectedReturnLength { got: u32 },
     FmtError(fmt::Error),
     Utf8Error(str::Utf8Error),
-    OpcodeError(opcode::Error),
+    // OpcodeError(opcode::Error),
     StackError(stack::Error),
     ParserError(parser::Error)
 }
@@ -58,11 +57,11 @@ impl From<fmt::Error> for Error {
     }
 }
 
-impl From<opcode::Error> for Error {
-    fn from(other: opcode::Error) -> Error {
-        Error::OpcodeError(other)
-    }
-}
+// impl From<opcode::Error> for Error {
+//     fn from(other: opcode::Error) -> Error {
+//         Error::OpcodeError(other)
+//     }
+// }
 
 impl From<stack::Error> for Error {
     fn from(other: stack::Error) -> Error {

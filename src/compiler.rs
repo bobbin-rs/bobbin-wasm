@@ -551,10 +551,9 @@ impl<'c> Compiler<'c> {
         body: &Body, 
         i: Instr
     ) -> Result<(), Error> {
-        use opcode::Immediate::*;
-        use core::convert::TryFrom;
+        use self::Immediate::*;
 
-        let op = Opcode::try_from(i.opcode).unwrap();
+        let op = Op::from_opcode(i.opcode).unwrap();
         {
             let mut indent = self.label_stack.len();
             if op.code == END || op.code == ELSE {
@@ -679,7 +678,7 @@ impl<'c> Compiler<'c> {
                     // PushLabel(kInvalidIstreamOffset, fixup_offset);
                                         
                     self.type_checker.on_if(sig)?;
-                    w.write_opcode(INTERP_BR_UNLESS)?;                    
+                    w.write_opcode(BR_UNLESS_OP.code)?;                    
                     let pos = w.pos();
                     // push label with fixup pointer to BR_UNLESS offset
                     w.write_u32(FIXUP_OFFSET)?;                    
@@ -706,7 +705,7 @@ impl<'c> Compiler<'c> {
                     self.type_checker.on_br_if(depth as usize)?;
                     let (drop, keep) = self.get_br_drop_keep_count(depth as usize)?;
 
-                    w.write_opcode(INTERP_BR_UNLESS)?;
+                    w.write_opcode(BR_UNLESS_OP.code)?;
                     let fixup_br_offset = w.pos();
                     w.write_u32(FIXUP_OFFSET)?;    
                     w.write_drop_keep(drop, keep)?;
@@ -738,76 +737,78 @@ impl<'c> Compiler<'c> {
                 // self.add_fixup(depth, pos as u32)?;
                 // w.write_u32(FIXUP_OFFSET)?;                
             },
-            BranchTable { table } => {
-                // BR_TABLE COUNT:u32 TABLE_OFFSET:u32
-                // INTERP_DATA SIZE:u32
-                // [OFFSET:u32 DROP:u32 KEEP:u32]
-                // OFFSET:u32 DROP:u32 KEEP:u32
+            BranchTable { table: _ } => {
+            //     // BR_TABLE COUNT:u32 TABLE_OFFSET:u32
+            //     // DATA_OP SIZE:u32
+            //     // [OFFSET:u32 DROP:u32 KEEP:u32]
+            //     // OFFSET:u32 DROP:u32 KEEP:u32
 
-                let count = table.len() as u32;
+            //     let count = table.len() as u32;
 
-                self.type_checker.begin_br_table()?;
-                w.write_opcode(BR_TABLE)?;
-                w.write_u32(count as u32)?;
+            //     self.type_checker.begin_br_table()?;
+            //     w.write_opcode(BR_TABLE)?;
+            //     w.write_u32(count as u32)?;
 
-                // Write offset of branch table
-                let table_pos = w.pos();
-                w.write_u32(FIXUP_OFFSET)?;
+            //     // Write offset of branch table
+            //     let table_pos = w.pos();
+            //     w.write_u32(FIXUP_OFFSET)?;
                 
-                // Write INTERP_DATA + SIZE
-                w.write_opcode(INTERP_DATA)?;
-                w.write_u32((count + 1) * BR_TABLE_ENTRY_SIZE)?;
+            //     // Write DATA_OP + SIZE
+            //     w.write_opcode(DATA_OP)?;
+            //     w.write_u32((count + 1) * BR_TABLE_ENTRY_SIZE)?;
 
-                // Fixup branch table offset
-                let pos = w.pos();
-                w.write_u32_at(pos as u32, table_pos)?;
+            //     // Fixup branch table offset
+            //     let pos = w.pos();
+            //     w.write_u32_at(pos as u32, table_pos)?;
 
-                // Branch Table Starts Here
+            //     // Branch Table Starts Here
 
-                for depth in table.iter() {
-                    self.type_checker.on_br_table_target(*depth as usize)?;
-                    self.write_br_table_offset(w, *depth as u32)?;
-                }
+            //     for depth in table.iter() {
+            //         self.type_checker.on_br_table_target(*depth as usize)?;
+            //         self.write_br_table_offset(w, *depth as u32)?;
+            //     }
 
-                self.type_checker.end_br_table()?;
-                info!("branch table default done");   
+            //     self.type_checker.end_br_table()?;
+            //     info!("branch table default done");   
+                unimplemented!()
             },
-            BranchTableStart { count } => {
-                // BR_TABLE COUNT:u32 TABLE_OFFSET:u32
-                // INTERP_DATA SIZE:u32
-                // [OFFSET:u32 DROP:u32 KEEP:u32]
-                // OFFSET:u32 DROP:u32 KEEP:u32
+            // BranchTableStart { count } => {
+            //     // BR_TABLE COUNT:u32 TABLE_OFFSET:u32
+            //     // DATA_OP SIZE:u32
+            //     // [OFFSET:u32 DROP:u32 KEEP:u32]
+            //     // OFFSET:u32 DROP:u32 KEEP:u32
 
-                self.type_checker.begin_br_table()?;
-                w.write_opcode(BR_TABLE)?;
-                w.write_u32(count as u32)?;
+            //     self.type_checker.begin_br_table()?;
+            //     w.write_opcode(BR_TABLE)?;
+            //     w.write_u32(count as u32)?;
 
-                // Write offset of branch table
-                let table_pos = w.pos();
-                w.write_u32(FIXUP_OFFSET)?;
+            //     // Write offset of branch table
+            //     let table_pos = w.pos();
+            //     w.write_u32(FIXUP_OFFSET)?;
                 
-                // Write INTERP_DATA + SIZE
-                w.write_opcode(INTERP_DATA)?;
-                w.write_u32((count + 1) * BR_TABLE_ENTRY_SIZE)?;
+            //     // Write DATA_OP + SIZE
+            //     w.write_opcode(DATA_OP)?;
+            //     w.write_u32((count + 1) * BR_TABLE_ENTRY_SIZE)?;
 
-                // Fixup branch table offset
-                let pos = w.pos();
-                w.write_u32_at(pos as u32, table_pos)?;
+            //     // Fixup branch table offset
+            //     let pos = w.pos();
+            //     w.write_u32_at(pos as u32, table_pos)?;
 
-                // Branch Table Starts Here            
-            },
-            BranchTableDepth { n: _, depth } => {
-                self.type_checker.on_br_table_target(depth as usize)?;
-                self.write_br_table_offset(w, depth as u32)?;
-            },
-            BranchTableDefault { depth } => {
-                info!("branch table default");
-                self.type_checker.on_br_table_target(depth as usize)?;
-                self.write_br_table_offset(w, depth as u32)?;
+            //     // Branch Table Starts Here            
+            // },
+            // BranchTableDepth { n: _, depth } => {
+            //     self.type_checker.on_br_table_target(depth as usize)?;
+            //     self.write_br_table_offset(w, depth as u32)?;
+            // },
+            // BranchTableDefault { depth } => {
+            //     info!("branch table default");
+            //     self.type_checker.on_br_table_target(depth as usize)?;
+            //     self.write_br_table_offset(w, depth as u32)?;
 
-                self.type_checker.end_br_table()?;              
-                info!("branch table default done");
-            },
+            //     self.type_checker.end_br_table()?;              
+            //     info!("branch table default done");
+            // },
+
             Local { index } => {
                 // Emits OP DEPTH_TO_LOCAL
                 let id = index;
@@ -1130,7 +1131,7 @@ impl<'a> ModuleWrite for Writer<'a> {
         if drop_count == 1 && keep_count == 0 {
             self.write_opcode(DROP)?;            
         } else if drop_count > 0 {
-            self.write_opcode(INTERP_DROP_KEEP)?;
+            self.write_opcode(DROP_KEEP_OP.code)?;
             self.write_u32(drop_count as u32)?;
             self.write_u32(keep_count as u32)?;
         }
@@ -1140,7 +1141,7 @@ impl<'a> ModuleWrite for Writer<'a> {
     fn write_alloca(&mut self, count: u32) -> Result<(), Error> {
         Ok(
             if count > 0 {
-                self.write_opcode(INTERP_ALLOCA)?;
+                self.write_opcode(ALLOCA_OP.code)?;
                 self.write_u32(count as u32)?;
             }
         )
