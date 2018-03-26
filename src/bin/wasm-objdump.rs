@@ -141,6 +141,10 @@ pub fn dump_headers<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
 pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
     writeln!(out, "Section Details:")?;    
     let mut sections = m.sections();
+    let mut import_funcs = 0;
+    let mut import_tables = 0;
+    let mut import_memory = 0;
+    let mut import_globals = 0;    
     while let Some(s) = sections.next()? {
         let s_id = s.id();
         if s_id != Id::Code && s_id != Id::Custom {
@@ -178,15 +182,19 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
                     match desc {
                         ImportDesc::Func(f) => {
                             writeln!(out, " - func[{}] sig={} <{}> <- {}.{}", n, f, name, module, name)?;
+                            import_funcs += 1;
                         },
                         ImportDesc::Table(t) => {
                             writeln!(out, " - table[{}] elem_type=anyfunc init={} max={:?} <- {}.{}", n, t.limits.min, t.limits.max, module, name)?;
+                            import_tables += 1;
                         },
                         ImportDesc::Memory(m) => {
                             writeln!(out, " - memory[{}] pages: initial={} max={:?} <- {}.{}", n, m.limits.min, m.limits.max, module, name)?;
+                            import_memory += 1;
                         },
                         ImportDesc::Global(g) => {
                             writeln!(out, " - global[{}] {} mutable={} <- {}.{}", n, g.valtype, g.mutable, module, name)?;                        
+                            import_globals += 1;
                         },                    
                     }
                     n += 1;
@@ -194,7 +202,7 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
             },
             Id::Function => {
                 let mut funcs = s.functions();
-                let mut n = 0;
+                let mut n = import_funcs;
                 while let Some(f) = funcs.next()? {
                     writeln!(out," - func[{}] sig={}", n, f)?;
                     n += 1;
@@ -202,7 +210,7 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
             },
             Id::Table => {
                 let mut tables = s.tables();
-                let mut n = 0;
+                let mut n = import_tables;
                 while let Some(t) = tables.next()? {
                     let element_type = t.elemtype;
                     let limits = t.limits;
@@ -217,7 +225,7 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
             },
             Id::Memory => {
                 let mut memory = s.memory();
-                let mut n = 0;
+                let mut n = import_memory;
                 while let Some(m) = memory.next()? {
                     let limits = m.limits;
                     write!(out, " - memory[{}] pages: initial={}", n, limits.min)?;
@@ -231,7 +239,7 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
             },
             Id::Global => {
                 let mut globals = s.globals();
-                let mut n = 0;
+                let mut n = import_globals;
                 while let Some(g) = globals.next()? {
                     let t = g.global_type;
                     let init = g.init;           
@@ -319,12 +327,32 @@ pub fn dump_code<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
 
     writeln!(out, "Code Disassembly:")?;
     let mut sections = m.sections();
+    let mut import_funcs = 0;
+    
+    while let Some(s) = sections.next()? {
+        match s.id() {
+            Id::Import => {
+                let mut imports = s.imports();
+                while let Some(i) = imports.next()? {
+                    match i.import_desc {
+                        ImportDesc::Func(_) => {
+                            import_funcs += 1;
+                        },
+                        _ => {},
+                    }
+                }                
+            },
+            _ => {},
+        }
+    }
+    
+    let mut sections = m.sections();
     while let Some(s) = sections.next()? {
         let s_id = s.id();
         if s_id != Id::Code { continue }
 
         let mut code_iter = s.code();
-        let mut n = 0;
+        let mut n = import_funcs;
         while let Some(code) = code_iter.next()? {
             let offset = m.offset_to(code.buf);
             writeln!(out, "{:06x} func[{}]:", offset, n)?;
