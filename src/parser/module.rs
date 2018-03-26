@@ -58,7 +58,7 @@ impl Id {
             Global => "Global",
             Export => "Export",
             Start => "Start",
-            Element => "Element",
+            Element => "Elem",
             Code => "Code",
             Data => "Data",            
         }

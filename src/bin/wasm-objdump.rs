@@ -142,7 +142,7 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
     let mut sections = m.sections();
     while let Some(s) = sections.next()? {
         let s_id = s.id();
-        if s_id != Id::Code && s_id != Id::Element {
+        if s_id != Id::Code && s_id != Id::Custom {
             writeln!(out, "{}:", s_id.as_str())?;
         }
         match s_id {
