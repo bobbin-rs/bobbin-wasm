@@ -1,6 +1,7 @@
 use {ValueType, SectionType};
 use opcode;
 use stack;
+use parser;
 
 use core::{fmt, str};
 
@@ -47,6 +48,7 @@ pub enum Error {
     Utf8Error(str::Utf8Error),
     OpcodeError(opcode::Error),
     StackError(stack::Error),
+    ParserError(parser::Error)
 }
 
 impl From<fmt::Error> for Error {
@@ -67,6 +69,11 @@ impl From<stack::Error> for Error {
     }
 }
 
+impl From<parser::Error> for Error {
+    fn from(other: parser::Error) -> Error {
+        Error::ParserError(other)
+    }
+}
 
 impl From<str::Utf8Error> for Error {
     fn from(other: str::Utf8Error) -> Error {
