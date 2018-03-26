@@ -304,51 +304,49 @@ pub use parser::types::{Index, Limits, MemoryType, TableType, ValueType, GlobalT
 //     }
 // }
 
+// #[derive(Debug)]
+// pub struct TypeIndex(pub u32);
+// #[derive(Debug)]
+// pub struct FuncIndex(pub u32);
+// #[derive(Debug)]
+// pub struct TableIndex(pub u32);
+// #[derive(Debug)]
+// pub struct MemIndex(pub u32);
+// #[derive(Debug)]
+// pub struct GlobalIndex(pub u32);
+// #[derive(Debug)]
+// pub struct LocalIndex(pub u32);
+// #[derive(Debug)]
+// pub struct LabelIndex(pub u32);
 
+// #[derive(Debug)]
+// pub enum ExternalIndex {
+//     Func(Index),
+//     Table(Index),
+//     Mem(Index),
+//     Global(Index),
+// }
 
-#[derive(Debug)]
-pub struct TypeIndex(pub u32);
-#[derive(Debug)]
-pub struct FuncIndex(pub u32);
-#[derive(Debug)]
-pub struct TableIndex(pub u32);
-#[derive(Debug)]
-pub struct MemIndex(pub u32);
-#[derive(Debug)]
-pub struct GlobalIndex(pub u32);
-#[derive(Debug)]
-pub struct LocalIndex(pub u32);
-#[derive(Debug)]
-pub struct LabelIndex(pub u32);
-
-#[derive(Debug)]
-pub enum ExternalIndex {
-    Func(Index),
-    Table(Index),
-    Mem(Index),
-    Global(Index),
-}
-
-impl ExternalIndex {
-    pub fn kind(&self) -> u8 {
-        use ExternalIndex::*;
-        match *self {
-            Func(_) => 0x00,
-            Table(_) => 0x01,
-            Mem(_) => 0x02,
-            Global(_) => 0x03,
-        }
-    }
-    pub fn index(&self) -> u32 {
-        use ExternalIndex::*;
-        match *self {
-            Func(n) => n,
-            Table(n) => n,
-            Mem(n) => n,
-            Global(n) => n,
-        }        
-    }
-}
+// impl ExternalIndex {
+//     pub fn kind(&self) -> u8 {
+//         use ExternalIndex::*;
+//         match *self {
+//             Func(_) => 0x00,
+//             Table(_) => 0x01,
+//             Mem(_) => 0x02,
+//             Global(_) => 0x03,
+//         }
+//     }
+//     pub fn index(&self) -> u32 {
+//         use ExternalIndex::*;
+//         match *self {
+//             Func(n) => n,
+//             Table(n) => n,
+//             Mem(n) => n,
+//             Global(n) => n,
+//         }        
+//     }
+// }
 
 // #[derive(Debug)]
 // pub struct Limits {
