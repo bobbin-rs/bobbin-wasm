@@ -1,5 +1,7 @@
 use parser::types::ValueType;
 
+pub const BR_TABLE_ENTRY_SIZE: u32 = 12;
+
 #[derive(Debug)]
 pub struct Op {
     pub tr: ValueType,
