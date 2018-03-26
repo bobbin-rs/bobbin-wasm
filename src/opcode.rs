@@ -1,4 +1,4 @@
-use {ValueType, FuncIndex, LocalIndex, GlobalIndex, TypeIndex};
+use {ValueType, Index};
 use floathex;
 
 use ::core::fmt;
@@ -130,10 +130,10 @@ pub enum Immediate<'a> {
     BranchTableStart { count: BranchCount },
     BranchTableDepth { n: u32, depth: Depth },
     BranchTableDefault { depth: Depth },
-    Local { index: LocalIndex },
-    Global { index: GlobalIndex },
-    Call { index: FuncIndex },
-    CallIndirect { index: TypeIndex, reserved: u32 },
+    Local { index: Index },
+    Global { index: Index },
+    Call { index: Index },
+    CallIndirect { index: Index, reserved: u32 },
     I32Const { value: i32 },
     F32Const { value: f32 },
     I64Const { value: i64 },
@@ -166,10 +166,10 @@ impl<'a> fmt::Debug for Immediate<'a> {
             BranchTableStart { count } => write!(f, " [{}]", count),
             BranchTableDepth { n: _, depth } => write!(f, " {}", depth),
             BranchTableDefault { depth } => write!(f, " {}", depth),
-            Local { ref index } => write!(f, " {}", index.0),
-            Global { ref index } => write!(f, " {}", index.0),
-            Call { ref index } => write!(f, " {}", index.0),
-            CallIndirect { ref index, reserved } => write!(f, " {} {}", index.0, reserved),
+            Local { index } => write!(f, " {}", index),
+            Global { index } => write!(f, " {}", index),
+            Call { index } => write!(f, " {}", index),
+            CallIndirect { index, reserved } => write!(f, " {} {}", index, reserved),
             I32Const { value } => write!(f, " {}", value as u32),
             F32Const { value } => {
                 write!(f, " ")?;

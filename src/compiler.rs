@@ -810,7 +810,7 @@ impl<'c> Compiler<'c> {
             },
             Local { index } => {
                 // Emits OP DEPTH_TO_LOCAL
-                let id = index.0;
+                let id = index;
                 let ty = self.context[id as usize];
                 let local_id = match opc {
                     GET_LOCAL => {                        
@@ -836,7 +836,7 @@ impl<'c> Compiler<'c> {
             Global { index } => {
                 match opc {                    
                     GET_GLOBAL => {
-                        let index = index.0 as usize;
+                        let index = index as usize;
                         if index < globals.len() {
                             let global = &globals[index as usize];
                             let global_type = global.global_type();
@@ -866,7 +866,7 @@ impl<'c> Compiler<'c> {
                         //   CHECK_RESULT(typechecker_.OnSetGlobal(global->typed_value.type));
                         //   CHECK_RESULT(EmitOpcode(Opcode::SetGlobal));
                         //   CHECK_RESULT(EmitI32(TranslateGlobalIndexToEnv(global_index)));                        
-                        let index = index.0 as usize;
+                        let index = index as usize;
                         if index < globals.len() {                        
                             let global = &globals[index as usize];
                             let global_type = global.global_type();
@@ -887,9 +887,9 @@ impl<'c> Compiler<'c> {
                 }              
             },
             Call { index } => {
-                info!("CALL {}", index.0);
+                info!("CALL {}", index);
 
-                let index = index.0 as usize;
+                let index = index as usize;
                 if index < functions.len() {
                     let type_index = functions[index].type_index();
                     let func_type = &types[type_index];
@@ -904,9 +904,9 @@ impl<'c> Compiler<'c> {
                 }
             },
             CallIndirect { index, reserved: _ } => {
-                info!("CALL_INDIRECT: {}", index.0);
+                info!("CALL_INDIRECT: {}", index);
 
-                let index = index.0 as usize;
+                let index = index as usize;
                 let func_type = &types[index];
                 info!("Type: {:?}", func_type);
                 self.type_checker.on_call_indirect(func_type.parameters, func_type.results)?;

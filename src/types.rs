@@ -323,10 +323,10 @@ pub struct LabelIndex(pub u32);
 
 #[derive(Debug)]
 pub enum ExternalIndex {
-    Func(FuncIndex),
-    Table(TableIndex),
-    Mem(MemIndex),
-    Global(GlobalIndex),
+    Func(Index),
+    Table(Index),
+    Mem(Index),
+    Global(Index),
 }
 
 impl ExternalIndex {
@@ -342,10 +342,10 @@ impl ExternalIndex {
     pub fn index(&self) -> u32 {
         use ExternalIndex::*;
         match *self {
-            Func(FuncIndex(n)) => n,
-            Table(TableIndex(n)) => n,
-            Mem(MemIndex(n)) => n,
-            Global(GlobalIndex(n)) => n,
+            Func(n) => n,
+            Table(n) => n,
+            Mem(n) => n,
+            Global(n) => n,
         }        
     }
 }

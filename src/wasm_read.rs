@@ -33,10 +33,10 @@ pub trait WasmRead<'a> {
     fn read_local(&mut self) -> Local;
     fn read_depth(&mut self) -> u32;
     fn read_count(&mut self) -> u32;
-    fn read_local_index(&mut self) -> LocalIndex;
-    fn read_global_index(&mut self) -> GlobalIndex;
-    fn read_func_index(&mut self) -> FuncIndex;
-    fn read_type_index(&mut self) -> TypeIndex;
+    fn read_local_index(&mut self) -> Index;
+    fn read_global_index(&mut self) -> Index;
+    fn read_func_index(&mut self) -> Index;
+    fn read_type_index(&mut self) -> Index;
     fn read_instr(&mut self) -> Instr<'a>;
 }
 
@@ -228,17 +228,17 @@ impl<'a> WasmRead<'a> for Cursor<'a> {
     fn read_count(&mut self) -> u32 {
         self.read_var_u32()
     }
-    fn read_local_index(&mut self) -> LocalIndex {
-        LocalIndex(self.read_var_u32())
+    fn read_local_index(&mut self) -> Index {
+        self.read_var_u32()
     }
-    fn read_global_index(&mut self) -> GlobalIndex {
-        GlobalIndex(self.read_var_u32())
+    fn read_global_index(&mut self) -> Index {
+        self.read_var_u32()
     }
-    fn read_func_index(&mut self) -> FuncIndex {
-        FuncIndex(self.read_var_u32())
+    fn read_func_index(&mut self) -> Index {
+        self.read_var_u32()
     }
-    fn read_type_index(&mut self) -> TypeIndex {
-        TypeIndex(self.read_var_u32())
+    fn read_type_index(&mut self) -> Index {
+        self.read_var_u32()
     }
 
     fn read_instr(&mut self) -> Instr<'a> {
