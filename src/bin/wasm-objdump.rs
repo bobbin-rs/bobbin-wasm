@@ -205,6 +205,14 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
                 let mut tables = s.tables();
                 let mut n = 0;
                 while let Some(t) = tables.next()? {
+                    let element_type = t.elemtype;
+                    let limits = t.limits;
+                    let limits_max = if let Some(limits_max) = limits.max {
+                        limits_max
+                    } else {
+                        limits.min
+                    };
+                    writeln!(out, " - table[{}] type={} initial={} max={}", n, element_type, limits.min, limits_max)?;                    
                     n += 1;
                 }
             },

@@ -139,7 +139,7 @@ impl<'a> Read<MemoryType> for Reader<'a> {
 
 #[derive(Debug)]
 pub struct TableType {
-    pub elemtype: u8,
+    pub elemtype: ValueType,
     pub limits: Limits,
 }
 
@@ -147,7 +147,7 @@ impl<'a> Read<TableType> for Reader<'a> {
     fn read(&mut self) -> Result<TableType, Error> {
         Ok({
             let elemtype = self.read()?;
-            if elemtype != 0x70 {
+            if elemtype != ValueType::AnyFunc {
                 return Err(Error::InvalidTableType)
             }
             let limits = self.read()?;
