@@ -473,6 +473,10 @@ impl<'c> Compiler<'c> {
                 let mut first = true;
                 let mut n = 0;
 
+                let code_beg = m.offset_to(code.buf);
+                let code_len = code.buf.len();
+                let code_end = code_beg + code_len;
+
                 let mut items = code.func.iter();
                 while let Some(item) = items.next()? {
                     match item {
@@ -487,7 +491,12 @@ impl<'c> Compiler<'c> {
                                 w.write_alloca(self.context.locals_count as u32)?;
                                 first = false;
                             }
-                            self.compile_instruction(&mut w, types, functions, globals, instr)?;
+                            let instr_beg = m.offset_to(instr.data);
+                            let instr_len = instr.data.len();
+                            let instr_end = instr_beg + instr_len;
+                            if instr_end < code_end {
+                                self.compile_instruction(&mut w, types, functions, globals, instr)?;
+                            }
                             n += 1;
                         }
                     }
@@ -506,10 +515,10 @@ impl<'c> Compiler<'c> {
                 w.write_drop_keep(drop, keep)?;                                    
                 w.write_opcode(RETURN)?;
                 self.pop_label()?;
-                // info!("body beg: {:08x}", body_beg);
-                // info!("body end: {:08x}", body_end);
-                // w.write_u32_at(body_beg, 4 + n * 8)?;
-                // w.write_u32_at(body_end, 4 + n * 8 + 4)?;
+                info!("body beg: {:08x}", code_beg);
+                info!("body end: {:08x}", code_end);
+                w.write_u32_at(code_beg as u32, 4 + n * 8)?;
+                w.write_u32_at(code_end as u32, 4 + n * 8 + 4)?;
                 info!("--- Code Item {} Done ---", n);
             }
         }
@@ -651,37 +660,37 @@ impl<'c> Compiler<'c> {
                     self.type_checker.on_drop()?;
                     w.write_opcode(opc)?;
                 },                
-                // END => if i.range.end == body.range.end && i.opcode == END {
-                //     info!("Skipping implicit END");
-                // } else {
-                //     info!("END");
+                END => if false {
+                    info!("Skipping implicit END");
+                } else {
+                    info!("END");
 
-                //     let ty_label = self.type_checker.get_label(0)?;
-                //     let label_type = ty_label.label_type;
-                //     self.type_checker.on_end()?;
-                //     if label_type == LabelType::If || label_type == LabelType::Else {
-                //         let label = self.top_label()?;
-                //         let pos = w.pos();
-                //         info!("fixup_offset: {:08x} at {:08x}", pos, label.fixup_offset);
-                //         w.write_u32_at(pos as u32, label.fixup_offset as usize)?;                        
-                //     }
-                //     info!("FIXUP");
-                //     self.fixup(w)?;
-                //     info!("POP_LABEL");
-                //     self.pop_label()?;
-                //     info!("end done");
+                    let ty_label = self.type_checker.get_label(0)?;
+                    let label_type = ty_label.label_type;
+                    self.type_checker.on_end()?;
+                    if label_type == LabelType::If || label_type == LabelType::Else {
+                        let label = self.top_label()?;
+                        let pos = w.pos();
+                        info!("fixup_offset: {:08x} at {:08x}", pos, label.fixup_offset);
+                        w.write_u32_at(pos as u32, label.fixup_offset as usize)?;                        
+                    }
+                    info!("FIXUP");
+                    self.fixup(w)?;
+                    info!("POP_LABEL");
+                    self.pop_label()?;
+                    info!("end done");
 
-                //     //   TypeChecker::Label* label;
-                //     //   CHECK_RESULT(typechecker_.GetLabel(0, &label));
-                //     //   LabelType label_type = label->label_type;
-                //     //   if (label_type == LabelType::If || label_type == LabelType::Else) {
-                //     //     CHECK_RESULT(EmitI32At(TopLabel()->fixup_offset, GetIstreamOffset()));
-                //     //   }
-                //     //   FixupTopLabel();
-                //     //   PopLabel();
+                    //   TypeChecker::Label* label;
+                    //   CHECK_RESULT(typechecker_.GetLabel(0, &label));
+                    //   LabelType label_type = label->label_type;
+                    //   if (label_type == LabelType::If || label_type == LabelType::Else) {
+                    //     CHECK_RESULT(EmitI32At(TopLabel()->fixup_offset, GetIstreamOffset()));
+                    //   }
+                    //   FixupTopLabel();
+                    //   PopLabel();
 
 
-                // },                
+                },                
                 ELSE => {
                 //   CHECK_RESULT(typechecker_.OnElse());
                 //   Label* label = TopLabel();
