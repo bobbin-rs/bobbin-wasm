@@ -268,7 +268,19 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
             Id::Element => {
                 let mut elements = s.elements();
                 let mut n = 0;
-                while let Some(g) = elements.next()? {
+                while let Some(e) = elements.next()? {
+                    let imm = if let Immediate::I32Const { value } = e.offset.instr.immediate {
+                        value
+                    } else {
+                        // FIXME
+                        panic!("invalid immediate type");
+                    };
+                    
+                    writeln!(out,  " - segment[{}] table={}", n, e.table_index)?;
+                    writeln!(out,  " - init {}={}", "i32", imm)?;
+                    for i in 0..e.init.len() {
+                        writeln!(out,  "  - elem[{}] = func[{}]", i, e.init[i])?;
+                    }
                     n += 1;
                 }
             },
