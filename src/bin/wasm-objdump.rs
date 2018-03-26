@@ -247,7 +247,8 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
                 }
             },
             Id::Start => {
-
+                let mut start = s.start()?;
+                writeln!(out, " - start function: {}", start.func_index)?;
             },
             Id::Element => {
                 let mut elements = s.elements();

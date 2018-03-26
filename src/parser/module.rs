@@ -177,6 +177,9 @@ impl<'a> Section<'a> {
     pub fn custom(&self) -> Result<Custom<'a>, Error> {
         Reader::new(self.buf).read()
     }
+    pub fn start(&self) -> Result<Start, Error> {
+        Reader::new(self.buf).read()
+    }
 }
 
 impl<'a> Read<Section<'a>> for Reader<'a> {
