@@ -11,7 +11,7 @@ use std::path::Path;
 use clap::{App, Arg, ArgMatches};
 
 // use wasm::{Reader, BinaryReader};
-use wasm::parser::{self, Id, Module, FallibleIterator, ExportDesc, ImportDesc, Immediate};
+use wasm::parser::{self, Id, Module, FallibleIterator, ExportDesc, ImportDesc, Immediate, FuncItem, Instr};
 // use wasm::visitor;
 
 
@@ -101,10 +101,11 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     //     visitor::visit(&m, &mut d)?;
     }
 
-    // if matches.is_present("disassemble") {        
+    if matches.is_present("disassemble") {        
+        dump_code(&mut out, &m)?;
     //     let mut d = wasm::dumper::Disassembler::new(&mut out );
     //     visitor::visit(&m, &mut d)?;
-    // }
+    }
     print!("{}", out);
 
     Ok(())
@@ -309,6 +310,92 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
             },
         }
         
+    }
+    Ok(())
+}
+
+pub fn dump_code<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
+    use parser::opcode::*;
+
+    writeln!(out, "Code Disassembly:")?;
+    let mut sections = m.sections();
+    while let Some(s) = sections.next()? {
+        let s_id = s.id();
+        if s_id != Id::Code { continue }
+
+        let mut code_iter = s.code();
+        let mut n = 0;
+        while let Some(code) = code_iter.next()? {
+            let offset = m.offset_to(code.buf);
+            writeln!(out, "{:06x} func[{}]:", offset, n)?;
+
+            let mut funcs = code.func.iter();
+            let mut depth = 0;
+            while let Some(func_item) = funcs.next()? {
+                match func_item {
+                    FuncItem::Local(_) => {},
+                    FuncItem::Instr(Instr { opcode, immediate: imm, data}) => {
+                        let offset = m.offset_to(data);
+                        
+                        let op = if let Some(op) = Op::from_opcode(opcode) {
+                            op
+                        } else {
+                            panic!("Unrecognized opcode: {}", opcode);
+                        };
+                        match op.code {
+                            ELSE | END => {
+                                if depth > 0 {
+                                    depth -= 1;
+                                }
+                            },
+                            _ => {},
+                        }
+                        write!(out, " {:06x}:", offset)?;
+                        let mut w = 0;
+                        if op.code == I64_CONST {
+                            for b in data.iter().take(10) {
+                            write!(out, " {:02x}", b)?;
+                                w += 3;
+                            }
+                            if w > 28 {
+                                write!(out,  " ")?;
+                            }
+                        } else {
+                            for b in data.iter() {
+                            write!(out, " {:02x}", b)?;
+                                w += 3;
+                            }
+                        }
+                        while w < 28 {
+                            write!(out, " ")?;
+                            w += 1;
+                        }
+                        write!(out, "| ")?;
+                        for _ in 0..depth { write!(out, "  ")?; }
+                        match imm {
+                            Immediate::None | Immediate::BranchTable { table: _ } => writeln!(out, "{}", op.text)?,
+                            Immediate::Block { signature } => if signature != ::parser::ValueType::Void {
+                                writeln!(out, "{} {}", op.text, signature)?
+                            } else {
+                                writeln!(out, "{}", op.text)?
+                            },
+                            _ => writeln!(out, "{} {:?}", op.text, imm)?,
+                        }
+
+                        match op.code {
+                            BLOCK | LOOP | IF | ELSE => {
+                                depth += 1;
+                            },
+                            _ => {},
+                        }                
+                    }
+                    }
+                }
+
+
+
+            n += 1;
+        }
     }
     Ok(())
 }

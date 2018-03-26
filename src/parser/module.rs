@@ -2,6 +2,7 @@ use parser::error::Error;
 use parser::reader::{Reader, Read, ReadIterator, SectionReadIterator, FallibleIterator};
 use parser::types::*;
 use parser::opcode::*;
+use floathex;
 
 use core::str;
 use core::fmt;
@@ -606,7 +607,7 @@ impl<'a> fmt::Debug for Immediate<'a> {
         match *self {
             None => Ok(()),
             Block { signature } => if signature != ValueType::Void {
-                write!(f, "{:?}", signature)
+                write!(f, "{}", signature)
             } else {
                 Ok(())
             },
@@ -617,17 +618,13 @@ impl<'a> fmt::Debug for Immediate<'a> {
             Call { ref index } => write!(f, "{}", index),
             CallIndirect { ref index, reserved } => write!(f, "{} {}", index, reserved),
             I32Const { value } => write!(f, "{}", value as u32),
-            F32Const { value } => if !value.is_nan() {            
-                write!(f, "{:?}", value)
-            } else {
-                write!(f, "nan")
-            }
+            F32Const { value } => {
+                floathex::f32_hex(f, value)
+            },
             I64Const { value } => write!(f, "{}", value),
-            F64Const { value } => if !value.is_nan() {
-                write!(f, "{:?}", value)
-            } else {
-                write!(f, "nan")
-            }
+            F64Const { value } => {
+                floathex::f64_hex(f, value)
+            },
             LoadStore { align, offset } => write!(f, "{} {}", align, offset),
             Memory { reserved: _ } => Ok(()),
         }
