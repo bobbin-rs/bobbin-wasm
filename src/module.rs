@@ -1,4 +1,4 @@
-use {SectionType};
+use {Id};
 use cursor::Cursor;
 use opcode::*;
 use types::*;
@@ -46,12 +46,12 @@ impl<'a> Module<'a> {
         SectionIter { buf: self.buf.clone() }
     }
 
-    pub fn section(&self, section_type: SectionType) -> Option<Section> {
+    pub fn section(&self, section_type: Id) -> Option<Section> {
         self.sections().find(|s| s.section_type() == section_type)
     }
 
     pub fn type_section(&self) -> Option<TypeSection> {
-        if let Some(Section::Type(section)) = self.section(SectionType::Type) {
+        if let Some(Section::Type(section)) = self.section(Id::Type) {
             Some(section)
         } else {
             None
@@ -59,7 +59,7 @@ impl<'a> Module<'a> {
     }
 
     pub fn import_section(&self) -> Option<ImportSection> {
-        if let Some(Section::Import(section)) = self.section(SectionType::Import) {
+        if let Some(Section::Import(section)) = self.section(Id::Import) {
             Some(section)
         } else {
             None
@@ -67,7 +67,7 @@ impl<'a> Module<'a> {
     }
 
     pub fn function_section(&self) -> Option<FunctionSection> {
-        if let Some(Section::Function(section)) = self.section(SectionType::Function) {
+        if let Some(Section::Function(section)) = self.section(Id::Function) {
             Some(section)
         } else {
             None
@@ -75,7 +75,7 @@ impl<'a> Module<'a> {
     }
 
     pub fn table_section(&self) -> Option<TableSection> {
-        if let Some(Section::Table(section)) = self.section(SectionType::Table) {
+        if let Some(Section::Table(section)) = self.section(Id::Table) {
             Some(section)
         } else {
             None
@@ -83,7 +83,7 @@ impl<'a> Module<'a> {
     }
 
     pub fn memory_section(&self) -> Option<MemorySection> {
-        if let Some(Section::Memory(section)) = self.section(SectionType::Memory) {
+        if let Some(Section::Memory(section)) = self.section(Id::Memory) {
             Some(section)
         } else {
             None
@@ -91,7 +91,7 @@ impl<'a> Module<'a> {
     }
 
     pub fn global_section(&self) -> Option<GlobalSection> {
-        if let Some(Section::Global(section)) = self.section(SectionType::Global) {
+        if let Some(Section::Global(section)) = self.section(Id::Global) {
             Some(section)
         } else {
             None
@@ -99,7 +99,7 @@ impl<'a> Module<'a> {
     }    
 
     pub fn export_section(&self) -> Option<ExportSection> {
-        if let Some(Section::Export(section)) = self.section(SectionType::Export) {
+        if let Some(Section::Export(section)) = self.section(Id::Export) {
             Some(section)
         } else {
             None
@@ -107,7 +107,7 @@ impl<'a> Module<'a> {
     }    
 
     pub fn start_section(&self) -> Option<StartSection> {
-        if let Some(Section::Start(section)) = self.section(SectionType::Start) {
+        if let Some(Section::Start(section)) = self.section(Id::Start) {
             Some(section)
         } else {
             None
@@ -115,7 +115,7 @@ impl<'a> Module<'a> {
     }    
 
     pub fn element_section(&self) -> Option<ElementSection> {
-        if let Some(Section::Element(section)) = self.section(SectionType::Element) {
+        if let Some(Section::Element(section)) = self.section(Id::Element) {
             Some(section)
         } else {
             None
@@ -123,7 +123,7 @@ impl<'a> Module<'a> {
     }    
                 
     pub fn code_section(&self) -> Option<CodeSection> {
-        if let Some(Section::Code(section)) = self.section(SectionType::Code) {
+        if let Some(Section::Code(section)) = self.section(Id::Code) {
             Some(section)
         } else {
             None
@@ -131,7 +131,7 @@ impl<'a> Module<'a> {
     }
 
     pub fn data_section(&self) -> Option<DataSection> {
-        if let Some(Section::Data(section)) = self.section(SectionType::Data) {
+        if let Some(Section::Data(section)) = self.section(Id::Data) {
             Some(section)
         } else {
             None
@@ -180,18 +180,18 @@ impl<'a> Iterator for SectionIter<'a> {
         if self.buf.len() > 0 {
             let section_header = self.buf.read_section_header();            
             Some(match section_header.section_type {
-                SectionType::Custom => Section::Custom(CustomSection { section_header }),
-                SectionType::Type => Section::Type(TypeSection { section_header }),
-                SectionType::Import => Section::Import(ImportSection { section_header }),
-                SectionType::Function => Section::Function(FunctionSection { section_header }),
-                SectionType::Table => Section::Table(TableSection { section_header }),
-                SectionType::Memory => Section::Memory(MemorySection { section_header }),
-                SectionType::Global => Section::Global(GlobalSection { section_header }),
-                SectionType::Export => Section::Export(ExportSection { section_header }),
-                SectionType::Start => Section::Start(StartSection { section_header }),
-                SectionType::Element => Section::Element(ElementSection { section_header }),
-                SectionType::Code => Section::Code(CodeSection { section_header }),
-                SectionType::Data => Section::Data(DataSection { section_header }),
+                Id::Custom => Section::Custom(CustomSection { section_header }),
+                Id::Type => Section::Type(TypeSection { section_header }),
+                Id::Import => Section::Import(ImportSection { section_header }),
+                Id::Function => Section::Function(FunctionSection { section_header }),
+                Id::Table => Section::Table(TableSection { section_header }),
+                Id::Memory => Section::Memory(MemorySection { section_header }),
+                Id::Global => Section::Global(GlobalSection { section_header }),
+                Id::Export => Section::Export(ExportSection { section_header }),
+                Id::Start => Section::Start(StartSection { section_header }),
+                Id::Element => Section::Element(ElementSection { section_header }),
+                Id::Code => Section::Code(CodeSection { section_header }),
+                Id::Data => Section::Data(DataSection { section_header }),
             })
         } else {
             None
@@ -201,7 +201,7 @@ impl<'a> Iterator for SectionIter<'a> {
 
 #[derive(Debug)]
 pub struct SectionHeader<'a> {
-    pub section_type: SectionType,
+    pub section_type: Id,
     pub buf: Cursor<'a>,
 }
 
@@ -233,7 +233,7 @@ pub enum Section<'a> {
 }
 
 impl<'a> Section<'a> {
-    pub fn section_type(&self) -> SectionType {
+    pub fn section_type(&self) -> Id {
         self.header().section_type
     }
 
@@ -699,7 +699,7 @@ impl<'a> Iterator for ValueTypeIter<'a> {
 //         let section = sections.next().unwrap();
 //         if let Section::Type(section) = section {
 //             let header = &section.section_header;
-//             assert_eq!(header.section_type, SectionType::Type);            
+//             assert_eq!(header.section_type, Id::Type);            
 //             assert_eq!(header.buf.pos(), 0x0a);
 //             assert_eq!(header.buf.len(), 0x05);
 //             let sig = section.iter().nth(0).unwrap();
@@ -713,7 +713,7 @@ impl<'a> Iterator for ValueTypeIter<'a> {
 //         let section = sections.next().unwrap();
 //         if let Section::Function(section) = section {
 //             let header = &section.section_header;
-//             assert_eq!(header.section_type, SectionType::Function);
+//             assert_eq!(header.section_type, Id::Function);
 //             assert_eq!(header.buf.pos(), 0x11);
 //             assert_eq!(header.buf.len(), 0x02);            
 //             let func = section.iter().nth(0).unwrap();
@@ -725,7 +725,7 @@ impl<'a> Iterator for ValueTypeIter<'a> {
 //         let section = sections.next().unwrap();
 //         if let Section::Export(section) = section {
 //             let header = &section.section_header;
-//             assert_eq!(header.section_type, SectionType::Export);
+//             assert_eq!(header.section_type, Id::Export);
 //             assert_eq!(header.buf.pos(), 0x15);
 //             assert_eq!(header.buf.len(), 0x08);
 //         } else {
@@ -735,7 +735,7 @@ impl<'a> Iterator for ValueTypeIter<'a> {
 //         let section = sections.next().unwrap();
 //         if let Section::Code(section) = section {
 //             let header = section.section_header;
-//             assert_eq!(header.section_type, SectionType::Code);
+//             assert_eq!(header.section_type, Id::Code);
 //             assert_eq!(header.buf.pos(), 0x1f);
 //             assert_eq!(header.buf.len(), 0x07);
 //         } else {

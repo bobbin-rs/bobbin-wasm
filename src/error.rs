@@ -1,7 +1,8 @@
-use {ValueType, SectionType};
+use {ValueType};
 use opcode;
 use stack;
 use parser;
+use parser::module::Id;
 
 use core::{fmt, str};
 
@@ -20,7 +21,7 @@ pub enum Error {
     SignatureMismatch,
     TypeCheck(&'static str),
 
-    MissingSection { id: SectionType },
+    MissingSection { id: Id },
 
     NoHostFunction,
     NoHostImportFunction,

@@ -447,7 +447,7 @@ impl<'c> Compiler<'c> {
     ) -> Result<(&'buf mut [u8], CompiledCode<'buf>), Error> {
         let mut w = Writer::new(code_buf);
 
-        let code_section = m.code_section().ok_or_else(|| Error::MissingSection { id: SectionType::Code })?;
+        let code_section = m.code_section().ok_or_else(|| Error::MissingSection { id: Id::Code })?;
 
         // Write Index
 
@@ -969,8 +969,8 @@ impl<'c> Compiler<'c> {
 
 
 pub trait ModuleWrite {
-    fn write_section_type(&mut self, st: SectionType) -> Result<(), Error>;
-    fn write_section_start(&mut self, st: SectionType) -> Result<usize, Error>;
+    fn write_section_type(&mut self, st: Id) -> Result<(), Error>;
+    fn write_section_start(&mut self, st: Id) -> Result<usize, Error>;
     fn write_section_end(&mut self, fixup: usize) -> Result<(), Error>;
     fn write_type(&mut self, t: ValueType) -> Result<(), Error>;
     fn write_bytes(&mut self, buf: &[u8]) -> Result<(), Error>;
@@ -994,7 +994,7 @@ pub trait ModuleWrite {
 }
 
 impl<'a> ModuleWrite for Writer<'a> {
-    fn write_section_start(&mut self, st: SectionType) -> Result<usize, Error> {
+    fn write_section_start(&mut self, st: Id) -> Result<usize, Error> {
         self.write_section_type(st)?;
         let pos = self.pos();
         self.write_u32(FIXUP_OFFSET)?;
@@ -1008,7 +1008,7 @@ impl<'a> ModuleWrite for Writer<'a> {
         })
     }
 
-    fn write_section_type(&mut self, st: SectionType) -> Result<(), Error> {
+    fn write_section_type(&mut self, st: Id) -> Result<(), Error> {
         self.write_u8(st as u8)
     }    
     fn write_type(&mut self, t: ValueType) -> Result<(), Error> {

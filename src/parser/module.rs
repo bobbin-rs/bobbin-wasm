@@ -43,6 +43,26 @@ impl<'a> Read<Id> for Reader<'a> {
     }
 }
 
+impl From<u8> for Id {
+    fn from(other: u8) -> Self {
+        match other {
+            0 => Id::Custom,
+            1 => Id::Type,
+            2 => Id::Import,
+            3 => Id::Function,
+            4 => Id::Table,
+            5 => Id::Memory,
+            6 => Id::Global,
+            7 => Id::Export,
+            8 => Id::Start,
+            9 => Id::Element,
+            10 => Id::Code,
+            11 => Id::Data,    
+            _ => panic!("Invalid ID: {}", other)
+        }        
+    }
+}
+
 impl Id {
     pub fn as_str(&self) -> &'static str {
         use self::Id::*;

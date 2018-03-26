@@ -11,7 +11,7 @@ use core::convert::TryFrom;
 pub trait WasmRead<'a> {
     fn read_identifier(&mut self) -> &'a str;
     fn read_initializer(&mut self) -> Initializer<'a>;
-    fn read_section_type(&mut self) -> SectionType;
+    fn read_section_type(&mut self) -> Id;
     fn read_signature(&mut self) -> Signature<'a>;
     fn read_type_value(&mut self) -> ValueType;
     fn read_type_values(&mut self) -> &'a [u8];
@@ -79,8 +79,8 @@ impl<'a> WasmRead<'a> for Cursor<'a> {
         Initializer { instr, end }
     }
 
-    fn read_section_type(&mut self) -> SectionType {
-        SectionType::from(self.read_var_u7())
+    fn read_section_type(&mut self) -> Id {
+        Id::from(self.read_var_u7())
     }
 
     fn read_signature(&mut self) -> Signature<'a> {
@@ -126,7 +126,7 @@ impl<'a> WasmRead<'a> for Cursor<'a> {
     }
 
     fn read_section_header(&mut self) -> SectionHeader<'a> {
-        let section_type = SectionType::from(self.read_var_u7());
+        let section_type = Id::from(self.read_var_u7());
         let size = self.read_var_u32();            
         let buf = self.split(size as usize);            
         SectionHeader { section_type, buf }        
