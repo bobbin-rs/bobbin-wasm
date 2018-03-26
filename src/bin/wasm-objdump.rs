@@ -146,9 +146,7 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
             writeln!(out, "{}:", s_id.as_str())?;
         }
         match s_id {
-            Id::Custom => {
-
-            },
+            Id::Custom => {},
             Id::Type => {
                 let mut types = s.types();
                 let mut n = 0;
@@ -284,13 +282,7 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
                     n += 1;
                 }
             },
-            Id::Code => {
-                let mut code = s.code();
-                let mut n = 0;
-                while let Some(c) = code.next()? {
-                    n += 1;
-                }
-            },
+            Id::Code => {},
             Id::Data => {
                 let mut data = s.data();
                 let mut n = 0;
