@@ -978,8 +978,8 @@ pub trait ModuleWrite {
     fn write_initializer(&mut self, init: Initializer) -> Result<(), Error>;
     fn write_opcode(&mut self, op: u8) -> Result<(), Error>;
     fn write_limits(&mut self, limits: Limits) -> Result<(), Error>;
-    fn write_table(&mut self, table: Table) -> Result<(), Error>;
-    fn write_memory(&mut self, memory: Memory) -> Result<(), Error>;
+    fn write_table(&mut self, table: TableType) -> Result<(), Error>;
+    fn write_memory(&mut self, memory: MemoryType) -> Result<(), Error>;
     fn write_global_type(&mut self, global_type: GlobalType) -> Result<(), Error>;    
     fn write_import_desc(&mut self, desc: ImportDesc) -> Result<(), Error>;
     fn write_import(&mut self, import: Import) -> Result<(), Error>;
@@ -1052,14 +1052,14 @@ impl<'a> ModuleWrite for Writer<'a> {
         })
     }    
 
-    fn write_table(&mut self, table: Table) -> Result<(), Error> {
+    fn write_table(&mut self, table: TableType) -> Result<(), Error> {
         Ok({
-            self.write_i8(table.element_type as i8)?;
+            self.write_i8(table.elemtype as i8)?;
             self.write_limits(table.limits)?;
         })
     }
 
-    fn write_memory(&mut self, memory: Memory) -> Result<(), Error> {
+    fn write_memory(&mut self, memory: MemoryType) -> Result<(), Error> {
         Ok({
             self.write_limits(memory.limits)?;
         })

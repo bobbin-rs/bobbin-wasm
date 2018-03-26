@@ -3,8 +3,8 @@ use opcode::*;
 use core::fmt;
 use core::str;
 
-pub use parser::module::ExportDesc;
-pub use parser::types::{ValueType, GlobalType};
+pub use parser::module::{ExportDesc};
+pub use parser::types::{Limits, MemoryType, TableType, ValueType, GlobalType};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum SectionType {
@@ -132,8 +132,8 @@ impl From<Value> for u32 {
 
 pub enum ImportDesc {
     Type(u32),
-    Table(Table),
-    Memory(Memory),
+    Table(TableType),
+    Memory(MemoryType),
     Global(GlobalType),
 }
 
@@ -212,35 +212,35 @@ impl fmt::Debug for Function {
     }
 }
 
-pub struct Table {
-    pub element_type: ValueType,
-    pub limits: Limits,
-}
+// pub struct Table {
+//     pub element_type: ValueType,
+//     pub limits: Limits,
+// }
 
-impl fmt::Debug for Table {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        Ok({
-            let indent = "    ";
-            writeln!(f, "{}<Table type={:?} min={} max={:?}>", indent,
-                self.element_type, self.limits.min, self.limits.max
-            )?;
-        })
-    }
-}
+// impl fmt::Debug for Table {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         Ok({
+//             let indent = "    ";
+//             writeln!(f, "{}<Table type={:?} min={} max={:?}>", indent,
+//                 self.element_type, self.limits.min, self.limits.max
+//             )?;
+//         })
+//     }
+// }
 
-pub struct Memory {
-    pub limits: Limits,
-}
+// // pub struct Memory {
+// //     pub limits: Limits,
+// // }
 
-impl fmt::Debug for Memory {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        Ok({
-            let indent = "    ";
-            writeln!(f, "{}<Memory min={} max={:?}>", indent, 
-                self.limits.min, self.limits.max)?;
-        })
-    }
-}
+// impl fmt::Debug for Memory {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         Ok({
+//             let indent = "    ";
+//             writeln!(f, "{}<Memory min={} max={:?}>", indent, 
+//                 self.limits.min, self.limits.max)?;
+//         })
+//     }
+// }
 
 pub struct Global {
     pub global_type: GlobalType,
@@ -392,12 +392,12 @@ impl ExternalIndex {
     }
 }
 
-#[derive(Debug)]
-pub struct Limits {
-    pub flags: u32,
-    pub min: u32,
-    pub max: Option<u32>,
-}
+// #[derive(Debug)]
+// pub struct Limits {
+//     pub flags: u32,
+//     pub min: u32,
+//     pub max: Option<u32>,
+// }
 
 #[derive(Debug)]
 pub struct Initializer {

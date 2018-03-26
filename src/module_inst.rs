@@ -87,8 +87,8 @@ impl<'buf, 'env> ModuleInst<'buf> {
                     }
                 },
                 Section::Table(table_section) => {
-                    for Table { element_type, limits } in table_section.iter() {
-                        info!("Adding table: {} {:?}", element_type, limits);
+                    for TableType { elemtype, limits } in table_section.iter() {
+                        info!("Adding table: {} {:?}", elemtype, limits);
                         let size = if let Some(max) = limits.max {
                             max
                         } else {

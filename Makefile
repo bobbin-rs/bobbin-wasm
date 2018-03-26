@@ -1,7 +1,10 @@
-.PHONY: test test-dump
+.PHONY: test test-dump install
 
 BINDIR=$(HOME)/.cargo/bin
 TEST_ARGS=--bindir $(BINDIR)
+
+install:
+	cargo install --force --debug
 
 test: test-dump test-interp
 

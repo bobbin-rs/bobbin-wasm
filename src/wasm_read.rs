@@ -17,8 +17,8 @@ pub trait WasmRead<'a> {
     fn read_limits(&mut self) -> Limits;
     fn read_section_header(&mut self) -> SectionHeader<'a>;
     fn read_function(&mut self) -> Function;
-    fn read_table(&mut self) -> Table;
-    fn read_memory(&mut self) -> Memory;
+    fn read_table(&mut self) -> TableType;
+    fn read_memory(&mut self) -> MemoryType;
     fn read_import_desc(&mut self) -> ImportDesc;
     fn read_export_desc(&mut self) -> ExportDesc;
     fn read_data(&mut self) -> Data<'a>;
@@ -106,14 +106,14 @@ impl<'a> WasmRead<'a> for Cursor<'a> {
     }
 
     fn read_limits(&mut self) -> Limits {
-        let flags = self.read_var_u32();
+        let flag = self.read_var_u32() != 0;
         let min = self.read_var_u32();
-        let max = match flags {
-            0 => None,
-            1 => Some(self.read_var_u32()),
-            _ => panic!("Unexpected Flags"),
+        let max = if flag {
+            Some(self.read_var_u32())
+        } else {
+            None
         };
-        Limits { flags, min, max }
+        Limits { flag, min, max }
     }
 
     fn read_section_header(&mut self) -> SectionHeader<'a> {
@@ -128,15 +128,15 @@ impl<'a> WasmRead<'a> for Cursor<'a> {
         Function { signature_type_index } 
     }
 
-    fn read_table(&mut self) -> Table {
-        let element_type = self.read_type_value();
+    fn read_table(&mut self) -> TableType {
+        let elemtype = self.read_type_value();
         let limits = self.read_limits();
-        Table { element_type, limits }
+        TableType { elemtype, limits }
     }
 
-    fn read_memory(&mut self) -> Memory {
+    fn read_memory(&mut self) -> MemoryType {
         let limits = self.read_limits();
-        Memory { limits }
+        MemoryType { limits }
     }
 
     fn read_import_desc(&mut self) -> ImportDesc {

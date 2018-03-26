@@ -433,7 +433,7 @@ pub struct TableIter<'a> {
 }
 
 impl<'a> Iterator for TableIter<'a> {
-    type Item = Table;
+    type Item = TableType;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
@@ -450,7 +450,7 @@ pub struct MemoryIter<'a> {
 }
 
 impl<'a> Iterator for MemoryIter<'a> {
-    type Item = Memory;
+    type Item = MemoryType;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {
