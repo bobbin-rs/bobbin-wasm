@@ -202,13 +202,36 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
                 }
             },
             Id::Table => {
-
+                let mut tables = s.tables();
+                let mut n = 0;
+                while let Some(t) = tables.next()? {
+                    n += 1;
+                }
             },
             Id::Memory => {
-
+                let mut memory = s.memory();
+                let mut n = 0;
+                while let Some(m) = memory.next()? {
+                    n += 1;
+                }
             },
             Id::Global => {
-
+                let mut globals = s.globals();
+                let mut n = 0;
+                while let Some(g) = globals.next()? {
+                    let t = g.global_type;
+                    let init = g.init;           
+                    let instr = init.instr;         
+                    let opcode = match instr.opcode {
+                        0x41 => "i32",
+                        0x42 => "i64",
+                        0x43 => "f32",
+                        0x44 => "f64",
+                        _ => "??",
+                    };
+                    writeln!(out, " - global[{}] {} mutable={} - init {}={:?}", n, t.valtype, t.mutable, opcode, instr.immediate)?;                    
+                    n += 1;
+                }
             },
             Id::Export => {
                 let mut exports = s.exports();
@@ -227,13 +250,25 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
 
             },
             Id::Element => {
-
+                let mut elements = s.elements();
+                let mut n = 0;
+                while let Some(g) = elements.next()? {
+                    n += 1;
+                }
             },
             Id::Code => {
-
+                let mut code = s.code();
+                let mut n = 0;
+                while let Some(c) = code.next()? {
+                    n += 1;
+                }
             },
             Id::Data => {
-
+                let mut data = s.data();
+                let mut n = 0;
+                while let Some(d) = data.next()? {
+                    n += 1;
+                }
             },
         }
         

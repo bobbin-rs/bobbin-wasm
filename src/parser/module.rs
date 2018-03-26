@@ -569,7 +569,10 @@ impl<'a> fmt::Debug for Instr<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Ok({
             if let Some(op) = Op::from_opcode(self.opcode) {
-                write!(f, "{}{:?}", op.text, self.immediate)?;
+                match self.immediate {
+                    Immediate::None => write!(f, "{}", op.text)?,
+                    _ => write!(f, "{} {:?}", op.text, self.immediate)?,
+                }
             } else {
                 write!(f, "unknown")?;
             }
@@ -600,29 +603,29 @@ impl<'a> fmt::Debug for Immediate<'a> {
         match *self {
             None => Ok(()),
             Block { signature } => if signature != ValueType::Void {
-                write!(f, " {:?}", signature)
+                write!(f, "{:?}", signature)
             } else {
                 Ok(())
             },
-            Branch { depth } => write!(f, " {}", depth),
+            Branch { depth } => write!(f, "{}", depth),
             BranchTable { table: _ } => Ok(()),
-            Local { ref index } => write!(f, " {}", index),
-            Global { ref index } => write!(f, " {}", index),
-            Call { ref index } => write!(f, " {}", index),
-            CallIndirect { ref index, reserved } => write!(f, " {} {}", index, reserved),
-            I32Const { value } => write!(f, " {}", value as u32),
+            Local { ref index } => write!(f, "{}", index),
+            Global { ref index } => write!(f, "{}", index),
+            Call { ref index } => write!(f, "{}", index),
+            CallIndirect { ref index, reserved } => write!(f, "{} {}", index, reserved),
+            I32Const { value } => write!(f, "{}", value as u32),
             F32Const { value } => if !value.is_nan() {            
-                write!(f, " {:?}", value)
+                write!(f, "{:?}", value)
             } else {
-                write!(f, " nan")
+                write!(f, "nan")
             }
-            I64Const { value } => write!(f, " {}", value),
+            I64Const { value } => write!(f, "{}", value),
             F64Const { value } => if !value.is_nan() {
-                write!(f, " {:?}", value)
+                write!(f, "{:?}", value)
             } else {
-                write!(f, " nan")
+                write!(f, "nan")
             }
-            LoadStore { align, offset } => write!(f, " {} {}", align, offset),
+            LoadStore { align, offset } => write!(f, "{} {}", align, offset),
             Memory { reserved: _ } => Ok(()),
         }
 
