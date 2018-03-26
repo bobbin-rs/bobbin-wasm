@@ -2,7 +2,8 @@
 use error::Error;
 use types::*;
 use opcode::*;
-use module::*;
+use parser::FallibleIterator;
+use parser::module::*;
 
 use module_inst::*;
 use typeck::{TypeChecker, LabelType};
@@ -114,24 +115,24 @@ impl Context {
     }
 }
 
-impl<'t> From<Signature<'t>> for Context {
-    fn from(other: Signature<'t>) -> Self {
-        info!("{}", other);
-        let mut c = Context::default();
-        for p in other.parameters() {
-            c.add_parameter(*p);
-        }
-        for r in other.returns() {
-            info!("add return: {}", r);
-            c.set_return(*r);
-            info!("return: {}", c.return_type());
-            break;
-        }
-        info!("{:?}", c);
-        c
-    }
+// impl<'t> From<Signature<'t>> for Context {
+//     fn from(other: Signature<'t>) -> Self {
+//         info!("{}", other);
+//         let mut c = Context::default();
+//         for p in other.parameters() {
+//             c.add_parameter(*p);
+//         }
+//         for r in other.returns() {
+//             info!("add return: {}", r);
+//             c.set_return(*r);
+//             info!("return: {}", c.return_type());
+//             break;
+//         }
+//         info!("{:?}", c);
+//         c
+//     }
+// }
 
-}
 impl<'t> From<FunctionType<'t>> for Context {
     fn from(other: FunctionType<'t>) -> Self {
         let mut c = Context::default();
@@ -447,47 +448,82 @@ impl<'c> Compiler<'c> {
     ) -> Result<(&'buf mut [u8], CompiledCode<'buf>), Error> {
         let mut w = Writer::new(code_buf);
 
-        let code_section = m.code_section().ok_or_else(|| Error::MissingSection { id: Id::Code })?;
-
         // Write Index
-
         w.write_u32(0)?;
 
         let mut n = 0;
-        for _ in code_section.iter().enumerate() {
-            w.write_u32(0)?; // Offset
-            w.write_u32(0)?; // Size
-            n += 1;
+
+        let mut sections = m.sections();
+        while let Some(section) = sections.next()? {
+            if section.id() != Id::Code { continue }
+            let mut code = section.code();
+            while let Some(code) = code.next()? {
+                w.write_u32(0)?; // Offset
+                w.write_u32(0)?; // Size                
+                n += 1;
+            }
         }
         w.write_u32_at(n, 0)?;
-
         info!("{:08x}: Code Start", w.pos());
-        
-        for (n, body) in code_section.iter().enumerate() {
-            info!("--- Code Item {} ---", n);
-            let body_beg = w.pos() as u32;
-            self.context = Context::from(m.function_signature_type(n).unwrap());
-
-            for local in body.locals() {
-                self.context.add_local(local.n, local.t);
-            }                  
-
-            info!("{:08x}: V:{} | func[{}] {:?}", w.pos(), self.type_checker.type_stack_size(), n, self.context);  
-
-            self.compile_body(&mut w, types, functions, globals, &body)?;
-            let body_end = w.pos() as u32;
-            info!("body beg: {:08x}", body_beg);
-            info!("body end: {:08x}", body_end);
-            w.write_u32_at(body_beg, 4 + n * 8)?;
-            w.write_u32_at(body_end, 4 + n * 8 + 4)?;
-            info!("--- Code Item {} Done ---", n);
+        let mut sections = m.sections();
+        while let Some(section) = sections.next()? {
+            if section.id() != Id::Code { continue }
+            let mut code = section.code();
+            while let Some(code) = code.next()? {
+      
+            }
         }
-
-        let buf = w.split_mut();
-        let rest = w.into_slice();
-
-        Ok((rest, CompiledCode { buf: buf }))
+        unimplemented!()        
     }
+
+    // pub fn compile_orig<'buf>(&mut self, code_buf: &'buf mut [u8], 
+    //     types: &[FunctionType],
+    //     functions: &[FuncInst], 
+    //     globals: &[GlobalInst],        
+    //     m: &Module        
+    // ) -> Result<(&'buf mut [u8], CompiledCode<'buf>), Error> {
+
+    //     let code_section = m.code_section().ok_or_else(|| Error::MissingSection { id: Id::Code })?;
+
+    //     // Write Index
+
+    //     w.write_u32(0)?;
+
+    //     let mut n = 0;
+    //     for _ in code_section.iter().enumerate() {
+    //         w.write_u32(0)?; // Offset
+    //         w.write_u32(0)?; // Size
+    //         n += 1;
+    //     }
+    //     w.write_u32_at(n, 0)?;
+
+    //     info!("{:08x}: Code Start", w.pos());
+        
+    //     for (n, body) in code_section.iter().enumerate() {
+    //         info!("--- Code Item {} ---", n);
+    //         let body_beg = w.pos() as u32;
+    //         self.context = Context::from(m.function_signature_type(n).unwrap());
+
+    //         for local in body.locals() {
+    //             self.context.add_local(local.n, local.t);
+    //         }                  
+
+    //         info!("{:08x}: V:{} | func[{}] {:?}", w.pos(), self.type_checker.type_stack_size(), n, self.context);  
+
+    //         self.compile_body(&mut w, types, functions, globals, &body)?;
+    //         let body_end = w.pos() as u32;
+    //         info!("body beg: {:08x}", body_beg);
+    //         info!("body end: {:08x}", body_end);
+    //         w.write_u32_at(body_beg, 4 + n * 8)?;
+    //         w.write_u32_at(body_end, 4 + n * 8 + 4)?;
+    //         info!("--- Code Item {} Done ---", n);
+    //     }
+
+    //     let buf = w.split_mut();
+    //     let rest = w.into_slice();
+
+    //     Ok((rest, CompiledCode { buf: buf }))
+    // }
 
     pub fn compile_body<'buf>(
         &mut self, 
@@ -559,11 +595,11 @@ impl<'c> Compiler<'c> {
             if op.code == END || op.code == ELSE {
                 indent -= 1;
             }
-            info!("{:08x}: L: {} V:{} | {:0width$}{}{:?}" , w.pos(), self.label_stack.len(), self.type_checker.type_stack_size(),  "", op.text, i.imm, width=indent);
+            info!("{:08x}: L: {} V:{} | {:0width$}{}{:?}" , w.pos(), self.label_stack.len(), self.type_checker.type_stack_size(),  "", op.text, i.immediate, width=indent);
         }
 
         let opc = i.opcode;
-        match i.imm {
+        match i.immediate {
             None => match opc {
                 SELECT => {
                     self.type_checker.on_select()?;

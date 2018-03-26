@@ -121,6 +121,22 @@ impl<'a> Module<'a> {
     pub fn offset_to(&self, buf: &[u8]) -> usize {
         Reader::new(buf).offset_from(&Reader::new(self.buf)) + 8
     }
+
+    pub fn function_type(&self, index: Index) -> Result<Option<FunctionType>, Error> {
+        let mut sections = self.sections();
+        while let Some(section) = sections.next() {
+            if section.id() != Id::Type { continue }
+            let types = section.types();
+            let mut n = 0;
+            while let Some(ty) = types.next()? {
+                if n == index {
+                    return Ok(Some(ty))
+                }
+                n += 1;
+            }
+        }
+        Ok(None)
+    }    
 }
 
 #[derive(Debug)]
@@ -192,9 +208,11 @@ impl<'a> Section<'a> {
     pub fn data(&self) -> SectionReadIterator<'a, Data<'a>> {
         self.iter_for_section_id(Id::Data)
     }
+
     pub fn custom(&self) -> Result<Custom<'a>, Error> {
         Reader::new(self.buf).read()
     }
+
     pub fn start(&self) -> Result<Start, Error> {
         Reader::new(self.buf).read()
     }
