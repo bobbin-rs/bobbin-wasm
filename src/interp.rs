@@ -192,7 +192,7 @@ impl<'a> Interp<'a> {
                             if sig_type.parameters != func_type.parameters {
                                 return Err(Error::SignatureMismatch)
                             }
-                            if sig_type.returns != func_type.returns {
+                            if sig_type.results != func_type.results {
                                 return Err(Error::SignatureMismatch)
                             }
 

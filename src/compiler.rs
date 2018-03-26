@@ -10,6 +10,8 @@ use cursor::Cursor;
 use writer::Writer;
 use stack::Stack;
 
+use parser::types::FunctionType;
+
 use core::fmt;
 use core::ops::{Range, Index};
 
@@ -130,12 +132,12 @@ impl<'t> From<Signature<'t>> for Context {
     }
 
 }
-impl<'t> From<Type<'t>> for Context {
-    fn from(other: Type<'t>) -> Self {
+impl<'t> From<FunctionType<'t>> for Context {
+    fn from(other: FunctionType<'t>) -> Self {
         let mut c = Context::default();
         c.set_parameters(other.parameters);
-        if other.returns.len() > 0 {
-            c.set_return(ValueType::from(other.returns[0]));
+        if other.results.len() > 0 {
+            c.set_return(ValueType::from(other.results[0]));
         }
         c
     }
@@ -438,7 +440,7 @@ impl<'c> Compiler<'c> {
 
 impl<'c> Compiler<'c> {
     pub fn compile<'buf>(&mut self, code_buf: &'buf mut [u8], 
-        types: &[Type],
+        types: &[FunctionType],
         functions: &[FuncInst], 
         globals: &[GlobalInst],        
         m: &Module        
@@ -490,7 +492,7 @@ impl<'c> Compiler<'c> {
     pub fn compile_body<'buf>(
         &mut self, 
         w: &mut Writer<'buf>, 
-        types: &[Type],
+        types: &[FunctionType],
         functions: &[FuncInst], 
         globals: &[GlobalInst],            
         body: &Body
@@ -543,7 +545,7 @@ impl<'c> Compiler<'c> {
     fn compile_instruction<'w>(
         &mut self, 
         w: &mut Writer<'w>, 
-        types: &[Type],
+        types: &[FunctionType],
         functions: &[FuncInst], 
         globals: &[GlobalInst],        
         body: &Body, 
@@ -893,7 +895,7 @@ impl<'c> Compiler<'c> {
                     let func_type = &types[type_index];
                     info!("Type Index: {:?}", type_index);
                     info!("Type: {:?}", func_type);            
-                    self.type_checker.on_call(func_type.parameters, func_type.returns)?;
+                    self.type_checker.on_call(func_type.parameters, func_type.results)?;
 
                     w.write_opcode(opc)?;
                     w.write_u32(index as u32)?;
@@ -907,7 +909,7 @@ impl<'c> Compiler<'c> {
                 let index = index.0 as usize;
                 let func_type = &types[index];
                 info!("Type: {:?}", func_type);
-                self.type_checker.on_call_indirect(func_type.parameters, func_type.returns)?;
+                self.type_checker.on_call_indirect(func_type.parameters, func_type.results)?;
                 w.write_opcode(CALL_INDIRECT)?;
                 w.write_u32(index as u32)?;                        
 

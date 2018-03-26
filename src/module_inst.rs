@@ -1,5 +1,7 @@
 use error::Error;
 
+use parser::types::FunctionType;
+
 use types::*;
 use module::*;
 use compiler::*;
@@ -10,7 +12,7 @@ use small_vec::SmallVec;
 use writer::Writer;
 
 pub struct ModuleInst<'buf> {
-    function_types: SmallVec<'buf, Type<'buf>>,
+    function_types: SmallVec<'buf, FunctionType<'buf>>,
     functions: SmallVec<'buf, FuncInst<'buf>>,
     globals: SmallVec<'buf, GlobalInst>,
     exports: SmallVec<'buf, ExportInst<'buf>>,
@@ -32,9 +34,10 @@ impl<'buf, 'env> ModuleInst<'buf> {
             match section {
                 Section::Type(type_section) => {
                     for t in type_section.iter() {
+                        let functype = 0x60;
                         let parameters: &[ValueType] = w.copy_slice(t.parameters)?;
-                        let returns: &[ValueType] = w.copy_slice(t.returns)?;
-                        function_types.push(Type { parameters, returns });
+                        let results: &[ValueType] = w.copy_slice(t.returns)?;
+                        function_types.push(FunctionType { functype, parameters, results });
                     }
                 },
                 Section::Import(import_section) => {
@@ -150,7 +153,7 @@ impl<'buf, 'env> ModuleInst<'buf> {
         Ok((buf, ModuleInst { function_types, functions, globals, exports, tables, code }))
     }
 
-    pub fn function_types(&self) -> &[Type] {
+    pub fn function_types(&self) -> &[FunctionType] {
         self.function_types.as_ref()
     }
 
@@ -178,7 +181,7 @@ impl<'buf, 'env> ModuleInst<'buf> {
         self.tables[0][index]
     }
 
-    pub fn type_signature(&self, index: usize) -> &Type {
+    pub fn type_signature(&self, index: usize) -> &FunctionType {
         &self.function_types[index]
     }
 
