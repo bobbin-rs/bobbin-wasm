@@ -11,7 +11,7 @@ use std::path::Path;
 use clap::{App, Arg, ArgMatches};
 
 // use wasm::{Reader, BinaryReader};
-use wasm::parser::{self, Id, Module, FallibleIterator, ExportDesc, ImportDesc};
+use wasm::parser::{self, Id, Module, FallibleIterator, ExportDesc, ImportDesc, Immediate};
 // use wasm::visitor;
 
 
@@ -220,6 +220,13 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
                 let mut memory = s.memory();
                 let mut n = 0;
                 while let Some(m) = memory.next()? {
+                    let limits = m.limits;
+                    write!(out, " - memory[{}] pages: initial={}", n, limits.min)?;
+                    if let Some(maximum) = limits.max {
+                        write!(out, " maximum={}", maximum)?;
+                    }
+                    writeln!(out, "")?;
+                    
                     n += 1;
                 }
             },
@@ -275,7 +282,24 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
             Id::Data => {
                 let mut data = s.data();
                 let mut n = 0;
-                while let Some(d) = data.next()? {
+                while let Some(d) = data.next()? {                    
+                    let offset = d.offset;
+                    let imm = if let Immediate::I32Const { value } = offset.instr.immediate {
+                        value
+                    } else {
+                        // FIXME
+                        panic!("invalid immediate type");
+                    };
+                    let init = d.init;
+                    writeln!(out, " - segment[{}] size={} - init {}={} ", n, init.len(), "i32", imm)?;
+                    write!(out, "  - {:07x}:", imm)?;
+                    for (i, d) in init.iter().enumerate() {
+                        if i % 2 == 0 {
+                            write!(out, " ")?;
+                        }
+                        write!(out, "{:02x}", d)?;
+                    }
+                    writeln!(out, "")?;                    
                     n += 1;
                 }
             },
