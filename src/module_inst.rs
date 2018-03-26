@@ -2,7 +2,8 @@ use error::Error;
 
 
 use types::*;
-use module::*;
+use parser::{FallibleIterator};
+use parser::module::*;
 use compiler::*;
 use core::cell::Cell;
 use environ::{Environment, HostHandler};
@@ -34,18 +35,23 @@ impl<'buf, 'env> ModuleInst<'buf> {
         let mut tables = w.alloc_smallvec(16);
         let mut exports = w.alloc_smallvec(16);
 
-        for section in m.sections() {
-            match section {
-                Section::Type(type_section) => {
-                    for t in type_section.iter() {
+        let mut sections = m.sections();
+
+        while let Some(section) = sections.next()? {
+            match section.id() {
+                Id::Type => {
+                    let mut types = section.types();
+                    while let Some(t) = types.next()? {
                         let functype = 0x60;
                         let parameters: &[ValueType] = w.copy_slice(t.parameters)?;
-                        let results: &[ValueType] = w.copy_slice(t.returns)?;
+                        let results: &[ValueType] = w.copy_slice(t.results)?;
                         function_types.push(FunctionType { functype, parameters, results });
                     }
                 },
-                Section::Import(import_section) => {
-                    for (import_index, i) in import_section.iter().enumerate() {
+                Id::Import => {
+                    let mut imports = section.imports();
+                    let mut import_index = 0;
+                    while let Some(i) = imports.next()? {                    
                         info!("Import: {:?}", i);
                         match i.import_desc {
                             ImportDesc::Func(type_index) => {
@@ -72,16 +78,22 @@ impl<'buf, 'env> ModuleInst<'buf> {
                                 globals.push(GlobalInst::Import { global_type, import_index});
                             }
                         }
+                        import_index += 1;
                     }
                 },
-                Section::Function(function_section) => {
-                    for (function_index, function) in function_section.iter().enumerate() {
+                Id::Function => {
+                    let mut funcs = section.functions();
+                    let mut function_index = 0;
+                    while let Some(function) = funcs.next()? {                    
                         let type_index = function as usize;
                         functions.push(FuncInst::Local { type_index, function_index });
+                        function_index += 1;
                     }
                 },
-                Section::Global(global_section) => {
-                    for (global_index, global) in global_section.iter().enumerate() {
+                Id::Global => {
+                    let mut globs = section.globals();
+                    let mut global_index = 0;
+                    while let Some(global) = globs.next()? {  
                         let global_type = global.global_type;
                         let init = global.init;
                         let value = if let Some(value) = init.i32_value() {
@@ -90,10 +102,13 @@ impl<'buf, 'env> ModuleInst<'buf> {
                             panic!("Invalid global initializer value");
                         };
                         globals.push(GlobalInst::Local { global_type, global_index, value });
+                        global_index += 1;
                     }
                 },
-                Section::Table(table_section) => {
-                    for TableType { elemtype, limits } in table_section.iter() {
+                Id::Table => {
+                    let mut tabs = section.tables();
+                    while let Some(table) = tabs.next()? {                          
+                        let TableType { elemtype, limits } = table;
                         info!("Adding table: {} {:?}", elemtype, limits);
                         let size = if let Some(max) = limits.max {
                             max
@@ -107,15 +122,19 @@ impl<'buf, 'env> ModuleInst<'buf> {
                         tables.push(t);
                     }
                 },   
-                Section::Export(export_section) => {
-                    for Export { name, export_desc } in export_section.iter() {
+                Id::Export => {
+                    let mut expts = section.exports();
+                    while let Some(export) = expts.next()? {                         
+                        let Export { name, export_desc } = export;
                         let bytes = w.copy_slice(name.as_bytes())?;
                         let name = ::core::str::from_utf8(bytes)?;
                         exports.push(ExportInst { name, export_desc });
                     }
                 }
-                Section::Element(element_section) => {
-                    for Element { table_index, offset, init } in element_section.iter() {
+                Id::Element => {
+                    let mut elements = section.elements();
+                    while let Some(element) = elements.next()? {                         
+                        let Element { table_index, offset, init } = element;
                         // use byteorder::{ByteOrder, LittleEndian};
 
                         info!("Initializing table {}", table_index);
@@ -133,8 +152,10 @@ impl<'buf, 'env> ModuleInst<'buf> {
                         }              
                     }
                 },
-                Section::Data(data_section) => {
-                    for Data { mem_index: _, offset, init } in data_section.iter() {
+                Id::Data => {
+                    let mut data = section.data();
+                    while let Some(data) = data.next()? {                                             
+                        let Data { mem_index: _, offset, init } = data;
                         let offset = offset.i32_value().unwrap();
                         for i in 0..init.len() {
                             let d = init[i];

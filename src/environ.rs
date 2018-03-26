@@ -2,7 +2,7 @@ use PAGE_SIZE;
 use error::Error;
 use writer::Writer;
 use small_vec::SmallVec;
-use module::Module;
+use parser::module::Module;
 use memory_inst::MemoryInst;
 use module_inst::{ModuleInst, FuncInst, Value};
 use types::{ImportDesc};
