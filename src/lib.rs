@@ -20,21 +20,16 @@ pub mod memory_inst;
 pub mod module;
 pub mod module_inst;
 pub mod environ;
-pub mod event;
-pub mod dumper;
-pub mod visitor;
 pub mod wasm_read;
 pub mod floathex;
 pub mod parser;
 
 pub use error::*;
 pub use types::*;
-pub use event::*;
 pub use cursor::*;
 pub use reader::*;
 pub use writer::*;
 pub use module::*;
-pub use dumper::*;
 
 
 pub const MAGIC_COOKIE: u32 = 0x6d736100;
