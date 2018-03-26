@@ -345,7 +345,7 @@ pub fn dump_code<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
             _ => {},
         }
     }
-    
+
     let mut sections = m.sections();
     while let Some(s) = sections.next()? {
         let s_id = s.id();

@@ -319,8 +319,8 @@ impl<'a> Read<Element<'a>> for Reader<'a> {
         Ok({            
             let table_index = self.read()?;
             let offset = self.read()?;            
-            let base = self.clone();
             let count: u32 = self.read()?;
+            let base = self.clone();
             for _ in 0..count {
                 let _: Index = self.read()?;
             }
