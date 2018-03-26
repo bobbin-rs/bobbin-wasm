@@ -172,17 +172,17 @@ impl<'a> WasmRead<'a> for Cursor<'a> {
     }
 
     fn read_data(&mut self) -> Data<'a> {
-        let memory_index = self.read_var_u32();
+        let mem_index = self.read_var_u32();
         let offset = self.read_initializer();
-        let data = self.read_bytes();
-        Data { memory_index, offset, data }
+        let init = self.read_bytes();
+        Data { mem_index, offset, init }
     }
 
     fn read_element(&mut self) -> Element<'a> {
         let table_index = self.read_var_u32();
         let offset = self.read_initializer();
-        let data = self.read_bytes();
-        Element { table_index, offset, data }
+        let init = self.read_bytes();
+        Element { table_index, offset, init }
     }
 
     fn read_global(&mut self) -> Global<'a> {

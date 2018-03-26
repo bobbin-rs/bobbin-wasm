@@ -113,7 +113,7 @@ impl<'buf, 'env> ModuleInst<'buf> {
                     }
                 }
                 Section::Element(element_section) => {
-                    for Element { table_index, offset, data } in element_section.iter() {
+                    for Element { table_index, offset, init } in element_section.iter() {
                         // use byteorder::{ByteOrder, LittleEndian};
 
                         info!("Initializing table {}", table_index);
@@ -121,9 +121,9 @@ impl<'buf, 'env> ModuleInst<'buf> {
                         let offset = offset.i32_value().unwrap();
                         let mut i = 0;
                         let mut o = offset as usize;
-                        while i < data.len() {
+                        while i < init.len() {
                             // let d = LittleEndian::read_u32(&data[i..]);
-                            let d = data[i] as u32;
+                            let d = init[i] as u32;
                             info!("{:08x}: {:08x}", o, d);
                             table[o] = d;
                             o += 1;
@@ -132,10 +132,10 @@ impl<'buf, 'env> ModuleInst<'buf> {
                     }
                 },
                 Section::Data(data_section) => {
-                    for Data{ memory_index: _, offset, data } in data_section.iter() {
+                    for Data { mem_index: _, offset, init } in data_section.iter() {
                         let offset = offset.i32_value().unwrap();
-                        for i in 0..data.len() {
-                            let d = data[i];
+                        for i in 0..init.len() {
+                            let d = init[i];
                             let o = offset as usize + i;
                             // info!("{:08x}: {:02x}", o, d);
                             mem.set(o, d);
