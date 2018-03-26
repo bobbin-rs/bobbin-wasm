@@ -156,7 +156,7 @@ impl<'a> Read<TableType> for Reader<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GlobalType {
     pub valtype: ValueType,
     pub mutable: bool,

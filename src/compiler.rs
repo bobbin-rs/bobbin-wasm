@@ -842,7 +842,7 @@ impl<'c> Compiler<'c> {
                             let global_type = global.global_type();
                             info!("Global: {:?}", global);
                             info!("Global Type: {:?}", global_type);
-                            self.type_checker.on_get_global(global_type.type_value)?;
+                            self.type_checker.on_get_global(global_type.valtype)?;
                             w.write_opcode(GET_GLOBAL)?;
                             w.write_u32(index as u32)?;
                         } else {
@@ -872,10 +872,10 @@ impl<'c> Compiler<'c> {
                             let global_type = global.global_type();
                             info!("Global: {:?}", global);
                             info!("Global Type: {:?}", global_type);
-                            if global_type.mutability != 0 {
+                            if global_type.mutable {
                                 return Err(Error::InvalidGlobal { id: index as u32 });
                             }
-                            self.type_checker.on_set_global(global_type.type_value)?;
+                            self.type_checker.on_set_global(global_type.valtype)?;
                             w.write_opcode(SET_GLOBAL)?    ;
                             w.write_u32(index as u32)?;
                         } else {
