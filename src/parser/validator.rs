@@ -3,11 +3,11 @@ use parser::reader::FallibleIterator;
 use parser::module::{Module, Id, FuncItem};
 
 pub fn validate(m: &Module) -> Result<(), Error> {
-    if m.magic != &[0x00, 0x61, 0x73, 0x6d] {
+    if m.magic != 0x6d73_6100 {
         return Err(Error::InvalidMagic)
     }
 
-    if m.version != &[0x01, 0x00, 0x00, 0x00] {
+    if m.version != 0x0000_0001 {
         return Err(Error::InvalidVersion)
     }
 

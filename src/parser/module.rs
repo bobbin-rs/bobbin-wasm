@@ -47,16 +47,16 @@ impl<'a> Read<Id> for Reader<'a> {
 
 #[derive(Debug)]
 pub struct Module<'a> {
-    pub magic: &'a [u8],
-    pub version: &'a [u8],    
+    pub magic: u32,
+    pub version: u32,    
     pub buf: &'a [u8]
 }
 
 impl<'a> Read<Module<'a>> for Reader<'a> {
     fn read(&mut self) -> Result<Module<'a>, Error> {
         Ok({
-            let magic = self.read_slice(4)?;
-            let version = self.read_slice(4)?;
+            let magic = self.read_u32()?;
+            let version = self.read_u32()?;
             let buf = self.rest();
             Module { magic, version, buf }
         })
@@ -66,6 +66,14 @@ impl<'a> Read<Module<'a>> for Reader<'a> {
 impl<'a> Module<'a> {
     pub fn new(buf: &'a [u8]) -> Result<Self, Error> {
         Reader::new(buf).read()
+    }
+
+    pub fn magic(&self) -> u32 {
+        self.magic
+    }
+
+    pub fn version(&self) -> u32 {
+        self.version
     }
 
     pub fn sections(&self) -> ReadIterator<Section<'a>> {

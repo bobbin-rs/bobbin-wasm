@@ -11,8 +11,9 @@ use std::path::Path;
 use clap::{App, Arg, ArgMatches};
 
 // use wasm::{Reader, BinaryReader};
+use wasm::parser;
 use wasm::visitor;
-use wasm::Module;
+// use wasm::Module;
 
 use std::fmt::{self, Write};
 
@@ -20,6 +21,7 @@ use std::fmt::{self, Write};
 pub enum Error {
     IoError(io::Error),
     FmtError(fmt::Error),
+    ParserError(parser::Error),
     WasmError(wasm::Error),
 }
 
@@ -32,6 +34,12 @@ impl From<io::Error> for Error {
 impl From<fmt::Error> for Error {
     fn from(other: fmt::Error) -> Self {
         Error::FmtError(other)
+    }
+}
+
+impl From<parser::Error> for Error {
+    fn from(other: parser::Error) -> Self {
+        Error::ParserError(other)
     }
 }
 
@@ -76,7 +84,7 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
     let mut out = String::new();
 
     
-    let m = Module::from(data.as_ref());
+    let m = parser::Module::new(data.as_ref())?;
     
     writeln!(out, "\n{}:\tfile format wasm 0x{:x}\n", name, m.version())?;
     

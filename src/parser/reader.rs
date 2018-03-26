@@ -51,6 +51,16 @@ impl<'a> Reader<'a> {
         Ok(slice[0])
     }
 
+    pub fn read_u32(&mut self) -> Result<u32, Error> {
+        let slice = self.read_slice(4)?;
+        Ok(
+            (slice[0] as u32) << 0 |
+            (slice[1] as u32) << 8 |
+            (slice[2] as u32) << 16 |
+            (slice[3] as u32) << 24
+        )
+    }
+
     pub fn read_var_u0(&mut self) -> Result<(), Error> {
         match self.read_u8()? {
             0 => Ok(()),
