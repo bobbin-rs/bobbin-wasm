@@ -45,6 +45,26 @@ impl<'a> Read<Id> for Reader<'a> {
     }
 }
 
+impl Id {
+    pub fn as_str(&self) -> &'static str {
+        use self::Id::*;
+        match *self {
+            Custom => "Custom",
+            Type => "Type",
+            Import => "Import",
+            Function => "Function",
+            Table => "Table",
+            Memory => "Memory",
+            Global => "Global",
+            Export => "Export",
+            Start => "Start",
+            Element => "Element",
+            Code => "Code",
+            Data => "Data",            
+        }
+    }    
+}
+
 #[derive(Debug)]
 pub struct Module<'a> {
     pub magic: u32,
@@ -92,6 +112,9 @@ pub struct Section<'a> {
 }
 
 impl<'a> Section<'a> {
+    pub fn id(&self) -> Id {
+        self.id
+    }
     pub fn count(&self) -> Result<usize, Error> {
         Reader::new(self.buf).read_var_u7().map(|v| v.into())
     }
