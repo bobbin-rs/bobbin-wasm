@@ -67,11 +67,6 @@ impl<'buf, 'env> ModuleInst<'buf> {
                                 // info!("Import Memory");
                             },
                             ImportDesc::Global(global_type) => {
-                                let global_type = GlobalType {
-                                    valtype: global_type.type_value,
-                                    mutable: global_type.mutability != 0,
-                                };
-
                                 globals.push(GlobalInst::Import { global_type, import_index});
                             }
                         }
@@ -85,10 +80,7 @@ impl<'buf, 'env> ModuleInst<'buf> {
                 },
                 Section::Global(global_section) => {
                     for (global_index, global) in global_section.iter().enumerate() {
-                        let global_type = GlobalType {
-                            valtype: global.global_type.type_value,
-                            mutable: global.global_type.mutability != 0,
-                        };
+                        let global_type = global.global_type;
                         let init = global.init;
                         let value = Cell::new(init.value()?);                                                
                         globals.push(GlobalInst::Local { global_type, global_index, value });

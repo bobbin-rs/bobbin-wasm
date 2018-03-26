@@ -100,9 +100,9 @@ impl<'a> WasmRead<'a> for Cursor<'a> {
     }
 
     fn read_global_type(&mut self) -> GlobalType {
-        let type_value = self.read_type_value();
-        let mutability = self.read_var_u7();
-        GlobalType { type_value, mutability }
+        let valtype = self.read_type_value();
+        let mutable = self.read_var_u7() != 0;
+        GlobalType { valtype, mutable }
     }
 
     fn read_limits(&mut self) -> Limits {

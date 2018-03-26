@@ -1067,9 +1067,8 @@ impl<'a> ModuleWrite for Writer<'a> {
 
     fn write_global_type(&mut self, global_type: GlobalType) -> Result<(), Error> {
         Ok({
-            self.write_i8(global_type.type_value as i8)?;
-            self.write_u8(global_type.mutability)?;
-            
+            self.write_i8(global_type.valtype as i8)?;
+            self.write_u8(if global_type.mutable { 1 } else { 0 })?;
         })
     }
 

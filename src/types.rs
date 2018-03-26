@@ -4,7 +4,7 @@ use core::fmt;
 use core::str;
 
 pub use parser::module::ExportDesc;
-pub use parser::types::ValueType;
+pub use parser::types::{ValueType, GlobalType};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum SectionType {
@@ -116,11 +116,11 @@ impl From<Value> for u32 {
 }
 
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct GlobalType {
-    pub type_value: ValueType,
-    pub mutability: u8,
-}
+// #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+// pub struct GlobalType {
+//     pub type_value: ValueType,
+//     pub mutability: u8,
+// }
 
 // #[derive(Debug)]
 // pub enum ExportDesc {
