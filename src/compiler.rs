@@ -1029,8 +1029,12 @@ impl<'a> ModuleWrite for Writer<'a> {
 
     fn write_initializer(&mut self, init: Initializer) -> Result<(), Error> {
         Ok({
-            self.write_opcode(init.opcode)?;
-            self.write_i32(init.immediate)?;
+            self.write_opcode(init.instr.opcode)?;
+            if let Some(value) = init.i32_value() {
+                self.write_i32(value)?;
+            } else {
+                panic!("Only i32 initializers are supported");
+            }
             self.write_opcode(init.end)?;
         })
     }

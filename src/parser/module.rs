@@ -470,6 +470,7 @@ pub struct Initializer<'a> {
     pub instr: Instr<'a>,
     pub end: u8,
 }
+
 impl<'a> Read<Initializer<'a>> for Reader<'a> {
     fn read(&mut self) -> Result<Initializer<'a>, Error> {
         Ok({
@@ -480,6 +481,16 @@ impl<'a> Read<Initializer<'a>> for Reader<'a> {
             }
             Initializer { instr, end }
         })
+    }
+}
+
+impl<'a> Initializer<'a> {
+    pub fn i32_value(&self) -> Option<i32> {
+        if let Immediate::I32Const { value } = self.instr.immediate {
+            Some(value)
+        } else {
+            None
+        }
     }
 }
 

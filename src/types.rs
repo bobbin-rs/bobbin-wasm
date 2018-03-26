@@ -3,7 +3,7 @@ use opcode::*;
 use core::fmt;
 use core::str;
 
-pub use parser::module::{ExportDesc};
+pub use parser::module::{Global, Initializer, ExportDesc};
 pub use parser::types::{Index, Limits, MemoryType, TableType, ValueType, GlobalType};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -242,20 +242,20 @@ pub struct Import<'a> {
 //     }
 // }
 
-pub struct Global {
-    pub global_type: GlobalType,
-    pub init: Initializer,
-}
+// pub struct Global {
+//     pub global_type: GlobalType,
+//     pub init: Initializer,
+// }
 
-impl fmt::Debug for Global {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        Ok({
-            let indent = "    ";
-            writeln!(f, "{}<Global type={:?} opcode=0x{:02x} immediate=0x{:08x}>", 
-                indent, self.global_type, self.init.opcode, self.init.immediate)?;
-        })
-    }
-}
+// impl fmt::Debug for Global {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         Ok({
+//             let indent = "    ";
+//             writeln!(f, "{}<Global type={:?} opcode=0x{:02x} immediate=0x{:08x}>", 
+//                 indent, self.global_type, self.init.opcode, self.init.immediate)?;
+//         })
+//     }
+// }
 
 #[derive(Debug)]
 pub struct Export<'a> {
@@ -278,23 +278,23 @@ impl fmt::Debug for Start {
 
 pub struct Element<'a> {
     pub table_index: u32,
-    pub offset: Initializer,
+    pub offset: Initializer<'a>,
     pub data: &'a [u8],
 }
 
 impl<'a> fmt::Debug for Element<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
         Ok({
-            let indent = "    ";
-            writeln!(f, "{}<Element index={} opcode={:02x} immediate={:02x}>", indent,
-                self.table_index, self.offset.opcode, self.offset.immediate,
-            )?;
-            write!(f, "{}  ", indent)?;
-            for d in self.data {
-                write!(f,"{:02x} ", *d)?;
-            }
-            writeln!(f, "")?;
-            writeln!(f, "{}</Element>", indent)?;
+            // let indent = "    ";
+            // writeln!(f, "{}<Element index={} opcode={:02x} immediate={:02x}>", indent,
+            //     self.table_index, self.offset.instr.opcode, self.offset.instr.immediate,
+            // )?;
+            // write!(f, "{}  ", indent)?;
+            // for d in self.data {
+            //     write!(f,"{:02x} ", *d)?;
+            // }
+            // writeln!(f, "")?;
+            // writeln!(f, "{}</Element>", indent)?;
         })
     }
 }
@@ -302,24 +302,24 @@ impl<'a> fmt::Debug for Element<'a> {
 
 pub struct Data<'a> {
     pub memory_index: u32,
-    pub offset: Initializer,
+    pub offset: Initializer<'a>,
     pub data: &'a [u8],
 }
 
 
 impl<'a> fmt::Debug for Data<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
         Ok({
-            let indent = "    ";
-            writeln!(f, "{}<Data index={} opcode={:02x} immediate={:02x}>", indent,
-                self.memory_index, self.offset.opcode, self.offset.immediate,
-            )?;
-            write!(f, "{}  ", indent)?;
-            for d in self.data {
-                write!(f,"{:02x} ", *d)?;
-            }
-            writeln!(f, "")?;
-            writeln!(f, "{}</Data>", indent)?;
+            // let indent = "    ";
+            // writeln!(f, "{}<Data index={} opcode={:02x} immediate={:02x}>", indent,
+            //     self.memory_index, self.offset.instr.opcode, self.offset.instr.immediate,
+            // )?;
+            // write!(f, "{}  ", indent)?;
+            // for d in self.data {
+            //     write!(f,"{:02x} ", *d)?;
+            // }
+            // writeln!(f, "")?;
+            // writeln!(f, "{}</Data>", indent)?;
         })
     }
 }
@@ -399,18 +399,18 @@ impl ExternalIndex {
 //     pub max: Option<u32>,
 // }
 
-#[derive(Debug)]
-pub struct Initializer {
-    pub opcode: u8,
-    pub immediate: i32,
-    pub end: u8,
-}
+// #[derive(Debug)]
+// pub struct Initializer {
+//     pub opcode: u8,
+//     pub immediate: i32,
+//     pub end: u8,
+// }
 
-impl Initializer {
-    pub fn value(&self) -> Result<Value, Error> {
-        match self.opcode {
-            I32_CONST => Ok(Value(self.immediate)),
-            _ => unimplemented!(),
-        }
-    }
-}
+// impl Initializer {
+//     pub fn value(&self) -> Result<Value, Error> {
+//         match self.opcode {
+//             I32_CONST => Ok(Value(self.immediate)),
+//             _ => unimplemented!(),
+//         }
+//     }
+// }

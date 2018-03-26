@@ -467,7 +467,7 @@ pub struct GlobalIter<'a> {
 }
 
 impl<'a> Iterator for GlobalIter<'a> {
-    type Item = Global;
+    type Item = Global<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {

@@ -82,7 +82,11 @@ impl<'buf, 'env> ModuleInst<'buf> {
                     for (global_index, global) in global_section.iter().enumerate() {
                         let global_type = global.global_type;
                         let init = global.init;
-                        let value = Cell::new(init.value()?);                                                
+                        let value = if let Some(value) = init.i32_value() {
+                            Cell::new(Value::from(value))
+                        } else {
+                            panic!("Invalid global initializer value");
+                        };
                         globals.push(GlobalInst::Local { global_type, global_index, value });
                     }
                 },
@@ -114,7 +118,7 @@ impl<'buf, 'env> ModuleInst<'buf> {
 
                         info!("Initializing table {}", table_index);
                         let table = &mut tables[table_index as usize];
-                        let Value(offset) = offset.value()?;
+                        let offset = offset.i32_value().unwrap();
                         let mut i = 0;
                         let mut o = offset as usize;
                         while i < data.len() {
@@ -129,7 +133,7 @@ impl<'buf, 'env> ModuleInst<'buf> {
                 },
                 Section::Data(data_section) => {
                     for Data{ memory_index: _, offset, data } in data_section.iter() {
-                        let Value(offset) = offset.value()?;
+                        let offset = offset.i32_value().unwrap();
                         for i in 0..data.len() {
                             let d = data[i];
                             let o = offset as usize + i;

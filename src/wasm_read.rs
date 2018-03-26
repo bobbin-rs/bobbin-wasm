@@ -9,7 +9,7 @@ use core::convert::TryFrom;
 
 pub trait WasmRead<'a> {
     fn read_identifier(&mut self) -> Identifier<'a>;
-    fn read_initializer(&mut self) -> Initializer;
+    fn read_initializer(&mut self) -> Initializer<'a>;
     fn read_section_type(&mut self) -> SectionType;
     fn read_signature(&mut self) -> Signature<'a>;
     fn read_type_value(&mut self) -> ValueType;
@@ -25,7 +25,7 @@ pub trait WasmRead<'a> {
     fn read_export_desc(&mut self) -> ExportDesc;
     fn read_data(&mut self) -> Data<'a>;
     fn read_element(&mut self) -> Element<'a>;
-    fn read_global(&mut self) -> Global;
+    fn read_global(&mut self) -> Global<'a>;
     fn read_export(&mut self) -> Export<'a>;
     fn read_import(&mut self) -> Import<'a>;
     fn read_body(&mut self) -> Body<'a>;
@@ -45,7 +45,7 @@ impl<'a> WasmRead<'a> for Cursor<'a> {
         Identifier(self.slice(len as usize))
     }
 
-    fn read_initializer(&mut self) -> Initializer {
+    fn read_initializer(&mut self) -> Initializer<'a> {
         use opcode::*;
         let opcode = self.read_u8();
         if opcode == I64_CONST || opcode == F64_CONST {
@@ -67,9 +67,15 @@ impl<'a> WasmRead<'a> for Cursor<'a> {
             _ => {},
         }
         // let immediate = self.read_var_i32();
-        let immediate = 0;
+        let immediate = ::parser::module::Immediate::I32Const { value: 0 };
         let end = self.read_u8();
-        Initializer { opcode, immediate, end }
+        let data = &[];
+        let instr = ::parser::module::Instr {
+            opcode,
+            immediate,
+            data,
+        };  
+        Initializer { instr, end }
     }
 
     fn read_section_type(&mut self) -> SectionType {
@@ -178,7 +184,7 @@ impl<'a> WasmRead<'a> for Cursor<'a> {
         Element { table_index, offset, data }
     }
 
-    fn read_global(&mut self) -> Global {
+    fn read_global(&mut self) -> Global<'a> {
         let global_type = self.read_global_type();
         let init = self.read_initializer();
         Global { global_type, init }
