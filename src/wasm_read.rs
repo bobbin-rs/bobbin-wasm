@@ -3,6 +3,8 @@ use module::*;
 use cursor::*;
 use types::*;
 
+use parser::types::Index;
+
 use core::convert::TryFrom;
 
 pub trait WasmRead<'a> {
@@ -16,7 +18,7 @@ pub trait WasmRead<'a> {
     fn read_global_type(&mut self) -> GlobalType;
     fn read_limits(&mut self) -> Limits;
     fn read_section_header(&mut self) -> SectionHeader<'a>;
-    fn read_function(&mut self) -> Function;
+    fn read_function(&mut self) -> Index;
     fn read_table(&mut self) -> TableType;
     fn read_memory(&mut self) -> MemoryType;
     fn read_import_desc(&mut self) -> ImportDesc;
@@ -123,9 +125,8 @@ impl<'a> WasmRead<'a> for Cursor<'a> {
         SectionHeader { section_type, buf }        
     }
 
-    fn read_function(&mut self) -> Function {
-        let signature_type_index = self.read_var_u32();
-        Function { signature_type_index } 
+    fn read_function(&mut self) -> Index {
+        self.read_var_u32()
     }
 
     fn read_table(&mut self) -> TableType {

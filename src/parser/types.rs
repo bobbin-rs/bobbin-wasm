@@ -2,6 +2,9 @@ use parser::error::Error;
 use parser::reader::{Reader, Read};
 use core::fmt;
 
+pub type Index = u32;
+pub type Depth = u32;
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Reserved();
 

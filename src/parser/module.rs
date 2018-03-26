@@ -7,9 +7,6 @@ use floathex;
 use core::str;
 use core::fmt;
 
-pub type Index = u32;
-pub type Depth = u32;
-
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Id {
     Custom = 0,

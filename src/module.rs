@@ -156,7 +156,7 @@ impl<'a> Module<'a> {
         if let Some(function_section) = self.function_section() {
             if let Some(function) = function_section.iter().nth(index) {
                 if let Some(type_section) = self.type_section() {
-                    return type_section.iter().nth(function.signature_type_index as usize)
+                    return type_section.iter().nth(function as usize)
                 }
             }
         }
@@ -417,7 +417,7 @@ pub struct FunctionIter<'a> {
 }
 
 impl<'a> Iterator for FunctionIter<'a> {
-    type Item = Function;
+    type Item = Index;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.len() > 0 {

@@ -74,7 +74,7 @@ impl<'buf, 'env> ModuleInst<'buf> {
                 },
                 Section::Function(function_section) => {
                     for (function_index, function) in function_section.iter().enumerate() {
-                        let type_index = function.signature_type_index as usize;
+                        let type_index = function as usize;
                         functions.push(FuncInst::Local { type_index, function_index });
                     }
                 },

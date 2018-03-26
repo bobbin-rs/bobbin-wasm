@@ -4,7 +4,7 @@ use core::fmt;
 use core::str;
 
 pub use parser::module::{ExportDesc};
-pub use parser::types::{Limits, MemoryType, TableType, ValueType, GlobalType};
+pub use parser::types::{Index, Limits, MemoryType, TableType, ValueType, GlobalType};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum SectionType {
@@ -199,18 +199,18 @@ pub struct Import<'a> {
     pub desc: ImportDesc,    
 }
 
-pub struct Function {
-    pub signature_type_index: u32,
-}
+// pub struct Function {
+//     pub signature_type_index: u32,
+// }
 
-impl fmt::Debug for Function {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        Ok({
-            let indent = "    ";
-            writeln!(f, "{}<Function signature_type={}>", indent, self.signature_type_index)?;
-        })
-    }
-}
+// impl fmt::Debug for Function {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         Ok({
+//             let indent = "    ";
+//             writeln!(f, "{}<Function signature_type={}>", indent, self.signature_type_index)?;
+//         })
+//     }
+// }
 
 // pub struct Table {
 //     pub element_type: ValueType,
