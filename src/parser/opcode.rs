@@ -2,19 +2,20 @@ use parser::types::ValueType;
 
 #[derive(Debug)]
 pub struct Op {
-    pub tr: Option<ValueType>,
-    pub t1: Option<ValueType>,
-    pub t2: Option<ValueType>,
+    pub tr: ValueType,
+    pub t1: ValueType,
+    pub t2: ValueType,
     pub m: u8,
     pub code: u8,
     pub text: &'static str,
 }
 
-pub const ___: Option<ValueType> = None;
-pub const I32: Option<ValueType> = Some(ValueType::I32);
-pub const I64: Option<ValueType> = Some(ValueType::I64);
-pub const F32: Option<ValueType> = Some(ValueType::F32);
-pub const F64: Option<ValueType> = Some(ValueType::F64);
+pub const ___: ValueType = ValueType::Void;
+pub const I32: ValueType = ValueType::I32;
+pub const I64: ValueType = ValueType::I64;
+pub const F32: ValueType = ValueType::F32;
+pub const F64: ValueType = ValueType::F64;
+pub const VOID: ValueType = ValueType::Void;
 
 pub const UNREACHABLE             : u8 = 0x00;
 pub const NOP                     : u8 = 0x01;
