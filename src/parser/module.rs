@@ -159,6 +159,10 @@ impl<'a> Section<'a> {
         self.iter_for_section_id(Id::Element)
     }
 
+    pub fn imports(&self) -> SectionReadIterator<'a, Import<'a>> {
+        self.iter_for_section_id(Id::Import)
+    }
+
     pub fn exports(&self) -> SectionReadIterator<'a, Export<'a>> {
         self.iter_for_section_id(Id::Export)
     }

@@ -11,7 +11,7 @@ use std::path::Path;
 use clap::{App, Arg, ArgMatches};
 
 // use wasm::{Reader, BinaryReader};
-use wasm::parser::{self, Id, Module, FallibleIterator, ExportDesc};
+use wasm::parser::{self, Id, Module, FallibleIterator, ExportDesc, ImportDesc};
 // use wasm::visitor;
 
 
@@ -170,6 +170,28 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
                 }
             },
             Id::Import => {
+                let mut imports = s.imports();
+                let mut n = 0;
+                while let Some(i) = imports.next()? {
+                    let module = i.module;
+                    let name = i.name;
+                    let desc = i.import_desc;
+                    match desc {
+                        ImportDesc::Func(f) => {
+                            writeln!(out, " - func[{}] sig={} <{}> <- {}.{}", n, f, name, module, name)?;
+                        },
+                        ImportDesc::Table(t) => {
+                            writeln!(out, " - table[{}] elem_type=anyfunc init={} max={:?} <- {}.{}", n, t.limits.min, t.limits.max, module, name)?;
+                        },
+                        ImportDesc::Memory(m) => {
+                            writeln!(out, " - memory[{}] pages: initial={} max={:?} <- {}.{}", n, m.limits.min, m.limits.max, module, name)?;
+                        },
+                        ImportDesc::Global(g) => {
+                            writeln!(out, " - global[{}] {} mutable={} <- {}.{}", n, g.valtype, g.mutable, module, name)?;                        
+                        },                    
+                    }
+                    n += 1;
+                }
             },
             Id::Function => {
                 let mut funcs = s.functions();
