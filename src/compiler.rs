@@ -1079,7 +1079,7 @@ impl<'a> ModuleWrite for Writer<'a> {
     fn write_import_desc(&mut self, desc: ImportDesc) -> Result<(), Error> {
         Ok({
             match desc {
-                ImportDesc::Type(t) => {
+                ImportDesc::Func(t) => {
                     self.write_u8(0x00)?;
                     self.write_u32(t)?;
                 },
@@ -1101,8 +1101,8 @@ impl<'a> ModuleWrite for Writer<'a> {
     fn write_import(&mut self, import: Import) -> Result<(), Error> {
         Ok({
             self.write_identifier(import.module)?;        
-            self.write_identifier(import.export)?;
-            self.write_import_desc(import.desc)?;
+            self.write_identifier(import.name)?;
+            self.write_import_desc(import.import_desc)?;
         })
     }
     

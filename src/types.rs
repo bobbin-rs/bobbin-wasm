@@ -1,9 +1,8 @@
 use Error;
-use opcode::*;
 use core::fmt;
 use core::str;
 
-pub use parser::module::{Global, Initializer, ExportDesc};
+pub use parser::module::{Global, Import, Initializer, ImportDesc, ExportDesc};
 pub use parser::types::{Index, Limits, MemoryType, TableType, ValueType, GlobalType};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -130,74 +129,74 @@ impl From<Value> for u32 {
 //     Global(u32),
 // }
 
-pub enum ImportDesc {
-    Type(u32),
-    Table(TableType),
-    Memory(MemoryType),
-    Global(GlobalType),
-}
+// pub enum ImportDesc {
+//     Type(u32),
+//     Table(TableType),
+//     Memory(MemoryType),
+//     Global(GlobalType),
+// }
 
-impl fmt::Debug for ImportDesc {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            ImportDesc::Type(n) => n.fmt(f),
-            ImportDesc::Table(ref t) => t.fmt(f),
-            ImportDesc::Memory(ref m) => m.fmt(f),
-            ImportDesc::Global(ref g) => g.fmt(f),
-        }
-    }
-}
-
-
-pub struct Type<'a> {
-    pub parameters: &'a [ValueType],
-    pub returns: &'a [ValueType],
-}
+// impl fmt::Debug for ImportDesc {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         match *self {
+//             ImportDesc::Type(n) => n.fmt(f),
+//             ImportDesc::Table(ref t) => t.fmt(f),
+//             ImportDesc::Memory(ref m) => m.fmt(f),
+//             ImportDesc::Global(ref g) => g.fmt(f),
+//         }
+//     }
+// }
 
 
-impl<'a> fmt::Debug for Type<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        Ok({
-            write!(f, "Type {{ {:?} -> {:?} }}", self.parameters, self.returns)?;
-            // let indent = "    ";
-            // writeln!(f, "{}<Type>", indent)?;
-            // for p in self.parameters {
-            //     let indent = "      ";
-            //     writeln!(f, "{}<parameter>{:?}</parameter>", indent, ValueType::from(*p as i8))?;
-            // }
-            // for r in self.returns {
-            //     let indent = "      ";
-            //     writeln!(f, "{}<return>{:?}</return>", indent, ValueType::from(*r as i8))?;
-            // }
-            // writeln!(f, "{}</Type>", indent)?;
-        })
-    }
-}
+// pub struct Type<'a> {
+//     pub parameters: &'a [ValueType],
+//     pub returns: &'a [ValueType],
+// }
 
-impl<'a> Type<'a> {
-    pub fn new(parameters: &'a [ValueType], returns: &'a [ValueType]) -> Self {
-        Type { parameters, returns }
-    }
+
+// impl<'a> fmt::Debug for Type<'a> {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         Ok({
+//             write!(f, "Type {{ {:?} -> {:?} }}", self.parameters, self.returns)?;
+//             // let indent = "    ";
+//             // writeln!(f, "{}<Type>", indent)?;
+//             // for p in self.parameters {
+//             //     let indent = "      ";
+//             //     writeln!(f, "{}<parameter>{:?}</parameter>", indent, ValueType::from(*p as i8))?;
+//             // }
+//             // for r in self.returns {
+//             //     let indent = "      ";
+//             //     writeln!(f, "{}<return>{:?}</return>", indent, ValueType::from(*r as i8))?;
+//             // }
+//             // writeln!(f, "{}</Type>", indent)?;
+//         })
+//     }
+// }
+
+// impl<'a> Type<'a> {
+//     pub fn new(parameters: &'a [ValueType], returns: &'a [ValueType]) -> Self {
+//         Type { parameters, returns }
+//     }
     
-    // pub fn parameters(&self) -> ValueTypesIter<'a> {
-    //     ValueTypesIter { index: 0, buf: self.parameters }
-    // }
+//     // pub fn parameters(&self) -> ValueTypesIter<'a> {
+//     //     ValueTypesIter { index: 0, buf: self.parameters }
+//     // }
 
-    // pub fn returns(&self) -> ValueTypesIter<'a> {
-    //     ValueTypesIter { index: 0, buf: self.returns }
-    // }
+//     // pub fn returns(&self) -> ValueTypesIter<'a> {
+//     //     ValueTypesIter { index: 0, buf: self.returns }
+//     // }
 
-    // pub fn return_type(&self) -> Option<ValueType> {
-    //     self.returns.first().map(|t| ValueType::from(*t))
-    // }
-}
+//     // pub fn return_type(&self) -> Option<ValueType> {
+//     //     self.returns.first().map(|t| ValueType::from(*t))
+//     // }
+// }
 
-#[derive(Debug)]
-pub struct Import<'a> {
-    pub module: &'a str,
-    pub export: &'a str,
-    pub desc: ImportDesc,    
-}
+// #[derive(Debug)]
+// pub struct Import<'a> {
+//     pub module: &'a str,
+//     pub export: &'a str,
+//     pub desc: ImportDesc,    
+// }
 
 // pub struct Function {
 //     pub signature_type_index: u32,

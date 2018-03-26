@@ -150,7 +150,7 @@ impl<'a> WasmRead<'a> for Cursor<'a> {
     fn read_import_desc(&mut self) -> ImportDesc {
         let kind = self.read_var_u7();
         match kind {
-            0x00 => ImportDesc::Type(self.read_var_u32()),
+            0x00 => ImportDesc::Func(self.read_var_u32()),
             0x01 => ImportDesc::Table(self.read_table()),
             0x02 => ImportDesc::Memory(self.read_memory()),
             0x03 => ImportDesc::Global(self.read_global_type()),
@@ -199,9 +199,9 @@ impl<'a> WasmRead<'a> for Cursor<'a> {
 
     fn read_import(&mut self) -> Import<'a> {
         let module = self.read_identifier();
-        let export = self.read_identifier();
-        let desc = self.read_import_desc();
-        Import { module, export, desc }    
+        let name = self.read_identifier();
+        let import_desc = self.read_import_desc();
+        Import { module, name, import_desc }    
     }    
 
     fn read_body(&mut self) -> Body<'a> {

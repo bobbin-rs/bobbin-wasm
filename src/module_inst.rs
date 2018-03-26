@@ -45,16 +45,16 @@ impl<'buf, 'env> ModuleInst<'buf> {
                 Section::Import(import_section) => {
                     for (import_index, i) in import_section.iter().enumerate() {
                         info!("Import: {:?}", i);
-                        match i.desc {
-                            ImportDesc::Type(type_index) => {
+                        match i.import_desc {
+                            ImportDesc::Func(type_index) => {
                                 let type_index = type_index as usize;
                                 let module_bytes = w.copy_slice(i.module.as_bytes())?;
                                 let module = ::core::str::from_utf8(module_bytes)?;
-                                let name_bytes = w.copy_slice(i.export.as_bytes())?;
+                                let name_bytes = w.copy_slice(i.name.as_bytes())?;
                                 let name = ::core::str::from_utf8(name_bytes)?;
                                 let module_index = 0;
                                 if module_bytes == b"host" {
-                                    let host_index = env.import_host_function(module, name, &i.desc)?;
+                                    let host_index = env.import_host_function(module, name, &i.import_desc)?;
                                     functions.push(FuncInst::Host { type_index, module, name, host_index });
                                 } else {
                                     functions.push(FuncInst::Import { type_index, module, name, module_index, import_index });
