@@ -10,7 +10,7 @@ use small_vec::SmallVec;
 use writer::Writer;
 
 pub struct ModuleInst<'buf> {
-    types: SmallVec<'buf, Type<'buf>>,
+    function_types: SmallVec<'buf, Type<'buf>>,
     functions: SmallVec<'buf, FuncInst<'buf>>,
     globals: SmallVec<'buf, GlobalInst>,
     exports: SmallVec<'buf, ExportInst<'buf>>,
@@ -22,7 +22,7 @@ impl<'buf, 'env> ModuleInst<'buf> {
     pub fn new<H: HostHandler>(buf: &'buf mut [u8], env: &Environment<H>, mem: &MemoryInst, m: Module) -> Result<(&'buf mut [u8], ModuleInst<'buf>), Error> {
         let mut w = Writer::new(buf);
 
-        let mut types = w.alloc_smallvec(16);
+        let mut function_types = w.alloc_smallvec(16);
         let mut functions = w.alloc_smallvec(16);
         let mut globals = w.alloc_smallvec(16);
         let mut tables = w.alloc_smallvec(16);
@@ -34,7 +34,7 @@ impl<'buf, 'env> ModuleInst<'buf> {
                     for t in type_section.iter() {
                         let parameters: &[ValueType] = w.copy_slice(t.parameters)?;
                         let returns: &[ValueType] = w.copy_slice(t.returns)?;
-                        types.push(Type { parameters, returns });
+                        function_types.push(Type { parameters, returns });
                     }
                 },
                 Section::Import(import_section) => {
@@ -142,16 +142,16 @@ impl<'buf, 'env> ModuleInst<'buf> {
         // Change compiler to use ModuleInst
 
         let (buf, code) = Compiler::new(&mut [0u8; 4096]).compile(buf, 
-            types.as_ref(),
+            function_types.as_ref(),
             functions.as_ref(), 
             globals.as_ref(),
         &m)?;
 
-        Ok((buf, ModuleInst { types, functions, globals, exports, tables, code }))
+        Ok((buf, ModuleInst { function_types, functions, globals, exports, tables, code }))
     }
 
-    pub fn types(&self) -> &[Type] {
-        self.types.as_ref()
+    pub fn function_types(&self) -> &[Type] {
+        self.function_types.as_ref()
     }
 
     pub fn functions(&self) -> &[FuncInst] {
@@ -179,7 +179,7 @@ impl<'buf, 'env> ModuleInst<'buf> {
     }
 
     pub fn type_signature(&self, index: usize) -> &Type {
-        &self.types[index]
+        &self.function_types[index]
     }
 
     pub fn global_type(&self, index: u32) -> Result<GlobalType, Error> {

@@ -18,12 +18,12 @@ pub struct Module<'a> {
     version: u32,
 }
 
-impl<'a> From<&'a [u8]> for Module<'a> {
-    fn from(buf: &'a [u8]) -> Self {
+impl<'a> Module<'a> {
+    pub fn new(buf: &'a [u8]) -> Result<Self, Error> {
         let mut buf = Cursor::new(buf);        
         let magic = buf.read_u32();
         let version = buf.read_u32();
-        Module { buf, magic, version }
+        Ok(Module { buf, magic, version })
     }
 }
 

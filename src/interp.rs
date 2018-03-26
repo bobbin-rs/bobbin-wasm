@@ -163,7 +163,7 @@ impl<'a> Interp<'a> {
 
                     let sig = code.read_u32()?;
                     info!("CALL_INDIRECT {}", sig);
-                    let sig_type = &mi.types()[sig as usize];
+                    let sig_type = &mi.function_types()[sig as usize];
                     info!("   sig_type: {:?}", sig_type);
                     let table_index = self.value_stack.pop()?;
                     info!("   table_index: {:?}", table_index);
@@ -185,7 +185,7 @@ impl<'a> Interp<'a> {
                             env.call_module_function(self, module_index, import_index)?;
                         }
                         &FuncInst::Local { type_index, function_index } => {
-                            let func_type = &mi.types()[type_index];
+                            let func_type = &mi.function_types()[type_index];
                             // info!("Local Function: {}", function_index);
                             // info!("Sig: {:?} Func: {:?}", sig_type, func_type);
 
