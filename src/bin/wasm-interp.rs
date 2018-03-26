@@ -12,7 +12,6 @@ use std::path::Path;
 use clap::{App, Arg, ArgMatches};
 
 use wasm::{ExportDesc, ImportDesc};
-use wasm::types::Identifier;
 use wasm::interp::Interp;
 use wasm::environ::{Environment, HostHandler};
 use wasm::module_inst::*;
@@ -58,12 +57,12 @@ pub const PRINT_FN: usize = 0x1;
 pub const ADD_FN: usize = 0x2;
 
 impl HostHandler for Handler {
-    fn import(&self, _module: &Identifier, export: &Identifier, _import_desc: &ImportDesc) -> Result<usize, wasm::Error> {
+    fn import(&self, _module: &str, export: &str, _import_desc: &ImportDesc) -> Result<usize, wasm::Error> {
         Ok({
-            match export.0 {
-                b"hello" => HELLO_FN,
-                b"print" => PRINT_FN,
-                b"add" => ADD_FN,
+            match export {
+                "hello" => HELLO_FN,
+                "print" => PRINT_FN,
+                "add" => ADD_FN,
                 _ => return Err(wasm::Error::InvalidImport)
             }
         })

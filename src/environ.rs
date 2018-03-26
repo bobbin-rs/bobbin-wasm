@@ -5,7 +5,7 @@ use small_vec::SmallVec;
 use module::Module;
 use memory_inst::MemoryInst;
 use module_inst::{ModuleInst, FuncInst};
-use types::{Value, ImportDesc, Identifier};
+use types::{Value, ImportDesc};
 use interp::Interp;
 
 pub struct Config {
@@ -21,7 +21,7 @@ impl Default for Config {
 }
 
 pub trait HostHandler {
-    fn import(&self, module: &Identifier, export: &Identifier, import_desc: &ImportDesc) -> Result<usize, Error>;
+    fn import(&self, module: &str, export: &str, import_desc: &ImportDesc) -> Result<usize, Error>;
     fn dispatch(&self, interp: &mut Interp, type_index: usize, index: usize) -> Result<(), Error>;
 }
 
@@ -64,7 +64,7 @@ impl<'env, H: HostHandler> Environment<'env, H> {
         Ok((buf, mi))
     }
 
-    pub fn import_host_function(&self, module: &Identifier, export: &Identifier, import_desc: &ImportDesc) -> Result<usize, Error> {
+    pub fn import_host_function(&self, module: &str, export: &str, import_desc: &ImportDesc) -> Result<usize, Error> {
         self.host_handler.import(module, export, import_desc)
     }
 

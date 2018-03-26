@@ -47,12 +47,12 @@ impl<'buf, 'env> ModuleInst<'buf> {
                             ImportDesc::Type(type_index) => {
                                 let type_index = type_index as usize;
                                 let module_bytes = w.copy_slice(i.module.0)?;
-                                let module = Identifier(module_bytes);
+                                let module = ::core::str::from_utf8(module_bytes)?;
                                 let name_bytes = w.copy_slice(i.export.0)?;
-                                let name = Identifier(name_bytes);
+                                let name = ::core::str::from_utf8(name_bytes)?;
                                 let module_index = 0;
                                 if module_bytes == b"host" {
-                                    let host_index = env.import_host_function(&module, &name, &i.desc)?;
+                                    let host_index = env.import_host_function(module, name, &i.desc)?;
                                     functions.push(FuncInst::Host { type_index, module, name, host_index });
                                 } else {
                                     functions.push(FuncInst::Import { type_index, module, name, module_index, import_index });
@@ -102,7 +102,7 @@ impl<'buf, 'env> ModuleInst<'buf> {
                 Section::Export(export_section) => {
                     for Export { identifier, export_desc } in export_section.iter() {
                         let bytes = w.copy_slice(identifier.0)?;
-                        let identifier = Identifier(bytes);
+                        let identifier = ::core::str::from_utf8(bytes)?;
                         exports.push(ExportInst { identifier, export_desc });
                     }
                 }
@@ -247,8 +247,8 @@ impl<'buf, 'env> ModuleInst<'buf> {
 
 #[derive(Debug)]
 pub enum FuncInst<'a> {
-    Host { type_index: usize, module: Identifier<'a>, name: Identifier<'a>, host_index: usize },
-    Import { type_index: usize, module: Identifier<'a>, name: Identifier<'a>, module_index: usize, import_index: usize },
+    Host { type_index: usize, module: &'a str, name: &'a str, host_index: usize },
+    Import { type_index: usize, module: &'a str, name: &'a str, module_index: usize, import_index: usize },
     Local { type_index: usize, function_index: usize },
 }
 
@@ -279,7 +279,7 @@ impl GlobalInst {
 
 #[derive(Debug)]
 pub struct ExportInst<'buf> {
-    pub identifier: Identifier<'buf>,
+    pub identifier: &'buf str,
     pub export_desc: ExportDesc,
 }
 
