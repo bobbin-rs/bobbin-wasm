@@ -457,7 +457,7 @@ impl<'c> Compiler<'c> {
         while let Some(section) = sections.next()? {
             if section.id() != Id::Code { continue }
             let mut code = section.code();
-            while let Some(code) = code.next()? {
+            while let Some(_) = code.next()? {
                 w.write_u32(0)?; // Offset
                 w.write_u32(0)?; // Size                
                 n += 1;
@@ -470,10 +470,53 @@ impl<'c> Compiler<'c> {
             if section.id() != Id::Code { continue }
             let mut code = section.code();
             while let Some(code) = code.next()? {
-      
+                let mut first = true;
+                let mut n = 0;
+
+                let mut items = code.func.iter();
+                while let Some(item) = items.next()? {
+                    match item {
+                        FuncItem::Local(Local { n, t }) => {
+                            self.context.add_local(n, t);                            
+                        },
+                        FuncItem::Instr(instr) => {
+                            if first {
+                                info!("{:08x}: V:{} | func[{}] {:?}", w.pos(), self.type_checker.type_stack_size(), n, self.context);  
+                                self.type_checker.begin_function(self.context.return_type)?;
+                                self.push_label(FIXUP_OFFSET)?;
+                                w.write_alloca(self.context.locals_count as u32)?;
+                                first = false;
+                            }
+                            self.compile_instruction(&mut w, types, functions, globals, instr)?;
+                            n += 1;
+                        }
+                    }
+                }
+                info!("{:08x}: L: {} V:{} | {} ", w.pos(), self.label_stack.len(), self.type_checker.type_stack_size(), "EXIT");
+
+                //   CHECK_RESULT(GetReturnDropKeepCount(&drop_count, &keep_count));
+                //   CHECK_RESULT(typechecker_.EndFunction());
+                //   CHECK_RESULT(EmitDropKeep(drop_count, keep_count));
+                //   CHECK_RESULT(EmitOpcode(Opcode::Return));
+                //   PopLabel();
+
+                self.fixup(&mut w)?;
+                let (drop, keep) = self.get_return_drop_keep_count()?;
+                self.type_checker.end_function()?;
+                w.write_drop_keep(drop, keep)?;                                    
+                w.write_opcode(RETURN)?;
+                self.pop_label()?;
+                // info!("body beg: {:08x}", body_beg);
+                // info!("body end: {:08x}", body_end);
+                // w.write_u32_at(body_beg, 4 + n * 8)?;
+                // w.write_u32_at(body_end, 4 + n * 8 + 4)?;
+                info!("--- Code Item {} Done ---", n);
             }
         }
-        unimplemented!()        
+        let buf = w.split_mut();
+        let rest = w.into_slice();
+
+        Ok((rest, CompiledCode { buf: buf }))
     }
 
     // pub fn compile_orig<'buf>(&mut self, code_buf: &'buf mut [u8], 
@@ -511,7 +554,7 @@ impl<'c> Compiler<'c> {
     //         info!("{:08x}: V:{} | func[{}] {:?}", w.pos(), self.type_checker.type_stack_size(), n, self.context);  
 
     //         self.compile_body(&mut w, types, functions, globals, &body)?;
-    //         let body_end = w.pos() as u32;
+    //         let body_end = w.pos() as u32;ß
     //         info!("body beg: {:08x}", body_beg);
     //         info!("body end: {:08x}", body_end);
     //         w.write_u32_at(body_beg, 4 + n * 8)?;
@@ -525,58 +568,58 @@ impl<'c> Compiler<'c> {
     //     Ok((rest, CompiledCode { buf: buf }))
     // }
 
-    pub fn compile_body<'buf>(
-        &mut self, 
-        w: &mut Writer<'buf>, 
-        types: &[FunctionType],
-        functions: &[FuncInst], 
-        globals: &[GlobalInst],            
-        body: &Body
-    ) -> Result<(), Error> {
-        // self.body_fixup = w.write_code_start()?;
+    // pub fn compile_body<'buf>(
+    //     &mut self, 
+    //     w: &mut Writer<'buf>, 
+    //     types: &[FunctionType],
+    //     functions: &[FuncInst], 
+    //     globals: &[GlobalInst],            
+    //     body: &Body
+    // ) -> Result<(), Error> {
+    //     // self.body_fixup = w.write_code_start()?;
 
-        self.type_checker.begin_function(self.context.return_type)?;
-        self.push_label(FIXUP_OFFSET)?;
+    //     self.type_checker.begin_function(self.context.return_type)?;
+    //     self.push_label(FIXUP_OFFSET)?;
 
 
-        // InstructionsStart
+    //     // InstructionsStart
 
-        w.write_alloca(self.context.locals_count as u32)?;                
+    //     w.write_alloca(self.context.locals_count as u32)?;                
 
-        for i in body.iter() {
-            // Instruction
-            // if !(i.range.end == body.range.end && i.opcode == END) {
-                self.compile_instruction(w, types, functions, globals, body, i)?;
-            // }
-        }
-        // InstructionsEnd
-        info!("{:08x}: L: {} V:{} | {} ", w.pos(), self.label_stack.len(), self.type_checker.type_stack_size(), "EXIT");
+    //     for i in body.iter() {
+    //         // Instruction
+    //         // if !(i.range.end == body.range.end && i.opcode == END) {
+    //             self.compile_instruction(w, types, functions, globals, body, i)?;
+    //         // }
+    //     }
+    //     // InstructionsEnd
+    //     info!("{:08x}: L: {} V:{} | {} ", w.pos(), self.label_stack.len(), self.type_checker.type_stack_size(), "EXIT");
 
-        //   CHECK_RESULT(GetReturnDropKeepCount(&drop_count, &keep_count));
-        //   CHECK_RESULT(typechecker_.EndFunction());
-        //   CHECK_RESULT(EmitDropKeep(drop_count, keep_count));
-        //   CHECK_RESULT(EmitOpcode(Opcode::Return));
-        //   PopLabel();
+    //     //   CHECK_RESULT(GetReturnDropKeepCount(&drop_count, &keep_count));
+    //     //   CHECK_RESULT(typechecker_.EndFunction());
+    //     //   CHECK_RESULT(EmitDropKeep(drop_count, keep_count));
+    //     //   CHECK_RESULT(EmitOpcode(Opcode::Return));
+    //     //   PopLabel();
 
-        self.fixup(w)?;
-        let (drop, keep) = self.get_return_drop_keep_count()?;
-        self.type_checker.end_function()?;
-        w.write_drop_keep(drop, keep)?;                                    
-        w.write_opcode(RETURN)?;
-        self.pop_label()?;
+    //     self.fixup(w)?;
+    //     let (drop, keep) = self.get_return_drop_keep_count()?;
+    //     self.type_checker.end_function()?;
+    //     w.write_drop_keep(drop, keep)?;                                    
+    //     w.write_opcode(RETURN)?;
+    //     self.pop_label()?;
 
-        for entry in self.fixups.iter() {
-            if let &Some(entry) = entry {   
-                panic!("Orphan Fixup: {:?}", entry);
-            }
-        }        
+    //     for entry in self.fixups.iter() {
+    //         if let &Some(entry) = entry {   
+    //             panic!("Orphan Fixup: {:?}", entry);
+    //         }
+    //     }        
 
-        // BodyEnd
-        // w.write_code_end(self.body_fixup)?;
-        // info!("code end: {:08x}", w.pos());
+    //     // BodyEnd
+    //     // w.write_code_end(self.body_fixup)?;
+    //     // info!("code end: {:08x}", w.pos());
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     fn compile_instruction<'w>(
         &mut self, 
@@ -584,7 +627,6 @@ impl<'c> Compiler<'c> {
         types: &[FunctionType],
         functions: &[FuncInst], 
         globals: &[GlobalInst],        
-        body: &Body, 
         i: Instr
     ) -> Result<(), Error> {
         use self::Immediate::*;
@@ -609,37 +651,37 @@ impl<'c> Compiler<'c> {
                     self.type_checker.on_drop()?;
                     w.write_opcode(opc)?;
                 },                
-                END => if i.range.end == body.range.end && i.opcode == END {
-                    info!("Skipping implicit END");
-                } else {
-                    info!("END");
+                // END => if i.range.end == body.range.end && i.opcode == END {
+                //     info!("Skipping implicit END");
+                // } else {
+                //     info!("END");
 
-                    let ty_label = self.type_checker.get_label(0)?;
-                    let label_type = ty_label.label_type;
-                    self.type_checker.on_end()?;
-                    if label_type == LabelType::If || label_type == LabelType::Else {
-                        let label = self.top_label()?;
-                        let pos = w.pos();
-                        info!("fixup_offset: {:08x} at {:08x}", pos, label.fixup_offset);
-                        w.write_u32_at(pos as u32, label.fixup_offset as usize)?;                        
-                    }
-                    info!("FIXUP");
-                    self.fixup(w)?;
-                    info!("POP_LABEL");
-                    self.pop_label()?;
-                    info!("end done");
+                //     let ty_label = self.type_checker.get_label(0)?;
+                //     let label_type = ty_label.label_type;
+                //     self.type_checker.on_end()?;
+                //     if label_type == LabelType::If || label_type == LabelType::Else {
+                //         let label = self.top_label()?;
+                //         let pos = w.pos();
+                //         info!("fixup_offset: {:08x} at {:08x}", pos, label.fixup_offset);
+                //         w.write_u32_at(pos as u32, label.fixup_offset as usize)?;                        
+                //     }
+                //     info!("FIXUP");
+                //     self.fixup(w)?;
+                //     info!("POP_LABEL");
+                //     self.pop_label()?;
+                //     info!("end done");
 
-                    //   TypeChecker::Label* label;
-                    //   CHECK_RESULT(typechecker_.GetLabel(0, &label));
-                    //   LabelType label_type = label->label_type;
-                    //   if (label_type == LabelType::If || label_type == LabelType::Else) {
-                    //     CHECK_RESULT(EmitI32At(TopLabel()->fixup_offset, GetIstreamOffset()));
-                    //   }
-                    //   FixupTopLabel();
-                    //   PopLabel();
+                //     //   TypeChecker::Label* label;
+                //     //   CHECK_RESULT(typechecker_.GetLabel(0, &label));
+                //     //   LabelType label_type = label->label_type;
+                //     //   if (label_type == LabelType::If || label_type == LabelType::Else) {
+                //     //     CHECK_RESULT(EmitI32At(TopLabel()->fixup_offset, GetIstreamOffset()));
+                //     //   }
+                //     //   FixupTopLabel();
+                //     //   PopLabel();
 
 
-                },                
+                // },                
                 ELSE => {
                 //   CHECK_RESULT(typechecker_.OnElse());
                 //   Label* label = TopLabel();

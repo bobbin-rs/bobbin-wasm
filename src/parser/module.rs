@@ -124,9 +124,9 @@ impl<'a> Module<'a> {
 
     pub fn function_type(&self, index: Index) -> Result<Option<FunctionType>, Error> {
         let mut sections = self.sections();
-        while let Some(section) = sections.next() {
+        while let Some(section) = sections.next()? {
             if section.id() != Id::Type { continue }
-            let types = section.types();
+            let mut types = section.types();
             let mut n = 0;
             while let Some(ty) = types.next()? {
                 if n == index {
