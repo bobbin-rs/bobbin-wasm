@@ -5,10 +5,11 @@ use types::*;
 
 use parser::types::Index;
 
+use core::str;
 use core::convert::TryFrom;
 
 pub trait WasmRead<'a> {
-    fn read_identifier(&mut self) -> Identifier<'a>;
+    fn read_identifier(&mut self) -> &'a str;
     fn read_initializer(&mut self) -> Initializer<'a>;
     fn read_section_type(&mut self) -> SectionType;
     fn read_signature(&mut self) -> Signature<'a>;
@@ -40,9 +41,9 @@ pub trait WasmRead<'a> {
 }
 
 impl<'a> WasmRead<'a> for Cursor<'a> {
-    fn read_identifier(&mut self) -> Identifier<'a> {
+    fn read_identifier(&mut self) -> &'a str {
         let len = self.read_var_u32();        
-        Identifier(self.slice(len as usize))
+        str::from_utf8(self.slice(len as usize)).unwrap()
     }
 
     fn read_initializer(&mut self) -> Initializer<'a> {

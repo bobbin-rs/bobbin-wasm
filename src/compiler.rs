@@ -974,7 +974,7 @@ pub trait ModuleWrite {
     fn write_section_end(&mut self, fixup: usize) -> Result<(), Error>;
     fn write_type(&mut self, t: ValueType) -> Result<(), Error>;
     fn write_bytes(&mut self, buf: &[u8]) -> Result<(), Error>;
-    fn write_identifier(&mut self, id: Identifier) -> Result<(), Error>;
+    fn write_identifier(&mut self, id: &str) -> Result<(), Error>;
     fn write_initializer(&mut self, init: Initializer) -> Result<(), Error>;
     fn write_opcode(&mut self, op: u8) -> Result<(), Error>;
     fn write_limits(&mut self, limits: Limits) -> Result<(), Error>;
@@ -1023,8 +1023,8 @@ impl<'a> ModuleWrite for Writer<'a> {
         })
     }
 
-    fn write_identifier(&mut self, id: Identifier) -> Result<(), Error> {
-        self.write_bytes(id.0)
+    fn write_identifier(&mut self, id: &str) -> Result<(), Error> {
+        self.write_bytes(id.as_bytes())
     }
 
     fn write_initializer(&mut self, init: Initializer) -> Result<(), Error> {

@@ -194,8 +194,8 @@ impl<'a> Type<'a> {
 
 #[derive(Debug)]
 pub struct Import<'a> {
-    pub module: Identifier<'a>,
-    pub export: Identifier<'a>,
+    pub module: &'a str,
+    pub export: &'a str,
     pub desc: ImportDesc,    
 }
 
@@ -259,7 +259,7 @@ pub struct Import<'a> {
 
 #[derive(Debug)]
 pub struct Export<'a> {
-    pub identifier: Identifier<'a>,
+    pub identifier: &'a str,
     pub export_desc: ExportDesc,
 }
 
@@ -326,25 +326,25 @@ impl<'a> fmt::Debug for Data<'a> {
 
 
 
-pub struct Identifier<'a>(pub &'a [u8]);
+// pub struct &'a str(pub &'a [u8]);
 
-impl<'a> Identifier<'a> {
-    pub fn as_str(&self) -> &str {
-        unsafe { &str::from_utf8_unchecked(self.0) }
-    }
-}
+// impl<'a> &'a str {
+//     pub fn as_str(&self) -> &str {
+//         unsafe { &str::from_utf8_unchecked(self.0) }
+//     }
+// }
 
-impl<'a> fmt::Debug for Identifier<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self.as_str() )
-    }
-}
+// impl<'a> fmt::Debug for &'a str {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(f, "{:?}", self.as_str() )
+//     }
+// }
 
-impl<'a> fmt::Display for Identifier<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.as_str() )
-    }
-}
+// impl<'a> fmt::Display for &'a str {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(f, "{}", self.as_str() )
+//     }
+// }
 
 
 

@@ -48,9 +48,9 @@ impl<'buf, 'env> ModuleInst<'buf> {
                         match i.desc {
                             ImportDesc::Type(type_index) => {
                                 let type_index = type_index as usize;
-                                let module_bytes = w.copy_slice(i.module.0)?;
+                                let module_bytes = w.copy_slice(i.module.as_bytes())?;
                                 let module = ::core::str::from_utf8(module_bytes)?;
-                                let name_bytes = w.copy_slice(i.export.0)?;
+                                let name_bytes = w.copy_slice(i.export.as_bytes())?;
                                 let name = ::core::str::from_utf8(name_bytes)?;
                                 let module_index = 0;
                                 if module_bytes == b"host" {
@@ -107,7 +107,7 @@ impl<'buf, 'env> ModuleInst<'buf> {
                 },   
                 Section::Export(export_section) => {
                     for Export { identifier, export_desc } in export_section.iter() {
-                        let bytes = w.copy_slice(identifier.0)?;
+                        let bytes = w.copy_slice(identifier.as_bytes())?;
                         let identifier = ::core::str::from_utf8(bytes)?;
                         exports.push(ExportInst { identifier, export_desc });
                     }
