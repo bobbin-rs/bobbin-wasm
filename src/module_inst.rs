@@ -106,10 +106,10 @@ impl<'buf, 'env> ModuleInst<'buf> {
                     }
                 },   
                 Section::Export(export_section) => {
-                    for Export { identifier, export_desc } in export_section.iter() {
-                        let bytes = w.copy_slice(identifier.as_bytes())?;
-                        let identifier = ::core::str::from_utf8(bytes)?;
-                        exports.push(ExportInst { identifier, export_desc });
+                    for Export { name, export_desc } in export_section.iter() {
+                        let bytes = w.copy_slice(name.as_bytes())?;
+                        let name = ::core::str::from_utf8(bytes)?;
+                        exports.push(ExportInst { name, export_desc });
                     }
                 }
                 Section::Element(element_section) => {
@@ -285,7 +285,7 @@ impl GlobalInst {
 
 #[derive(Debug)]
 pub struct ExportInst<'buf> {
-    pub identifier: &'buf str,
+    pub name: &'buf str,
     pub export_desc: ExportDesc,
 }
 

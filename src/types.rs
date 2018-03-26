@@ -2,7 +2,7 @@ use Error;
 use core::fmt;
 use core::str;
 
-pub use parser::module::{Global, Import, Initializer, ImportDesc, ExportDesc};
+pub use parser::module::{Global, Import, Export, Initializer, ImportDesc, ExportDesc};
 pub use parser::types::{Index, Limits, MemoryType, TableType, ValueType, GlobalType};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -256,11 +256,11 @@ impl From<Value> for u32 {
 //     }
 // }
 
-#[derive(Debug)]
-pub struct Export<'a> {
-    pub identifier: &'a str,
-    pub export_desc: ExportDesc,
-}
+// #[derive(Debug)]
+// pub struct Export<'a> {
+//     pub identifier: &'a str,
+//     pub export_desc: ExportDesc,
+// }
 
 pub struct Start {
     pub function_index: u32,

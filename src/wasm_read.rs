@@ -192,9 +192,9 @@ impl<'a> WasmRead<'a> for Cursor<'a> {
     }
 
     fn read_export(&mut self) -> Export<'a> {
-        let identifier = self.read_identifier();
+        let name = self.read_identifier();
         let export_desc = self.read_export_desc();
-        Export { identifier, export_desc }
+        Export { name, export_desc }
     }
 
     fn read_import(&mut self) -> Import<'a> {

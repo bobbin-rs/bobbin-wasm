@@ -136,7 +136,7 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
         for e in mi.exports() {
             // println!("export: {:?}", e);
             if let ExportDesc::Func(index) = e.export_desc {
-                let id = &e.identifier;            
+                let id = &e.name;            
                 match &mi.functions()[index as usize] {
                     &FuncInst::Local { type_index: _, function_index } => {
                         // println!("Calling Local Function {}", function_index);
