@@ -95,10 +95,11 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
         
     } 
     
-    // if matches.is_present("details") {
+    if matches.is_present("details") {
+        dump_details(&mut out, &m)?;
     //     let mut d = wasm::dumper::DetailsDumper{ w: &mut out };
     //     visitor::visit(&m, &mut d)?;
-    // }
+    }
 
     // if matches.is_present("disassemble") {        
     //     let mut d = wasm::dumper::Disassembler::new(&mut out );
@@ -113,25 +114,93 @@ pub fn dump_headers<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
     writeln!(out, "Sections:")?;
     let mut sections = m.sections();
     while let Some(s) = sections.next()? {
-        let s_type = s.id();
+        let s_id = s.id();
         let s_count = s.count()?;
         let s_beg = m.offset_to(s.buf);
         let s_len = s.buf.len();
         let s_end = s_beg + s_len;
-        match s_type {
+        match s_id {
             Id::Custom => {     
                 // let mut c = Cursor::new(data);
                 // let s_name = c.read_identifier();
                 let s_name = "";
-                writeln!(out, "{:>9} start={:#010x} end={:#010x} (size={:#010x}) {:?}", s_type.as_str(), s_beg, s_end, s_len, s_name)?;
+                writeln!(out, "{:>9} start={:#010x} end={:#010x} (size={:#010x}) {:?}", s_id.as_str(), s_beg, s_end, s_len, s_name)?;
             },
             Id::Start => {     
-                writeln!(out, "{:>9} start={:#010x} end={:#010x} (size={:#010x}) start: {}", s_type.as_str(), s_beg, s_end, s_len, s_count)?;
+                writeln!(out, "{:>9} start={:#010x} end={:#010x} (size={:#010x}) start: {}", s_id.as_str(), s_beg, s_end, s_len, s_count)?;
             },
             _ => {
-                writeln!(out, "{:>9} start={:#010x} end={:#010x} (size={:#010x}) count: {}", s_type.as_str(), s_beg, s_end, s_len, s_count)?;
+                writeln!(out, "{:>9} start={:#010x} end={:#010x} (size={:#010x}) count: {}", s_id.as_str(), s_beg, s_end, s_len, s_count)?;
             }
         }
+    }
+    Ok(())
+}
+
+pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
+    writeln!(out, "Section Details:")?;    
+    let mut sections = m.sections();
+    while let Some(s) = sections.next()? {
+        let s_id = s.id();
+        if s_id != Id::Code && s_id != Id::Element {
+            writeln!(out, "{}:", s_id.as_str())?;
+        }
+        match s_id {
+            Id::Custom => {
+
+            },
+            Id::Type => {
+                let mut types = s.types();
+                let mut n = 0;
+                while let Some(t) = types.next()? {
+                    write!(out, " - type[{}] (", n)?;
+                    for (n, p) in t.parameters.iter().enumerate() {
+                        if n > 0 { write!(out, ", ")? }
+                        write!(out, "{}", p)?;
+                    }
+                    write!(out, ")")?;
+                    write!(out, " ->")?;
+                    if t.results.len() == 0 {
+                        write!(out, " nil")?
+                    } else {
+                        write!(out, " {}", t.results[0])?;
+                    }
+                    writeln!(out, "")?;
+                    n += 1;
+                }
+            },
+            Id::Import => {
+
+            },
+            Id::Function => {
+
+            },
+            Id::Table => {
+
+            },
+            Id::Memory => {
+
+            },
+            Id::Global => {
+
+            },
+            Id::Export => {
+
+            },
+            Id::Start => {
+
+            },
+            Id::Element => {
+
+            },
+            Id::Code => {
+
+            },
+            Id::Data => {
+
+            },
+        }
+        
     }
     Ok(())
 }
