@@ -472,13 +472,16 @@ impl<'c> Compiler<'c> {
             while let Some(code) = code.next()? {
                 let mut first = true;
                 let body_beg = w.pos();
-                let code_beg = m.offset_to(code.buf);
-                let code_len = code.buf.len();
+                let code_beg = m.offset_to(code.func.buf);
+                let code_len = code.func.buf.len();
                 let code_end = code_beg + code_len;
                 let type_index = m.function_signature(n as u32)?.unwrap();
 
                 self.context = Context::from(m.signature_type(type_index)?.unwrap());
                 info!("CONTEXT: {:?}", self.context);
+                info!("code_beg:  {:08x}", code_beg);
+                info!("code_end:  {:08x}", code_end);
+                info!("code_len:  {:08x}", code_len);
 
                 let mut items = code.func.iter();
                 while let Some(item) = items.next()? {
@@ -497,7 +500,10 @@ impl<'c> Compiler<'c> {
                             let instr_beg = m.offset_to(instr.data);
                             let instr_len = instr.data.len();
                             let instr_end = instr_beg + instr_len;
-                            if instr_end < code_end {
+                            info!("instr_end: {:08x}", instr_end);
+                            if instr_end == code_end && instr.opcode == END {
+                                info!("SKIPPING TERMINAL END");
+                            } else {
                                 self.compile_instruction(&mut w, types, functions, globals, instr)?;
                             }
                         }
