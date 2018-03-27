@@ -148,6 +148,9 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
                             Ok(None) => {
                                 println!("{}() =>", id);
                             },
+                            Err(wasm::Error::Unreachable) => {
+                                println!("{}() => error: unreachable executed", id);
+                            },
                             Err(wasm::Error::UndefinedTableIndex { id: _ }) => {
                                 println!("{}() => error: undefined table index", id);
                             },

@@ -624,7 +624,10 @@ impl<'c> Compiler<'c> {
                     self.type_checker.on_return()?;
                     w.write_drop_keep(drop, keep)?;                                    
                     w.write_opcode(RETURN)?;
-                },                
+                },    
+                UNREACHABLE => {
+                    w.write_opcode(UNREACHABLE)?;
+                },
                 _ => {
                     info!("{:?} {}", op, op.is_binop());
                     if op.is_binop() {

@@ -33,9 +33,9 @@ interp/if.txt
 # interp/load.txt
 # interp/logging-all-opcodes.txt
 interp/loop.txt
-# interp/memory-empty-segment.txt
+interp/memory-empty-segment.txt
 interp/nested-if.txt
-# ERR interp/return-void.txt
+# interp/return-void.txt
 interp/return.txt
 # interp/select.txt
 # interp/simd-basic.txt
@@ -48,4 +48,4 @@ interp/return.txt
 # interp/trap-with-callstack.txt
 # interp/unary-extend.txt
 # interp/unary.txt
-# interp/unreachable.txt
+interp/unreachable.txt
