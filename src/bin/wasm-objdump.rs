@@ -193,7 +193,7 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
                             import_memory += 1;
                         },
                         ImportDesc::Global(g) => {
-                            writeln!(out, " - global[{}] {} mutable={} <- {}.{}", n, g.valtype, g.mutable, module, name)?;                        
+                            writeln!(out, " - global[{}] {} mutable={} <- {}.{}", n, g.valtype, if g.mutable { 1 } else { 0 }, module, name)?;                        
                             import_globals += 1;
                         },                    
                     }
@@ -249,9 +249,10 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
                         0x42 => "i64",
                         0x43 => "f32",
                         0x44 => "f64",
-                        _ => "??",
+                        0x23 => "global",
+                        _ => unimplemented!()
                     };
-                    writeln!(out, " - global[{}] {} mutable={} - init {}={:?}", n, t.valtype, t.mutable, opcode, instr.immediate)?;                    
+                    writeln!(out, " - global[{}] {} mutable={} - init {}={:?}", n, t.valtype, if t.mutable { 1 } else { 0 }, opcode, instr.immediate)?;                    
                     n += 1;
                 }
             },
