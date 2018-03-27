@@ -566,8 +566,8 @@ impl<'a> Read<Instr<'a>> for Reader<'a> {
                 Immediate::Branch { depth: self.read()? }
             },
             BR_TABLE => {
-                let mut base = self.clone();
                 let count: u32 = self.read()?;
+                let mut base = self.clone();
                 for _ in 0..count {                    
                     let _: u32 = self.read()?;
                 }
