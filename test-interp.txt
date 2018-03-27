@@ -11,6 +11,7 @@
 # interp/basic-tracing.txt
 interp/basic.txt
 # interp/binary.txt
+interp/binary-i32.txt
 interp/br.txt
 interp/brif-loop.txt
 interp/brif.txt
