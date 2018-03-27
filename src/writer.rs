@@ -1,7 +1,6 @@
 use byteorder::{ByteOrder, LittleEndian};
 use core::ops::Deref;
 use core::{mem, ptr, slice, str};
-// use reader::Reader;
 use stack::Stack;
 use small_vec::SmallVec;
 use Error;
