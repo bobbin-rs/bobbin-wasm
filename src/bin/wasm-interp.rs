@@ -42,6 +42,7 @@ pub fn main() {
         .arg(Arg::with_name("dump").long("dump"))
         .arg(Arg::with_name("no-compile").long("no-compile"))
         .arg(Arg::with_name("run-all-exports").long("run-all-exports"))
+        .arg(Arg::with_name("host-print").long("host-print"))
         .get_matches();
     
     if let Err(e) = run(matches) {
@@ -74,7 +75,7 @@ impl HostHandler for Handler {
                 HELLO_FN => println!("Hello, World"),
                 PRINT_FN => {
                     let arg = interp.pop()?;
-                    println!("{:?}", arg);
+                    println!("called host host.print() => i32.{}", arg);
                 },
                 ADD_FN => {
                     let arg1 = interp.pop()?;
