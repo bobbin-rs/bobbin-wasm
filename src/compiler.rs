@@ -471,6 +471,7 @@ impl<'c> Compiler<'c> {
             let mut code = section.code();
             while let Some(code) = code.next()? {
                 let mut first = true;
+                let body_beg = w.pos();
                 let code_beg = m.offset_to(code.buf);
                 let code_len = code.buf.len();
                 let code_end = code_beg + code_len;
@@ -516,15 +517,16 @@ impl<'c> Compiler<'c> {
                 w.write_drop_keep(drop, keep)?;                                    
                 w.write_opcode(RETURN)?;
                 self.pop_label()?;
-                info!("body beg: {:08x}", code_beg);
-                info!("body end: {:08x}", code_end);
-                w.write_u32_at(code_beg as u32, 4 + n * 8)?;
-                w.write_u32_at(code_end as u32, 4 + n * 8 + 4)?;
+                let body_end = w.pos();
+                info!("body beg: {:08x}", body_beg);
+                info!("body end: {:08x}", body_end);
+                w.write_u32_at(body_beg as u32, 4 + n * 8)?;
+                w.write_u32_at(body_end as u32, 4 + n * 8 + 4)?;
                 info!("--- Code Item {} Done ---", n);
                 n += 1;                
             }
         }
-        info!("All Code Done");
+        info!("All Code Done");        
         let buf = w.split_mut();
         let rest = w.into_slice();
 

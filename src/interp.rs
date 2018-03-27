@@ -58,12 +58,17 @@ impl<'a> Interp<'a> {
     }
 
     pub fn call<H: HostHandler>(&mut self, env: &Environment<H>, mi: &ModuleInst, func_index: usize) -> Result<Option<Value>, Error> {
-        let code_buf = mi.code().as_ref();
+        let code_buf = mi.code().as_ref();                    
 
         info!("code section len: {:08x}", code_buf.len());
 
         let body_range = mi.code().body_range(func_index);        
         info!("body: {:08x} to {:08x}", body_range.start, body_range.end);
+
+        // info!("code_buf len: {:08x}", code_buf.len());
+        // for i in 0..code_buf.len() {
+        //     info!("{:08x}: {:02x}", i, code_buf[i]);
+        // }
 
         let mut code = Reader::new(code_buf);
         code.set_pos(body_range.start);
