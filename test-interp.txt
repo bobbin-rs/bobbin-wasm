@@ -31,6 +31,7 @@ interp/expr-if.txt
 interp/if.txt
 # interp/import.txt
 # interp/load.txt
+interp/load-32.txt
 # interp/logging-all-opcodes.txt
 interp/loop.txt
 interp/memory-empty-segment.txt

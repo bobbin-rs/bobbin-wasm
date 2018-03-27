@@ -317,7 +317,7 @@ pub struct Value(pub i32);
 
 impl fmt::Debug for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "i32:{}", self.0)
+        write!(f, "i32:{}", self.0 as u32)
     }
 }
 
