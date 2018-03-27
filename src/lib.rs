@@ -6,7 +6,6 @@ extern crate byteorder;
 #[macro_use] extern crate log;
 
 pub mod error;
-// pub mod opcode;
 pub mod types;
 pub mod cursor;
 pub mod reader;
@@ -17,10 +16,8 @@ pub mod compiler;
 pub mod typeck;
 pub mod interp;
 pub mod memory_inst;
-pub mod module;
 pub mod module_inst;
 pub mod environ;
-pub mod wasm_read;
 pub mod floathex;
 pub mod parser;
 
@@ -29,9 +26,7 @@ use parser::opcode as opcode;
 pub use error::*;
 pub use types::*;
 pub use cursor::*;
-pub use reader::*;
 pub use writer::*;
-pub use module::*;
 
 
 pub const MAGIC_COOKIE: u32 = 0x6d736100;

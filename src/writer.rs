@@ -1,7 +1,7 @@
 use byteorder::{ByteOrder, LittleEndian};
 use core::ops::Deref;
 use core::{mem, ptr, slice, str};
-use reader::Reader;
+// use reader::Reader;
 use stack::Stack;
 use small_vec::SmallVec;
 use Error;
@@ -211,9 +211,9 @@ impl<'a> Writer<'a> {
         }        
     }    
 
-    pub fn split_reader(&mut self) -> Reader<'a> {
-        Reader::new(self.split())
-    }
+    // pub fn split_reader(&mut self) -> Reader<'a> {
+    //     Reader::new(self.split())
+    // }
 
     pub fn alloc_stack<T: Copy>(&mut self, len: usize) -> Stack<'a, T> {
         assert!(self.pos == 0, "Allocation can only happen with an empty writer.");
@@ -306,11 +306,11 @@ impl<'a> Writer<'a> {
     }
 }
 
-impl<'a> Into<Reader<'a>> for Writer<'a> {
-    fn into(self) -> Reader<'a> {
-        Reader::new(&self.buf[..self.pos])
-    }
-}
+// impl<'a> Into<Reader<'a>> for Writer<'a> {
+//     fn into(self) -> Reader<'a> {
+//         Reader::new(&self.buf[..self.pos])
+//     }
+// }
 
 
 impl<'a> Deref for Writer<'a> {
