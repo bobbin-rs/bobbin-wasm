@@ -905,7 +905,7 @@ impl<'c> Compiler<'c> {
                         //   CHECK_RESULT(EmitI32(offset));
                         self.type_checker.on_store(&op)?;
                     },
-                    _ => unimplemented!(),
+                    _ => return Err(Error::UnimplementedOpcode(opc)),
                 }
                 w.write_opcode(opc)?;
                 w.write_u32(align)?;

@@ -12,6 +12,7 @@ pub enum Error {
     End,
     Unimplemented(&'static str),
     InvalidOpcode(u8),
+    UnimplementedOpcode(u8),
     InvalidBlockType,
     ScopesFull,
     FixupsFull,
