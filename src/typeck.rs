@@ -195,7 +195,7 @@ impl<'m> TypeChecker<'m> {
         info!("  check_signature({:?})", sig);
 
         for i in 0..sig.len() {
-            self.peek_and_check_type(i, sig[i])?;
+            self.peek_and_check_type(sig.len() - i - 1, sig[i])?;
         }
         Ok(())
 

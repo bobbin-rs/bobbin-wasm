@@ -65,6 +65,27 @@ impl<'a> Writer<'a> {
         Ok(())
     }
 
+    pub fn write_f32(&mut self, value: f32) -> WriteResult<()> {
+        if self.pos + 4 >= self.buf.len() { return Err(Error::End) }
+        LittleEndian::write_f32(&mut self.buf[self.pos..], value);
+        self.pos += 4;
+        Ok(())
+    }
+
+    pub fn write_i64(&mut self, value: i64) -> WriteResult<()> {
+        if self.pos + 8 >= self.buf.len() { return Err(Error::End) }
+        LittleEndian::write_i64(&mut self.buf[self.pos..], value);
+        self.pos += 8;
+        Ok(())
+    }
+
+    pub fn write_f64(&mut self, value: f64) -> WriteResult<()> {
+        if self.pos + 8 >= self.buf.len() { return Err(Error::End) }
+        LittleEndian::write_f64(&mut self.buf[self.pos..], value);
+        self.pos += 8;
+        Ok(())
+    }
+
     pub fn write_var_u1(&mut self, value: u8) -> WriteResult<()> {
         if value > 1 { return Err(Error::Leb128Overflow) }
         self.write_u8(value)
