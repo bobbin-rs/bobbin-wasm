@@ -87,6 +87,6 @@ dump/tee_local.txt
 # dump/try-imports-details.txt
 # dump/try-imports.txt
 # dump/try.txt
-# dump/unary-extend.txt
+dump/unary-extend.txt
 dump/unary.txt
-# dump/unreachable.txt
+dump/unreachable.txt
