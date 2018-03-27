@@ -147,6 +147,12 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
                             Ok(None) => {
                                 println!("{}() =>", id);
                             },
+                            Err(wasm::Error::UndefinedTableIndex { id: _ }) => {
+                                println!("{}() => error: undefined table index", id);
+                            },
+                            Err(wasm::Error::SignatureMismatch) => {
+                                println!("{}() => error: indirect call signature mismatch", id);
+                            },
                             Err(e) => {
                                 println!("Error: {:?}", e);
                                 println!("---- Stack Dump ----");

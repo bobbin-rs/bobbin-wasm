@@ -18,7 +18,7 @@ interp/brtable.txt
 interp/call-zero-args.txt
 # interp/call.txt
 # interp/callimport-zero-args.txt
-# interp/callindirect.txt
+interp/callindirect.txt
 # interp/cast.txt
 # interp/compare.txt
 # interp/convert-sat.txt
