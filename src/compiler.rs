@@ -531,14 +531,16 @@ impl<'c> Compiler<'c> {
     ) -> Result<(), Error> {
         use self::Immediate::*;
 
-        let op = Op::from_opcode(i.opcode).unwrap();
-        {
+        let op = if let Some(op) = Op::from_opcode(i.opcode) {
             let mut indent = self.label_stack.len();
             if op.code == END || op.code == ELSE {
                 indent -= 1;
             }
             info!("{:08x}: L: {} V:{} | {:0width$}{}{:?}" , w.pos(), self.label_stack.len(), self.type_checker.type_stack_size(),  "", op.text, i.immediate, width=indent);
-        }
+            op
+        } else {
+            return Err(Error::InvalidOpcode(i.opcode))
+        };
 
         let opc = i.opcode;
         match i.immediate {
@@ -867,9 +869,9 @@ impl<'c> Compiler<'c> {
                 w.write_opcode(opc)?;
                 w.write_i32(value)?;
             },
-            F32Const { value: _ } => { return Err(Error::Unimplemented) },
-            I64Const { value: _ } => { return Err(Error::Unimplemented) },
-            F64Const { value: _ } => { return Err(Error::Unimplemented) },
+            F32Const { value: _ } => { return Err(Error::Unimplemented("F32Const")) },
+            I64Const { value: _ } => { return Err(Error::Unimplemented("I64Const")) },
+            F64Const { value: _ } => { return Err(Error::Unimplemented("F64Const")) },
             LoadStore { align, offset } => {
                 match opc {
                     I32_LOAD | I32_LOAD8_S | I32_LOAD8_U | I32_LOAD16_S | I32_LOAD16_U => {

@@ -335,7 +335,7 @@ impl<'a> Interp<'a> {
                         I32_LE_S => (lhs as u32) <= (rhs as u32),
                         I32_GE_U => lhs >= rhs,                        
                         I32_GE_S => (lhs as u32) >= (rhs as u32),
-                        _ => return Err(Error::Unimplemented),
+                        _ => unimplemented!(),
                     };
                     info!("res: {}", res);
                     self.push(if res { 1 } else { 0 })?;
@@ -415,7 +415,7 @@ impl<'a> Interp<'a> {
                     }
                     info!("V: {}", self.value_stack.len());
                 },
-                _ => return Err(Error::Unimplemented),
+                _ => return Err(Error::InvalidOpcode(opc)),
             }
             // info!("{:08x}: END INST {:08x}", code.pos(), code.len());
             _count += 1;
