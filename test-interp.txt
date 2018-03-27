@@ -21,6 +21,7 @@ interp/call-zero-args.txt
 interp/callindirect.txt
 # interp/cast.txt
 # interp/compare.txt
+interp/compare-i32.txt
 # interp/convert-sat.txt
 # interp/convert.txt
 interp/empty.txt
@@ -39,14 +40,18 @@ interp/nested-if.txt
 interp/return-void.txt
 interp/return.txt
 # interp/select.txt
+interp/select-i32.txt
 # interp/simd-basic.txt
 # interp/simd-binary.txt
 # interp/simd-splat.txt
 # interp/simd-unary.txt
 # interp/start.txt
 # interp/store.txt
+interp/store-i32.txt
 # interp/tracing-all-opcodes.txt
 # interp/trap-with-callstack.txt
 # interp/unary-extend.txt
+# interp/unary-extend-i32.txt
 # interp/unary.txt
+interp/unary-i32.txt
 interp/unreachable.txt

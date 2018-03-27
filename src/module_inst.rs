@@ -30,10 +30,10 @@ impl<'buf, 'env> ModuleInst<'buf> {
         let mut w = Writer::new(buf);
 
         let mut function_types = w.alloc_smallvec(16);
-        let mut functions = w.alloc_smallvec(16);
+        let mut functions = w.alloc_smallvec(32);
         let mut globals = w.alloc_smallvec(16);
         let mut tables = w.alloc_smallvec(16);
-        let mut exports = w.alloc_smallvec(16);
+        let mut exports = w.alloc_smallvec(32);
 
         let mut sections = m.sections();
 

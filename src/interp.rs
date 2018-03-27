@@ -329,14 +329,14 @@ impl<'a> Interp<'a> {
                     let res = match opc {
                         I32_EQ => lhs == rhs,
                         I32_NE => lhs != rhs,
-                        I32_LT_U => lhs < rhs,
-                        I32_LT_S => (lhs as u32) < (rhs as u32),
-                        I32_GT_U => lhs > rhs,
-                        I32_GT_S => (lhs as u32) > (rhs as u32),
-                        I32_LE_U => lhs <= rhs,
-                        I32_LE_S => (lhs as u32) <= (rhs as u32),
-                        I32_GE_U => lhs >= rhs,                        
-                        I32_GE_S => (lhs as u32) >= (rhs as u32),
+                        I32_LT_U => (lhs as u32) < (rhs as u32),
+                        I32_LT_S => lhs < rhs,
+                        I32_GT_U => (lhs as u32) > (rhs as u32),
+                        I32_GT_S => lhs > rhs,
+                        I32_LE_U => (lhs as u32) <= (rhs as u32),
+                        I32_LE_S => lhs <= rhs,
+                        I32_GE_U => (lhs as u32) >= (rhs as u32),
+                        I32_GE_S => lhs >= rhs,                        
                         _ => unimplemented!(),
                     };
                     info!("res: {}", res);
