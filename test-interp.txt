@@ -35,7 +35,7 @@ interp/if.txt
 interp/loop.txt
 interp/memory-empty-segment.txt
 interp/nested-if.txt
-# interp/return-void.txt
+interp/return-void.txt
 interp/return.txt
 # interp/select.txt
 # interp/simd-basic.txt

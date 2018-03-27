@@ -302,16 +302,18 @@ impl<'a> Interp<'a> {
                         }                                               
                         _ => unimplemented!(),
                     };
+                    info!("load @ {:08x} => {}", addr, res);
                     self.push(res)?;
                 },
                 // I32 store
                 0x36 | 0x38 | 0x3a | 0x3b => {
                     let _flags = code.read_u32()?;
                     let offset = code.read_u32()?;
-                    let base: u32 = self.pop()? as u32;
                     let value: i32 = self.pop()?;
+                    let base: u32 = self.pop()? as u32;
                     let addr = (offset + base) as usize;
                     let mem = env.mem();
+                    info!("STORE {} @ {:08x}", value, addr);
 
                     match opc {
                         I32_STORE => mem.store(addr, value)?,
