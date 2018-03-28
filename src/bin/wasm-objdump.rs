@@ -11,7 +11,7 @@ use std::path::Path;
 use clap::{App, Arg, ArgMatches};
 
 // use wasm::{Reader, BinaryReader};
-use wasm::parser::{self, Id, Module, FallibleIterator, ExportDesc, ImportDesc, Immediate, FuncItem, Instr};
+use wasm::parser::{self, Id, Module, FallibleIterator, ExportDesc, ImportDesc, Immediate, FuncItem, Instr, Local};
 // use wasm::visitor;
 
 
@@ -360,9 +360,34 @@ pub fn dump_code<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
 
             let mut funcs = code.func.iter();
             let mut depth = 0;
+            let mut local_count = 0usize;
+            let mut local_index = 0usize;            
             while let Some(func_item) = funcs.next()? {
                 match func_item {
-                    FuncItem::Local(_) => {},
+                    FuncItem::Local(Local { n, t }) => {
+                        let n = n as usize;
+                        let offset = offset + 2 + local_count * 2;
+                        write!(out, " {:06x}:", offset)?;
+                        let mut w = 0;
+                        write!(out, " {:02x} {:02x}", n, t as u8)?;
+                        w += 6;
+                        while w < 28 {
+                            write!(out, " ")?;
+                            w += 1;
+                        }
+                        write!(out, "| ")?;                        
+                        if n == 1 {
+                            writeln!(out, "local[{}] type={}", local_index, t)?;
+                        } else {
+                            writeln!(out, "local[{}..{}] type={}",
+                                local_index,
+                                local_index + n - 1,
+                                t
+                            )?;
+                        }
+                        local_count += 1;
+                        local_index += n;
+                    },
                     FuncItem::Instr(Instr { opcode, immediate: imm, data}) => {
                         let offset = m.offset_to(data);
                         
