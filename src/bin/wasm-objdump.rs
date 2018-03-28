@@ -284,8 +284,8 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
                         panic!("invalid immediate type");
                     };
                     
-                    writeln!(out,  " - segment[{}] table={}", n, e.table_index)?;
                     writeln!(out,  " - init {}={}", "i32", imm)?;
+                    writeln!(out,  " - segment[{}] table={} count={}", n, e.table_index, e.init.len())?;
                     for i in 0..e.init.len() {
                         writeln!(out,  "  - elem[{}] = func[{}]", i, e.init[i])?;
                     }
