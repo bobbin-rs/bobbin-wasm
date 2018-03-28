@@ -342,6 +342,7 @@ pub fn dump_code<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
                 while let Some(i) = imports.next()? {
                     match i.import_desc {
                         ImportDesc::Func(_) => {
+                            func_names.insert(import_funcs, String::from(i.name));
                             import_funcs += 1;
                         },
                         _ => {},
@@ -354,7 +355,7 @@ pub fn dump_code<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
                     match e.export_desc {
                         ExportDesc::Func(index) => {
                             func_names.insert(index, String::from(e.name));
-                            // write!(out, "{} => {}", e.name, index)?;
+                            // writeln!(out, "{} => {}", e.name, import_funcs + index)?;
                         },
                         _ => {},
                     }
@@ -454,6 +455,11 @@ pub fn dump_code<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
                             } else {
                                 writeln!(out, "{}", op.text)?
                             },
+                            Immediate::Call { index } =>  if let Some(ref name) = func_names.get(&index) { 
+                                writeln!(out, "{} {} <{}>", op.text, index, name)?;
+                            } else {
+                                writeln!(out, "{} {}", op.text, index)?;
+                            }
                             _ => writeln!(out, "{} {:?}", op.text, imm)?,
                         }
 
