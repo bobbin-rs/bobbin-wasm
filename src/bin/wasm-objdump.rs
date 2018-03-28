@@ -11,6 +11,7 @@ use std::path::Path;
 use clap::{App, Arg, ArgMatches};
 
 // use wasm::{Reader, BinaryReader};
+use wasm::types::Index;
 use wasm::parser::{self, Id, Module, FallibleIterator, ExportDesc, ImportDesc, Immediate, FuncItem, Instr, Local};
 // use wasm::visitor;
 
@@ -325,6 +326,10 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
 
 pub fn dump_code<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
     use parser::opcode::*;
+    use std::collections::HashMap;
+
+
+    let mut func_names: HashMap<Index, String> = HashMap::new();
 
     writeln!(out, "Code Disassembly:")?;
     let mut sections = m.sections();
@@ -343,6 +348,18 @@ pub fn dump_code<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
                     }
                 }                
             },
+            Id::Export => {
+                let mut exports = s.exports();
+                while let Some(e) = exports.next()? {
+                    match e.export_desc {
+                        ExportDesc::Func(index) => {
+                            func_names.insert(index, String::from(e.name));
+                            // write!(out, "{} => {}", e.name, index)?;
+                        },
+                        _ => {},
+                    }
+                }
+            }
             _ => {},
         }
     }
@@ -356,7 +373,11 @@ pub fn dump_code<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
         let mut n = import_funcs;
         while let Some(code) = code_iter.next()? {
             let offset = m.offset_to(code.buf);
-            writeln!(out, "{:06x} func[{}]:", offset, n)?;
+            if let Some(ref name) = func_names.get(&n) { 
+                writeln!(out, "{:06x} <{}>:", offset, name)?;
+            } else {
+                writeln!(out, "{:06x} func[{}]:", offset, n)?;
+            }
 
             let mut funcs = code.func.iter();
             let mut depth = 0;
