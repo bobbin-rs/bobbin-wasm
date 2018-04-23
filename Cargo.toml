@@ -6,6 +6,10 @@ authors = ["Jonathan Soo <jcsoo@agora.com>"]
 [dependencies]
 fallible-iterator = { version = "0.1.4", default-features = false }
 byteorder = { version = "1", default-features = false }
-log = "0.4"
-clap = "2.29.4"
-env_logger = "0.5.3"
+log = { version = "0.4", optional = true }
+clap = { version = "2.29.4", optional = true }
+env_logger = {version = "0.5.3", optional = true }
+
+[features]
+default = ["log", "clap", "env_logger"]
+enable-log = ["log"]
