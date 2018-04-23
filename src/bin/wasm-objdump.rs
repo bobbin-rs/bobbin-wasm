@@ -11,7 +11,8 @@ use std::path::Path;
 use clap::{App, Arg, ArgMatches};
 
 // use wasm::{Reader, BinaryReader};
-use wasm::parser::{self, Id, Module, FallibleIterator, ExportDesc, ImportDesc, Immediate, FuncItem, Instr};
+use wasm::types::Index;
+use wasm::parser::{self, Id, Module, FallibleIterator, ExportDesc, ImportDesc, Immediate, FuncItem, Instr, Local};
 // use wasm::visitor;
 
 
@@ -284,8 +285,8 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
                         panic!("invalid immediate type");
                     };
                     
-                    writeln!(out,  " - segment[{}] table={}", n, e.table_index)?;
                     writeln!(out,  " - init {}={}", "i32", imm)?;
+                    writeln!(out,  " - segment[{}] table={} count={}", n, e.table_index, e.init.len())?;
                     for i in 0..e.init.len() {
                         writeln!(out,  "  - elem[{}] = func[{}]", i, e.init[i])?;
                     }
@@ -325,6 +326,10 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
 
 pub fn dump_code<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
     use parser::opcode::*;
+    use std::collections::HashMap;
+
+
+    let mut func_names: HashMap<Index, String> = HashMap::new();
 
     writeln!(out, "Code Disassembly:")?;
     let mut sections = m.sections();
@@ -337,12 +342,25 @@ pub fn dump_code<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
                 while let Some(i) = imports.next()? {
                     match i.import_desc {
                         ImportDesc::Func(_) => {
+                            func_names.insert(import_funcs, String::from(i.name));
                             import_funcs += 1;
                         },
                         _ => {},
                     }
                 }                
             },
+            Id::Export => {
+                let mut exports = s.exports();
+                while let Some(e) = exports.next()? {
+                    match e.export_desc {
+                        ExportDesc::Func(index) => {
+                            func_names.insert(index, String::from(e.name));
+                            // writeln!(out, "{} => {}", e.name, import_funcs + index)?;
+                        },
+                        _ => {},
+                    }
+                }
+            }
             _ => {},
         }
     }
@@ -356,13 +374,42 @@ pub fn dump_code<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
         let mut n = import_funcs;
         while let Some(code) = code_iter.next()? {
             let offset = m.offset_to(code.buf);
-            writeln!(out, "{:06x} func[{}]:", offset, n)?;
+            if let Some(ref name) = func_names.get(&n) { 
+                writeln!(out, "{:06x} <{}>:", offset, name)?;
+            } else {
+                writeln!(out, "{:06x} func[{}]:", offset, n)?;
+            }
 
             let mut funcs = code.func.iter();
             let mut depth = 0;
+            let mut local_count = 0usize;
+            let mut local_index = 0usize;            
             while let Some(func_item) = funcs.next()? {
                 match func_item {
-                    FuncItem::Local(_) => {},
+                    FuncItem::Local(Local { n, t }) => {
+                        let n = n as usize;
+                        let offset = offset + 2 + local_count * 2;
+                        write!(out, " {:06x}:", offset)?;
+                        let mut w = 0;
+                        write!(out, " {:02x} {:02x}", n, t as u8)?;
+                        w += 6;
+                        while w < 28 {
+                            write!(out, " ")?;
+                            w += 1;
+                        }
+                        write!(out, "| ")?;                        
+                        if n == 1 {
+                            writeln!(out, "local[{}] type={}", local_index, t)?;
+                        } else {
+                            writeln!(out, "local[{}..{}] type={}",
+                                local_index,
+                                local_index + n - 1,
+                                t
+                            )?;
+                        }
+                        local_count += 1;
+                        local_index += n;
+                    },
                     FuncItem::Instr(Instr { opcode, immediate: imm, data}) => {
                         let offset = m.offset_to(data);
                         
@@ -408,6 +455,11 @@ pub fn dump_code<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
                             } else {
                                 writeln!(out, "{}", op.text)?
                             },
+                            Immediate::Call { index } =>  if let Some(ref name) = func_names.get(&index) { 
+                                writeln!(out, "{} {} <{}>", op.text, index, name)?;
+                            } else {
+                                writeln!(out, "{} {}", op.text, index)?;
+                            }
                             _ => writeln!(out, "{} {:?}", op.text, imm)?,
                         }
 
