@@ -13,4 +13,4 @@ env_logger = {version = "0.5.3", optional = true }
 [features]
 default = ["log", "clap", "env_logger"]
 enable-log = ["log"]
-enable-log-off = ["log/max_level_off"]
+enable-log-off = []

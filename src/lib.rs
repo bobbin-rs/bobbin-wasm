@@ -3,7 +3,10 @@
 
 extern crate fallible_iterator;
 extern crate byteorder;
+#[cfg(not(feature="enable-log-off"))]
 #[macro_use] extern crate log;
+#[cfg(feature="enable-log-off")]
+#[macro_use] pub mod no_log;
 
 pub mod error;
 pub mod types;
