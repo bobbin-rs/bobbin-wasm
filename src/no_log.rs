@@ -27,3 +27,9 @@ macro_rules! warn {
     (target: $target:expr, $($arg:tt)*) => { };
     ($($arg:tt)*) => { };
 }
+
+#[macro_export]
+macro_rules! panic {
+    (target: $target:expr, $($arg:tt)*) => { unsafe { ::core::intrinsics::abort() } };
+    ($($arg:tt)*) => { unsafe { ::core::intrinsics::abort() } };
+}
