@@ -1,4 +1,5 @@
 use core::fmt::{self, Write};
+use core::num::Float;
 
 pub fn f32_parts(v: f32) -> (u8, u8, u32) {
     let v = v.to_bits();
