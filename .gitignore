@@ -1,4 +1,6 @@
 */target/*
 target/*
 out/*
+bin/*
+.crates.toml
 test

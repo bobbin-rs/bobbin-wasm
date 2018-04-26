@@ -8,10 +8,22 @@ bobbin-wasm leverages the [wabt](https://github.com/WebAssembly/wabt) test suite
 Download and install the current version of [wabt](https://github.com/WebAssembly/wabt), and make a symlink from
 ./test/ to wabt/test.
 
-Build and install the `wabm-objdump` and `wasm-interp` binaries into your .cargo/bin/ directory.
+Create a local directory `./bin/`.
 
 ```
-$ cargo install --force --debug
+# mkdir ./bin/
+```
+
+Add symlinks for all of the wabt binaries to the ./bin directory:
+
+```
+ln -s path_to_wabt/bin/ bin/
+```
+
+Build and install the `wasm-objdump` and `wasm-interp` binaries into your test-bin directory.
+
+```
+$ cargo install --path . --root .
 ```
 
 ## Running Tests
@@ -23,6 +35,7 @@ You should see something like this as the result:
 
 ```
 $ make test
+cargo -q install --path . --root . --force
 cat test-dump.txt | grep -v \# | xargs test/run-tests.py --bindir /Users/jcsoo/.cargo/bin
 [+71|-0|%100] (0.96s) test/dump/unreachable.txt
 cat test-interp.txt | grep -v \# | xargs test/run-tests.py --bindir /Users/jcsoo/.cargo/bin

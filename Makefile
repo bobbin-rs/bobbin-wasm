@@ -1,12 +1,15 @@
-.PHONY: test test-dump install
+.PHONY: test test-dump install install-test
 
-BINDIR=$(HOME)/.cargo/bin
+BINDIR=./bin
 TEST_ARGS=--bindir $(BINDIR)
 
 install:
 	cargo install --force --debug
 
-test: test-dump test-interp
+install-test:
+	cargo -q install --path . --root . --force
+
+test: install-test test-dump test-interp
 
 test-dump:
 	cat test-dump.txt | grep -v \# | xargs test/run-tests.py $(TEST_ARGS)

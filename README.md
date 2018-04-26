@@ -21,10 +21,20 @@ In fact, for testing and validation purposes, **bobbin-wasm** implements clones 
 `wasm-interp` that produce output that is byte-for-byte identical to the originals, allowing the
 use of the extensive `WABT` test suite. See [TESTING](./TESTING.md) for more details.
 
+## Building
+
+To build the library and binaries, use `cargo build`.
+
+To run the object dumper directly without installing, use `cargo run --bin wasm-objdump`. To run
+the interpreter directly without installing, use `cargo run --bin wasm-interp`.
+
+To install the binaries, use `cargo install` or `cargo install --force` to overwrite your existing
+binaries.
+
+
 ## Current Status
 
-**bobbin-wasm** should be considered *extremely unstable* at this point - there are major
-architecture changes that need happen as well as rewrites of sections in an idiomatic Rust style.
+**bobbin-wasm** should be considered *extremely unstable*.
 
 ### Memory and Resource Limits
 
