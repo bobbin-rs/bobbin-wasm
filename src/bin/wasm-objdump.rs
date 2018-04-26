@@ -1,4 +1,4 @@
-extern crate wasm;
+extern crate bobbin_wasm as wasm;
 extern crate clap;
 // #[macro_use] extern crate log;
 extern crate env_logger;
