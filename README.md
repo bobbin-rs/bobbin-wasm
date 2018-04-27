@@ -60,7 +60,7 @@ Rust API implementation.
 
 ### Documentation and Examples
 
-Documentation is currently very sparse. [wasm-interp](src/bin/wasm-interp/) is the best starting point for anyone
+Documentation is currently very sparse. [wasm-interp](src/bin/wasm-interp.rs) is the best starting point for anyone
 that wants build a simple application and or to use the host API.
 
 Cross-platform examples for running an interpreter on embedded devices will be released as soon as the underlying
