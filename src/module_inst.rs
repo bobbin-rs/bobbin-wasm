@@ -61,7 +61,7 @@ impl<'buf, 'env> ModuleInst<'buf> {
                                 let name_bytes = w.copy_slice(i.name.as_bytes())?;
                                 let name = ::core::str::from_utf8(name_bytes)?;
                                 let module_index = 0;
-                                if module_bytes == b"host" {
+                                if module_bytes == b"host" || module_bytes == b"env" {
                                     let host_index = env.import_host_function(module, name, &i.import_desc)?;
                                     functions.push(FuncInst::Host { type_index, module, name, host_index });
                                 } else {
