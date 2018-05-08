@@ -22,7 +22,7 @@ impl Default for Config {
 
 pub trait HostHandler {
     fn import(&self, module: &str, export: &str, import_desc: &ImportDesc) -> Result<usize, Error>;
-    fn dispatch(&self, interp: &mut Interp, type_index: usize, index: usize) -> Result<(), Error>;
+    fn dispatch(&self, interp: &mut Interp, mem: &MemoryInst, type_index: usize, index: usize) -> Result<(), Error>;
 }
 
 pub struct Environment<'env, H: HostHandler> {
@@ -69,7 +69,7 @@ impl<'env, H: HostHandler> Environment<'env, H> {
     }
 
     pub fn call_host_function(&self, interp: &mut Interp, type_index: usize, index: usize) -> Result<(), Error> {
-        self.host_handler.dispatch(interp, type_index, index)
+        self.host_handler.dispatch(interp, &self.mem, type_index, index)
     }
 
     pub fn call_module_function(&self, interp: &mut Interp, module_index: usize, function_index: usize) -> Result<(), Error> {

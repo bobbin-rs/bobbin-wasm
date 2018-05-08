@@ -15,6 +15,7 @@ use wasm::{ExportDesc, ImportDesc};
 use wasm::interp::Interp;
 use wasm::environ::{Environment, HostHandler};
 use wasm::module_inst::*;
+use wasm::memory_inst::MemoryInst;
 
 #[derive(Debug)]
 pub enum Error {
@@ -69,7 +70,7 @@ impl HostHandler for Handler {
         })
     }
 
-    fn dispatch(&self, interp: &mut Interp, _type_index: usize, index: usize) -> Result<(), wasm::Error> {
+    fn dispatch(&self, interp: &mut Interp, _mem: &MemoryInst, _type_index: usize, index: usize) -> Result<(), wasm::Error> {
         Ok({ 
             match index {
                 HELLO_FN => println!("Hello, World"),

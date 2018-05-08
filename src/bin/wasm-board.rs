@@ -4,7 +4,7 @@ extern crate log;
 extern crate env_logger;
 
 use std::process;
-use std::io::{self, Read};
+use std::io::{self, stdout, Read, Write};
 use std::fs::File;
 use std::path::Path;
 use std::thread;
@@ -17,6 +17,7 @@ use wasm::{ExportDesc, ImportDesc};
 use wasm::interp::Interp;
 use wasm::environ::{Environment, HostHandler};
 use wasm::module_inst::*;
+use wasm::memory_inst::MemoryInst;
 
 #[derive(Debug)]
 pub enum Error {
@@ -67,10 +68,16 @@ impl HostHandler for BoardHandler {
         })
     }
 
-    fn dispatch(&self, interp: &mut Interp, _type_index: usize, index: usize) -> Result<(), wasm::Error> {
+    fn dispatch(&self, interp: &mut Interp, mem: &MemoryInst, _type_index: usize, index: usize) -> Result<(), wasm::Error> {
         Ok({ 
             match index {
-                WRITE_FN => println!("WRITE"),
+                WRITE_FN => {
+                    let len = interp.pop()? as usize;
+                    let ptr = interp.pop()? as usize;
+                    let buf = &mem.as_ref()[ptr..ptr+len];
+                    stdout().write_all(buf).unwrap();
+
+                },
                 LED_FN => {
                     let arg = interp.pop()?;
                     if arg == 0 {
