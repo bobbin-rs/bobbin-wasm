@@ -136,8 +136,10 @@ impl<'a> Interp<'a> {
                 },
                 CALL => {
                     let id = code.read_u32()?;
+                    info!("CALL: id={} of {}", id, mi.functions().len());
                     match &mi.functions()[id as usize] {
-                        &FuncInst::Host { type_index, module: _, name:_ , host_index } => {
+                        &FuncInst::Host { type_index, module, name , host_index } => {
+                            info!("Host: {} {} {} ", module, name, host_index);
                             env.call_host_function(self, type_index, host_index)?;
                         },
                         &FuncInst::Import { type_index, ref module, ref name, module_index, import_index } => {
@@ -145,6 +147,7 @@ impl<'a> Interp<'a> {
                             env.call_module_function(self, module_index, import_index)?;
                         },
                         &FuncInst::Local { type_index: _, function_index } => {
+                            info!("Local");
                             let body_range = mi.code().body_range(function_index);
                             let offset = body_range.start;
                             let pos = code.pos();
@@ -251,7 +254,12 @@ impl<'a> Interp<'a> {
                 },
                 TEE_LOCAL => {
                     let depth: u32 = code.read_u32()?;
+                    info!("TEE_LOCAL: {}", depth);
+                    for i in 0..self.value_stack.len() {
+                        info!("{}: {}", i, self.value_stack.peek(i)?);
+                    }
                     let value: i32 = self.pop()?;
+                    info!("   <= {}", value);
                     self.value_stack.peek((depth - 1) as usize)?.0 = value;
                     self.push(value)?;
                 },                
