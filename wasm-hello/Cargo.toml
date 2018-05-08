@@ -1,0 +1,14 @@
+[package]
+name = "wasm-hello"
+version = "0.1.0"
+authors = ["Jonathan Soo <jcsoo@agora.com>"]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+
+[profile.release]
+debug = false
+lto = true
+opt-level = 's'

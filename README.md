@@ -31,6 +31,20 @@ the interpreter directly without installing, use `cargo run --bin wasm-interp`.
 To install the binaries, use `cargo install` or `cargo install --force` to overwrite your existing
 binaries.
 
+## Hello Wasm
+
+```
+$ cargo install --force
+$ cd wasm-hello
+$ make run
+   Compiling wasm-hello v0.1.0 (file:///Users/jcsoo/bobbin-dev/bobbin-wasm/wasm-hello)
+    Finished release [optimized] target(s) in 1.11s
+wasm-gc target/wasm32-unknown-unknown/release/wasm_hello.wasm -o wasm_hello.gc.wasm
+wasm-opt -Os wasm_hello.gc.wasm -o wasm_hello.wasm
+wasm-interp --run-all-exports wasm_hello.wasm
+Hello, World
+run_hello() =>
+```
 
 ## Current Status
 
