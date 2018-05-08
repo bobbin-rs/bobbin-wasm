@@ -825,7 +825,7 @@ impl<'c> Compiler<'c> {
                             let global_type = global.global_type();
                             info!("Global: {:?}", global);
                             info!("Global Type: {:?}", global_type);
-                            if !global_type.mutable {
+                            if global_type.mutable {
                                 return Err(Error::InvalidGlobal { id: index as u32 });
                             }
                             self.type_checker.on_set_global(global_type.valtype)?;
