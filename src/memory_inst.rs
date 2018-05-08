@@ -7,7 +7,7 @@ use core::cell::Cell;
 use core::slice;
 use core::fmt;
 
-pub const PAGE_SIZE: usize = 64;
+pub const PAGE_SIZE: usize = 65536;
 
 pub struct MemoryInst<'a> {
     buf: *mut u8,
@@ -61,11 +61,11 @@ impl<'a> MemoryInst<'a> {
         }
     }
 
-    fn as_ref(&self) -> &[u8] {
+    pub fn as_ref(&self) -> &[u8] {
         unsafe { slice::from_raw_parts(self.buf, self.len()) }
     }
 
-    fn as_mut(&self) -> &mut [u8] {
+    pub fn as_mut(&self) -> &mut [u8] {
         unsafe { slice::from_raw_parts_mut(self.buf, self.len()) }
     }
 
