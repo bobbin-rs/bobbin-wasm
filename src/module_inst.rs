@@ -34,6 +34,10 @@ impl<'buf, 'env> ModuleInst<'buf> {
         let mut globals = w.alloc_smallvec(16);
         let mut tables = w.alloc_smallvec(16);
         let mut exports = w.alloc_smallvec(32);
+        
+        info!("function_types:  {:p}", &function_types);
+        info!("functions:       {:p}", &functions);
+        info!("globals:         {:p}", &globals);
 
         let mut sections = m.sections();
 
@@ -63,8 +67,10 @@ impl<'buf, 'env> ModuleInst<'buf> {
                                 let module_index = 0;
                                 if module_bytes == b"host" || module_bytes == b"env" {
                                     let host_index = env.import_host_function(module, name, &i.import_desc)?;
+                                    info!("Host Function @ {}: {} {} {} {}", functions.len(), type_index, module, name, host_index);
                                     functions.push(FuncInst::Host { type_index, module, name, host_index });
                                 } else {
+                                    info!("Import Function @ {}: {} {} {} {}", functions.len(), type_index, module, name, import_index);
                                     functions.push(FuncInst::Import { type_index, module, name, module_index, import_index });
                                 }
                             },
@@ -86,6 +92,7 @@ impl<'buf, 'env> ModuleInst<'buf> {
                     let mut function_index = 0;
                     while let Some(function) = funcs.next()? {                    
                         let type_index = function as usize;
+                        info!("Local Func @ {}: {} {}", functions.len(), type_index, function_index);
                         functions.push(FuncInst::Local { type_index, function_index });
                         function_index += 1;
                     }
@@ -257,6 +264,7 @@ impl<'buf, 'env> ModuleInst<'buf> {
             }
             match self.globals[index as usize] {
                 GlobalInst::Local { global_type: _, global_index: _, ref value } => {
+                    info!("set_value @ {:p} = {}", value, new_value);
                     value.set(Value(new_value))
                 },
                 GlobalInst::Import { global_type: _, import_index: _ } => {
