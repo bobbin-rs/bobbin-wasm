@@ -53,13 +53,14 @@ fn delay(ms: u32) {
 
 #[no_mangle]
 pub extern "C" fn main() {
-    let mut i = 0x10u8;
+    let mut i = 0x0u8;
     loop {
-        // write_u8(i);
+        write_str("Hello, World: ");
+        write_u8(i);
         write_str("\n");
-        led(true);
-        delay(500);
-        led(false);
+        // led(true);
+        // delay(500);
+        // led(false);
         delay(500);
         i = i.wrapping_add(1);
     }
