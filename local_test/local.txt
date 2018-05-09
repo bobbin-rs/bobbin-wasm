@@ -1,0 +1,11 @@
+;;; TOOL: run-interp
+(module
+  (func (export "main") (result i32)
+    (local i32)
+    i32.const 5
+    set_local 0
+    get_local 0
+    return))
+(;; STDOUT ;;;
+main() => i32:5
+;;; STDOUT ;;)
