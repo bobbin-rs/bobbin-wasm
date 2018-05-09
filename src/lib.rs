@@ -35,4 +35,4 @@ pub use writer::*;
 pub const MAGIC_COOKIE: u32 = 0x6d736100;
 pub const VERSION: u32 = 0x1;
 pub const FIXUP: u32 = 0xffff_ffff;
-pub const PAGE_SIZE: usize = 64;
+pub const PAGE_SIZE: usize = 65535;
