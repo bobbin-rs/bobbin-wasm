@@ -57,6 +57,14 @@ impl<'a> Interp<'a> {
         self.value_stack.len()
     }
 
+    pub fn dump_stack(&self) {
+        info!("--- stack ---");
+        for i in 0..self.value_stack.len() {
+            info!("{}: {:?}", i, self.value_stack.get(i));
+        }
+        info!("---");
+    }
+
     pub fn call<H: HostHandler>(&mut self, env: &Environment<H>, mi: &ModuleInst, func_index: usize) -> Result<Option<Value>, Error> {
         let code_buf = mi.code().as_ref();                    
 
@@ -78,6 +86,7 @@ impl<'a> Interp<'a> {
         // Set up locals
 
         loop {
+            self.dump_stack();
             if code.pos() >= code.len() {
                 info!("V: {} 0x{:08x}: CODE END {:08x}", self.value_stack.len(), code.pos(), code.len());
                 break;
@@ -251,8 +260,9 @@ impl<'a> Interp<'a> {
                 TEE_LOCAL => {
                     let depth: u32 = code.read_u32()?;
                     info!("TEE_LOCAL: {}", depth);
-                    let src = self.value_stack.peek(0)?.0;
-                    self.value_stack.peek(depth as usize)?.0 = src;
+                    let src = self.value_stack.peek(0)?;
+                    *self.value_stack.pick(depth as usize)? = src;
+                    info!("   <= {}", src.0);                    
                 },                
                 GET_GLOBAL => {
                     let index = code.read_u32()?;
