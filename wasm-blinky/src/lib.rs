@@ -45,7 +45,11 @@ fn write_hex(value: u32) {
 
 static mut LED_STATE: bool = false;
 
-fn led(state: bool) {
+fn led() -> bool {
+    unsafe { LED_STATE }
+}
+
+fn set_led(state: bool) {
     unsafe { 
         LED_STATE = state; 
         host::led(if LED_STATE { 1 } else { 0 })
@@ -53,10 +57,7 @@ fn led(state: bool) {
 }
 
 fn toggle_led() {
-    unsafe { 
-        LED_STATE = !LED_STATE; 
-        host::led(if LED_STATE { 1 } else { 0 })
-    }    
+    set_led(!led())
 }
 
 fn delay(ms: u32) {
