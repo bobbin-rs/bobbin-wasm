@@ -97,6 +97,16 @@ impl<'buf, 'env> ModuleInst<'buf> {
                         function_index += 1;
                     }
                 },
+                Id::Memory => {
+                    let mut mems = section.memory();
+                    while let Some(m) = mems.next()? {
+                        info!("MEMORY: {:?}", m.limits);
+                        info!("growing to {}", m.limits.min);
+                        mem.grow_memory(m.limits.min as i32);
+                        info!("num_pages: {}", mem.num_pages());
+                    }
+
+                }
                 Id::Global => {
                     let mut globs = section.globals();
                     let mut global_index = 0;
