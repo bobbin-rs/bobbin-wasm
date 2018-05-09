@@ -43,8 +43,20 @@ fn write_hex(value: u32) {
     write(buf.as_ref());
 }
 
+static mut LED_STATE: bool = false;
+
 fn led(state: bool) {
-    unsafe { host::led(if state { 1 } else { 0 }) }
+    unsafe { 
+        LED_STATE = state; 
+        host::led(if LED_STATE { 1 } else { 0 })
+    }
+}
+
+fn toggle_led() {
+    unsafe { 
+        LED_STATE = !LED_STATE; 
+        host::led(if LED_STATE { 1 } else { 0 })
+    }    
 }
 
 fn delay(ms: u32) {
@@ -58,9 +70,7 @@ pub extern "C" fn main() {
         write_str("Hello, World: ");
         write_u8(i);
         write_str("\n");
-        // led(true);
-        // delay(500);
-        // led(false);
+        toggle_led();
         delay(500);
         i = i.wrapping_add(1);
     }
