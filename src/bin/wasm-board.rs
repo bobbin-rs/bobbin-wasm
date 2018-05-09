@@ -120,7 +120,7 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     let h = BoardHandler {};
 
-    let buf = &mut [0u8; 8192];
+    let buf = &mut [0u8; 4096 * 1024];
     let (buf, mut env) = Environment::new(buf, h);    
 
     let (buf, mi) = env.load_module(path, buf, data.as_ref())?;
