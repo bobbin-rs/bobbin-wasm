@@ -347,9 +347,9 @@ impl<'c> Compiler<'c> {
     }
 
     fn translate_local_index(&self, local_index: u32) -> Result<u32, Error> {
-        Ok({
-            (self.type_checker.type_stack_size() + self.context.len() - local_index as usize) as u32
-        })
+        let depth = self.type_checker.type_stack_size() as u32 - local_index;
+        info!("translate_local_index: {} {} => {}", self.type_checker.type_stack_size(), local_index, depth);
+        Ok(depth)
     }
 
     fn get_br_drop_keep_count(&mut self, depth: usize) -> Result<(u32, u32), Error> {        
@@ -765,19 +765,16 @@ impl<'c> Compiler<'c> {
                 // Emits OP DEPTH_TO_LOCAL
                 let id = index;
                 let ty = self.context[id as usize];
-                let local_id = match opc {
+                let local_id = self.translate_local_index(id)?;
+                match opc {
                     GET_LOCAL => {                        
-                        let local_id = self.translate_local_index(id)?;
                         self.type_checker.on_get_local(ty)?;
-                        local_id
                     },
                     SET_LOCAL => {
                         self.type_checker.on_set_local(ty)?;
-                        self.translate_local_index(id)?
                     },
                     TEE_LOCAL => {
                         self.type_checker.on_tee_local(ty)?;
-                        self.translate_local_index(id)?
                     }
                     _ => unreachable!()
                 };
