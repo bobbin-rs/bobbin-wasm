@@ -347,8 +347,8 @@ impl<'c> Compiler<'c> {
     }
 
     fn translate_local_index(&self, local_index: u32) -> Result<u32, Error> {
-        info!("translate_local_index: {} {} {}", self.type_checker.type_stack_size(), self.context.locals().len(), local_index);
-        let depth = (self.type_checker.type_stack_size() as u32 + self.context.locals().len() as u32) - 1 - local_index;
+        info!("translate_local_index: {} {} {}", self.type_checker.type_stack_size(), self.context.len(), local_index);
+        let depth = (self.type_checker.type_stack_size() as u32 + self.context.len() as u32) - 1 - local_index;
         info!("  => {}", depth);
         Ok(depth)
     }
