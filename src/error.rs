@@ -23,7 +23,8 @@ pub enum Error {
     TypeCheck(&'static str),
 
     MissingSection { id: Id },
-
+    OutOfMemory,
+    ReservedMemoryArea,
     NoHostFunction,
     NoHostImportFunction,
     InvalidHeader,
