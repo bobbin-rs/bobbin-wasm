@@ -74,6 +74,7 @@ impl HostHandler for BoardHandler {
                 WRITE_FN => {
                     let len = interp.pop()? as usize;
                     let ptr = interp.pop()? as usize;
+                    let ptr = mem.map_addr(ptr)?;
                     let buf = &mem.as_ref()[ptr..ptr+len];
                     stdout().write_all(buf).unwrap();
 
@@ -120,7 +121,7 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     let h = BoardHandler {};
 
-    let buf = &mut [0u8; 4096 * 1024];
+    let buf = &mut [0u8; 65536 * 2];
     let (buf, mut env) = Environment::new(buf, h);    
 
     let (buf, mi) = env.load_module(path, buf, data.as_ref())?;
