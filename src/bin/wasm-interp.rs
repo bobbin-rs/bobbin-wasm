@@ -113,7 +113,7 @@ pub fn run(matches: ArgMatches) -> Result<(), Error> {
 
     let h = Handler {};
 
-    let buf = &mut [0u8; 65536 * 64];
+    let buf = &mut [0u8; 65536 * 2];
     let (buf, mut env) = Environment::new(buf, h);    
 
 
