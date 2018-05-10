@@ -279,12 +279,11 @@ impl<'a> Writer<'a> {
             let end_ptr = cur_ptr.offset(buf_len as isize);
             let val_ptr = buf_ptr.offset(buf_ptr.align_offset(align_of) as isize);
             let new_ptr = val_ptr.offset(size_of as isize);
-            if let Some(new_len) = new_ptr.offset_to(end_ptr) {
-                if new_len < 0 {
-                    return Err(Error::OutOfBounds);
-                } else {
-                    self.buf = slice::from_raw_parts_mut(new_ptr, new_len as usize);                    
-                }
+            let new_len = end_ptr.offset_from(new_ptr);
+            if new_len < 0 {
+                return Err(Error::OutOfBounds);
+            } else {
+                self.buf = slice::from_raw_parts_mut(new_ptr, new_len as usize);                    
             }
             let val_ptr = val_ptr as *mut T;
             ptr::write(val_ptr, value);
