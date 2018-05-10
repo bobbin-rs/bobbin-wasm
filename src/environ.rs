@@ -15,7 +15,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Config {
         Config {
-            memory_pages: 32,
+            memory_pages: 1,
         }
     }
 }
