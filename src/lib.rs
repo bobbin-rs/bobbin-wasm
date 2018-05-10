@@ -23,6 +23,7 @@ pub mod module_inst;
 pub mod environ;
 pub mod floathex;
 pub mod parser;
+pub mod page_table;
 
 use parser::opcode as opcode;
 
