@@ -1,4 +1,3 @@
-use PAGE_SIZE;
 use error::Error;
 use writer::Writer;
 use small_vec::SmallVec;
@@ -9,13 +8,13 @@ use types::{ImportDesc};
 use interp::Interp;
 
 pub struct Config {
-    memory_pages: usize
+    memory_size: usize
 }
 
 impl Default for Config {
     fn default() -> Config {
         Config {
-            memory_pages: 1,
+            memory_size: 8192,
         }
     }
 }
@@ -38,7 +37,7 @@ impl<'env, H: HostHandler> Environment<'env, H> {
     }
 
     pub fn new_with_config(buf: &'env mut [u8], host_handler: H, cfg: Config) -> (&'env mut [u8], Self) {   
-        let (mem_buf, buf) = buf.split_at_mut(cfg.memory_pages * PAGE_SIZE);
+        let (mem_buf, buf) = buf.split_at_mut(cfg.memory_size);
         let mem = MemoryInst::new(mem_buf, 1, None);
         let mut w = Writer::new(buf);
         let modules = w.alloc_smallvec(4);
