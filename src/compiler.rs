@@ -594,7 +594,7 @@ impl<'c> Compiler<'c> {
                 //   CHECK_RESULT(EmitI32(kInvalidIstreamOffset));
                 //   CHECK_RESULT(EmitI32At(fixup_cond_offset, GetIstreamOffset()));                    
                     self.type_checker.on_else()?;
-                    let mut label = self.top_label()?;
+                    let label = self.top_label()?;
 
                     // Get offset of BR_UNLESS OFFSET
                     let fixup_cond_offset = label.fixup_offset;

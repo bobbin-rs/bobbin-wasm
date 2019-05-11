@@ -120,7 +120,7 @@ impl<'a> Interp<'a> {
                     let count = code.read_u32()?;
                     let table_offset = code.read_u32()?;
                     info!("  => count: {} table_offset: {:08x}", count, table_offset);
-                    let mut val = self.pop()?;
+                    let val = self.pop()?;
                     info!("  => value: {}", val);
 
                     let index = if val < 0 || val > count as i32 {

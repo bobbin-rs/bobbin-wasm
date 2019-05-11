@@ -259,7 +259,7 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
             },
             Id::Export => {
                 let mut exports = s.exports();
-                let mut n = 0;
+                let n = 0;
                 while let Some(e) = exports.next()? {
                     let kind = match e.export_desc {
                         ExportDesc::Func(_) => "func",
@@ -271,7 +271,7 @@ pub fn dump_details<W: Write>(out: &mut W, m: &Module) -> Result<(), Error> {
                 }
             },
             Id::Start => {
-                let mut start = s.start()?;
+                let start = s.start()?;
                 writeln!(out, " - start function: {}", start.func_index)?;
             },
             Id::Element => {

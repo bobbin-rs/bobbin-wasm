@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(try_from, ptr_offset_from, align_offset, core_float, core_intrinsics, float_internals)]
+#![feature(ptr_offset_from, core_intrinsics)]
 
 extern crate fallible_iterator;
 extern crate byteorder;
